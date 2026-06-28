@@ -1,0 +1,99 @@
+{
+  "name": "@trustlink/tsn-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./blockchain/*": {
+      "import": "./dist/blockchain/*.js",
+      "types": "./dist/blockchain/*.d.ts"
+    },
+    "./contracts": {
+      "import": "./dist/contracts.js",
+      "types": "./dist/contracts.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client.js",
+      "types": "./dist/client.d.ts"
+    },
+    "./mempool": {
+      "import": "./dist/mempool.js",
+      "types": "./dist/mempool.d.ts"
+    },
+    "./quote": {
+      "import": "./dist/quote.js",
+      "types": "./dist/quote.d.ts"
+    },
+    "./send-estimate": {
+      "import": "./dist/send-estimate.js",
+      "types": "./dist/send-estimate.d.ts"
+    },
+    "./payment-authorization": {
+      "import": "./dist/payment-authorization.js",
+      "types": "./dist/payment-authorization.d.ts"
+    },
+    "./payment-authorization-server": {
+      "import": "./dist/payment-authorization-server.js",
+      "types": "./dist/payment-authorization-server.d.ts"
+    },
+    "./payment-jobs": {
+      "import": "./dist/payment-jobs.js",
+      "types": "./dist/payment-jobs.d.ts"
+    },
+    "./sponsored-settlement": {
+      "import": "./dist/sponsored-settlement.js",
+      "types": "./dist/sponsored-settlement.d.ts"
+    },
+    "./settlement-token": {
+      "import": "./dist/settlement-token.js",
+      "types": "./dist/settlement-token.d.ts"
+    },
+    "./private-settlement": {
+      "import": "./dist/private-settlement.js",
+      "types": "./dist/private-settlement.d.ts"
+    },
+    "./settlement-economics": {
+      "import": "./dist/settlement-economics.js",
+      "types": "./dist/settlement-economics.d.ts"
+    },
+    "./tins": {
+      "import": "./dist/tins.js",
+      "types": "./dist/tins.d.ts"
+    },
+    "./program": {
+      "import": "./dist/program.js",
+      "types": "./dist/program.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts"
+    },
+    "./pru": {
+      "import": "./dist/pru.js",
+      "types": "./dist/pru.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.8.0",
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
+    "buffer": "^6.0.3",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.0",
+    "typescript": "^6.0.3"
+  }
+}
