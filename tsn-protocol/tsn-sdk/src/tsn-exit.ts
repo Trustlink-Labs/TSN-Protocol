@@ -15,10 +15,19 @@ import { sha256 } from "@noble/hashes/sha2";
 // so the associated-token-account creation CPI can be satisfied; the legacy
 // private payout path (private-settlement) is quarantined, NOT this façade.
 
-export const TCAP_PROGRAM_ID = new PublicKey("TcApT4CytBqvqEDpRYVB7Wfi6aFzmtSZdWvDsq6bp9x");
 export const TSN_PROGRAM_ID = new PublicKey("TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V");
 export const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
-export const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbbNbGKPFXCWuBvf9Ss623VQ5DA");
+const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbbNbGKPFXCWuBvf9Ss623VQ5DA");
+
+export function getTcapProgramId(): PublicKey {
+  const value = process.env.TCAP_PROGRAM_ID?.trim();
+  if (!value) throw new Error("TCAP_PROGRAM_ID is required for TSN exit instructions");
+  try {
+    return new PublicKey(value);
+  } catch {
+    throw new Error("TCAP_PROGRAM_ID must be a valid Solana public key");
+  }
+}
 
 const textEncoder = new TextEncoder();
 
@@ -116,7 +125,7 @@ export function buildExitDebitInstruction(params: ExitDebitParams): TransactionI
     keys: [
       { pubkey: pubkey(params.authority), isSigner: true, isWritable: true },
       { pubkey: pubkey(params.motherEscrow), isSigner: false, isWritable: false },
-      { pubkey: TCAP_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: getTcapProgramId(), isSigner: false, isWritable: false },
       { pubkey: pubkey(params.tcapConfig), isSigner: false, isWritable: false },
       { pubkey: pubkey(params.tip), isSigner: false, isWritable: true },
       { pubkey: pubkey(params.reserve), isSigner: false, isWritable: true },
@@ -158,7 +167,7 @@ export function buildExitPayoutInstruction(params: ExitPayoutParams): Transactio
     keys: [
       { pubkey: pubkey(params.authority), isSigner: true, isWritable: true },
       { pubkey: pubkey(params.motherEscrow), isSigner: false, isWritable: false },
-      { pubkey: TCAP_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: getTcapProgramId(), isSigner: false, isWritable: false },
       { pubkey: pubkey(params.tcapConfig), isSigner: false, isWritable: false },
       { pubkey: pubkey(params.reserve), isSigner: false, isWritable: true },
       { pubkey: pubkey(params.assetEntry), isSigner: false, isWritable: false },
@@ -182,7 +191,7 @@ export function buildExitPayoutTransaction(params: ExitPayoutParams): Transactio
 export function deriveExitPermitPda(input: { permitNonce: Uint8Array | string }): PublicKey {
   return PublicKey.findProgramAddressSync(
     [seed("tcap:exit-permit:v1"), bytes32(input.permitNonce, "permitNonce")],
-    TCAP_PROGRAM_ID,
+    getTcapProgramId(),
   )[0];
 }
 

@@ -57,39 +57,8 @@
             "pages": ["operators/tsn-node", "operators/tsn-cranker"]
           },
           {
-            "group": "Developers",
-            "pages": [
-              "developers/tsn-sdk",
-              "developers/tsn-rpc-gateway",
-              "developers/tsn-receiver"
-            ]
-          },
-          {
-            "group": "Reference",
-            "pages": [
-              "reference/tsn-protocol-spec",
-              "reference/tsn-cranker-sdk",
-              "reference/tsn-rpc-gateway",
-              "reference/tsn-receiver"
-            ]
-          },
-          {
-            "group": "Tutorials",
-            "pages": [
-              "tutorials/building-a-tsn-node",
-              "tutorials/building-a-tsn-cranker"
-            ]
-          },
-          {
             "group": "FAQ",
-            "pages": ["faq/general", "faq/developers"]
-          },
-          {
-            "group": "Release Notes",
-            "pages": [
-              "release-notes/tsn-protocol",
-              "release-notes/tsn-cranker-sdk"
-            ]
+            "pages": ["faq"]
           },
           {
             "group": "Concepts",

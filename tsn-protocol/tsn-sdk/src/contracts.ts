@@ -141,6 +141,7 @@ export type TsnTinOperationRecord = {
 
 export type CreateIntentRequest = {
   paymentId: string;
+  recipientPruIndex?: number | null;
   underlyingPayment?: string | null;
   senderWallet?: string | null;
   senderAuthorizationMessage?: string | null;
@@ -177,6 +178,15 @@ export type CreateIntentRequest = {
   recipientTin?: string | null;
 };
 
+export type PruLifecycleMutation = {
+  tinId: string;
+  tokenMint: string;
+  pruIndex: number;
+  transition: "receive" | "spend" | "sweep";
+  txId: string;
+  amount: number;
+};
+
 export type TsnMempoolIntent = CreateIntentRequest & {
   id: string;
   status: TsnIntentStatus;
@@ -185,6 +195,7 @@ export type TsnMempoolIntent = CreateIntentRequest & {
   settlementTxSig?: string | null;
   settlementResolution?: "completed" | "reverted" | null;
   settlementReason?: string | null;
+  pruLifecycle?: PruLifecycleMutation[];
   postedAt: string;
   updatedAt: string;
 };
