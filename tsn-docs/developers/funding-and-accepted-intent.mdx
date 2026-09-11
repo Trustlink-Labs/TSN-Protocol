@@ -33,10 +33,10 @@ Mother authority materializes the one-time `SettlementDna` PDA at the derived op
 
 The `EpochClaimSlot` PDA is derived from epoch treasury \+ opaque slot. Its states are:
 
-| State | Meaning |
-| --- | --- |
-| `SETTLED` | Tokens credited to the recipient tip; slot consumed |
-| `REFUNDED` | Tokens returned to sender ATA; slot consumed |
+| State      | Meaning                                             |
+| ---------- | --------------------------------------------------- |
+| `SETTLED`  | Tokens credited to the recipient tip; slot consumed |
+| `REFUNDED` | Tokens returned to sender ATA; slot consumed        |
 
 Settlement and refund are mutually exclusive. The first valid transaction initializes the slot and wins atomically. A later operation against the same slot fails before any token movement.
 
@@ -77,13 +77,13 @@ An epoch can close only when:
 
 ## Intent state to treasury effect
 
-| Intent state | Treasury effect |
-| --- | --- |
-| `RECEIVED` | None; funding not yet verified |
-| `VERIFIED` | Aggregate pending liability incremented |
-| `SUBMITTED` | Liability remains pending until confirmation |
-| `CONFIRMED` | Liability decremented; slot resolved as `SETTLED` |
-| `REJECTED` | No liability created if funding never verified |
+| Intent state               | Treasury effect                                   |
+| -------------------------- | ------------------------------------------------- |
+| `RECEIVED`                 | None; funding not yet verified                    |
+| `VERIFIED`                 | Aggregate pending liability incremented           |
+| `SUBMITTED`                | Liability remains pending until confirmation      |
+| `CONFIRMED`                | Liability decremented; slot resolved as `SETTLED` |
+| `REJECTED`                 | No liability created if funding never verified    |
 | Expired without settlement | Refund permit issued; slot resolved as `REFUNDED` |
 
 ## Related pages

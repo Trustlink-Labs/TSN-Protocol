@@ -19,9 +19,7 @@ Funding sends tokens only to the epoch treasury token account and increments agg
 
 ## Settlement (payout)
 
-<Note>
-  **Status: Live on Devnet.**
-</Note>
+<Note>**Status: Live on Devnet.**</Note>
 
 Node signs a permit binding:
 
@@ -43,9 +41,7 @@ The cranker cannot change amount, token, recipient binding, commitments, sequenc
 
 ## Refund
 
-<Note>
-  **Status: Live on Devnet.**
-</Note>
+<Note>**Status: Live on Devnet.**</Note>
 
 Refund uses the same opaque slot as settlement. The first valid refund initializes and consumes the slot as `REFUNDED` and pays the authorized refund destination from the epoch treasury. After `SETTLED` or `REFUNDED`, any later operation against the slot fails before token movement.
 
@@ -55,9 +51,7 @@ An epoch can close only when pending liability is zero and every slot is resolve
 
 ## Cranker registration
 
-<Note>
-  **Status: Live on Devnet.**
-</Note>
+<Note>**Status: Live on Devnet.**</Note>
 
 Crankers are registered with the TSN program and each has a program-owned CrankerVault. Crankers can be funded, unfunded, and have a funding policy set. A cranker cannot rewrite a permit.
 
@@ -75,15 +69,15 @@ Crankers are registered with the TSN program and each has a program-owned Cranke
     Payment identity and route discovery.
   </Card>
 
-  <Card title="GPRU" icon="route" href="/layers/gpru">
-    Non-custodial authorization and routing.
-  </Card>
+<Card title="GPRU" icon="route" href="/layers/gpru">
+  Non-custodial authorization and routing.
+</Card>
 
-  <Card title="TCAP" icon="lock" href="/layers/tcap">
-    Private balance accounting: credit, debit, exit.
-  </Card>
+<Card title="TCAP" icon="lock" href="/layers/tcap">
+  Private balance accounting: credit, debit, exit.
+</Card>
 
-  <Card title="Architecture" icon="diagram-project" href="/architecture">
+  <Card title="Architecture" icon="diagram-project" href="/how-it-works/architecture">
     End-to-end sequence diagram.
   </Card>
 </CardGroup>

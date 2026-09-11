@@ -16,9 +16,7 @@ description: "TCAP is the Transfer Confidential Asset Protocol: commitment-backe
 
 ## Credit
 
-<Note>
-  **Status: Live on Devnet.**
-</Note>
+<Note>**Status: Live on Devnet.**</Note>
 
 The credit instruction advances the tip commitment from `previous_commitment` to `new_commitment` under a GPRU-scoped authorization. It carries:
 
@@ -36,7 +34,8 @@ The credit instruction advances the tip commitment from `previous_commitment` to
 <Warning>
   **Status: In development. Not enabled on Devnet.**
 
-  The debit instruction validates structural fields and returns `ProofSystemNotEnabled`. A GPRU signature, hash-only payload, or placeholder proof cannot mutate a tip.
+The debit instruction validates structural fields and returns `ProofSystemNotEnabled`. A GPRU signature, hash-only payload, or placeholder proof cannot mutate a tip.
+
 </Warning>
 
 The debit statement, when enabled, must prove for a private witness `(old_balance, debit_amount, new_balance)`:
@@ -62,7 +61,8 @@ Enabling debit requires an audited proof verifier, registered rate/version rules
 <Warning>
   **Status: In development. Not enabled on Devnet.**
 
-  The exit instruction validates structural fields and returns `ProofSystemNotEnabled`.
+The exit instruction validates structural fields and returns `ProofSystemNotEnabled`.
+
 </Warning>
 
 Exit uses the same conservation equations as debit, plus a destination binding and pool invariants:
@@ -77,9 +77,7 @@ The liquidity pool is protocol and governance controlled. It is not cranker cust
 
 ## Deposit
 
-<Note>
-  **Status: Live on Devnet.**
-</Note>
+<Note>**Status: Live on Devnet.**</Note>
 
 Two deposit paths exist:
 
@@ -88,9 +86,7 @@ Two deposit paths exist:
 
 ## Asset governance
 
-<Note>
-  **Status: Live on Devnet.**
-</Note>
+<Note>**Status: Live on Devnet.**</Note>
 
 TCAP governance instructions manage which SPL mints are approved and what they can do:
 
@@ -114,15 +110,15 @@ Private balance state lives off-chain in encrypted snapshots. The owner device v
     Settlement coordination and epoch treasury.
   </Card>
 
-  <Card title="TIN" icon="id-card" href="/layers/tin">
-    Payment identity and route discovery.
-  </Card>
+<Card title="TIN" icon="id-card" href="/layers/tin">
+  Payment identity and route discovery.
+</Card>
 
-  <Card title="GPRU" icon="route" href="/layers/gpru">
-    Non-custodial authorization and routing.
-  </Card>
+<Card title="GPRU" icon="route" href="/layers/gpru">
+  Non-custodial authorization and routing.
+</Card>
 
-  <Card title="Architecture" icon="diagram-project" href="/architecture">
+  <Card title="Architecture" icon="diagram-project" href="/how-it-works/architecture">
     End-to-end sequence diagram.
   </Card>
 </CardGroup>

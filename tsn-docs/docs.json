@@ -39,13 +39,16 @@
             "group": "Get Started",
             "pages": [
               "overview/introduction",
-              "developers/getting-started",
-              "overview/how-it-works"
+              "developers/getting-started"
             ]
           },
           {
             "group": "How It Works",
-            "pages": ["how-a-payment-feels", "architecture", "faq"]
+            "pages": [
+              "how-it-works/how-a-payment-feels",
+              "how-it-works/architecture",
+              "how-it-works/faq"
+            ]
           },
 
           {
@@ -58,7 +61,7 @@
           },
           {
             "group": "FAQ",
-            "pages": ["faq"]
+            "pages": ["how-it-works/faq"]
           },
           {
             "group": "Concepts",
