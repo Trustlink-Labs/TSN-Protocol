@@ -1,89 +1,82 @@
-# TSN Cross-Chain Architecture
+# Debit → Exit Cross-Chain Architecture
 
-## Boundaries
+## Chain roles
 
-Solana remains the settlement authority for TIN resolution, authorization,
-sealed TIP state, liability accounting, and the two-phase exit. The TSN node is
-an adapter and tracker. Creditcoin is the first EVM destination and leader for
-the cross-chain integration; it is not a replacement vault for Solana.
+Solana is the source accounting chain. Creditcoin is the first EVM settlement
+domain and the source chain for onward EVM messages. A destination EVM network
+is eligible only when its route, payout contract, token, and liquidity
+observation are registered and verified.
 
 ```mermaid
-flowchart LR
-  UI[TIN picker] --> Node[TSN node]
-  Node --> Solana[Solana TSN program]
-  Solana --> Exit[Two-phase exit permit]
-  Exit --> Anchor[Ethereum Sepolia anchor]
-  Anchor --> Worker[Attestcoin proof worker]
-  Worker --> ASC[Creditcoin ASC]
-  ASC --> Receipt[TinExitAttested event]
-  Node --> Payout[Creditcoin payout address]
-  Receipt --> Tracker[TSN receipt tracker]
+flowchart TD
+  Intent[DEBIT INTENT - SVM] --> Attest[Attestcoin SDK + Creditcoin ASC verify selected route liquidity]
+  Attest --> Node[Node validation and authorization]
+  Node --> SolCranker[Cranker Job 1 - Solana submission]
+  SolCranker --> CommitNode[Node confirms debit commitment and authorizes handoff]
+  CommitNode --> Handoff[SVM to EVM settlement handoff]
+  Handoff --> CcCranker[Cranker Job 2 - Creditcoin submission]
+  CcCranker --> Hub[Attestcoin settlement]
+  Hub --> Route[Attestcoin payout message]
+  Route --> Selected[Selected supported EVM network payout execution]
+  Selected --> Vault[Prefunded stablecoin liquidity vault]
+  Vault --> Recipient[Recipient wallet]
 ```
 
-## TIN picker
+## Destination route eligibility
 
-The picker selects a registered settlement domain, not a new identity. A
-destination option contains a chain key, address format, token mapping, and
-adapter capabilities. The UI must validate the address for the selected
-network and show that the Solana debit remains the source operation.
+The Node performs a fast preflight before Solana debit submission. It checks
+the destination allowlist, token mapping, payout contract, expiry, and the most
+recent verified liquidity observation. This prevents an obviously unfunded
+route from being selected.
+
+The cryptographic acceptance boundary is on Creditcoin:
 
 ```text
-TIN -> resolve identity -> choose network -> validate destination address
-    -> request existing TSN exit intent -> authorize on owner device
-    -> node submits exact authorized Solana instructions
+Destination liquidity contract emits LiquidityAvailable
+  -> Attestcoin proof worker uses the official USC proof flow
+  -> DestinationLiquidityASC verifies the source proof through 0x0FD2
+  -> DestinationLiquidityRegistry records the verified observation
+  -> Node can accept the route until the observation expires
 ```
 
-The intent commitment binds the settlement context. Cleartext destination data
-must not be added to the intent-debit instruction merely because the payout is
-cross-chain. The node may carry the destination through the authenticated
-adapter job, subject to the existing authorization and merchant override rules.
+The registry records evidence and reservations; it does not custody
+stablecoins. The destination payout vault remains the source of value.
 
-## Creditcoin exit
+## Creditcoin as source for onward EVM settlement
 
-1. The existing Solana flow creates the exit intent and records the source-side
-   commitment.
-2. The existing payout instruction, `register_tcap_exit_payout_v1`, consumes
-   the authorized permit and pays the configured destination path.
-3. The node records a redacted tracker entry containing settlement ID, source
-   network, destination network, evidence digest, and adapter status.
-4. If an attestation receipt is requested, the node anchors the digest on an
-   EVM source chain supported by Attestcoin and submits the resulting proof to
-   the Creditcoin ASC.
-
-## Evidence payload
-
-The EVM anchor payload is derived from, but does not expose, Solana private
-state:
+After the signed Creditcoin transaction is submitted, the Hub consumes the
+authorized Solana exit commitment and becomes the source of the onward EVM
+instruction. The destination route then uses the Attestcoin message layer for
+the selected network, whether that network is Creditcoin or another supported
+EVM chain:
 
 ```text
-domain = TSN_CROSS_CHAIN_ANCHOR_V1
-settlementId
-sealedTipHeadHash
-amount
-tokenIdentifier
-tinHash
-exitCommitment
-sourceNetwork = solana-devnet
-destinationNetwork = creditcoin-testnet
+Attestcoin settlement
+  -> publish authenticated route instruction
+  -> Attestcoin attestation / relayer delivery
+  -> selected network verifies and executes the Attestcoin message
+  -> selected network's prefunded vault releases stablecoins
+  -> stablecoin transfer to recipient
 ```
 
-The anchor stores or emits a digest of this canonical payload. Creditcoin
-verifies the anchor transaction inclusion; the ASC then checks the decoded
-payload, destination domain, amount, and replay key before emitting a receipt.
+The SDK/proof worker prepares evidence and route data; a relayer delivers a
+message transaction. Neither component creates destination liquidity.
 
-## What is intentionally unchanged
+## Preserved Solana boundaries
 
-There is no Solana program migration in this layer. Sealed TIP overwrite,
-exit-permit commitment, TSN CPI orchestration, Path 1/2 liability movement,
-one-vault custody, liability PDAs, and GPRU-only authorization remain owned by
-the existing Solana implementation.
+This layer does not change sealed TIP-head overwrite, the two-phase exit
+commitment, Path 1/2 debit-credit wiring, the one-vault model, liability PDAs,
+GPRU-only authorization, TSN CPI orchestration, or
+`register_tcap_exit_payout_v1`. Raw TIN values, device keys, and private
+balances are not sent to EVM chains.
 
-## Executable components
+## Implementation status
 
-`SepoliaAnchor.sol` emits the canonical evidence tuple on Ethereum Sepolia.
-`TinExitAttestedASC.sol` inherits the official Attestcoin `ASCBase`, so its
-proof entry point is the standard `execute` method. The ASC decodes the proved
-receipt with `EvmV1Decoder`, checks the anchor emitter, and emits the optional
-receipt exactly once per settlement. The worker performs the documented
-`waitUntilHeightAttested` → `getProof` → `PrecompileBlockProver.verifySingle`
-sequence before submitting the same proof to Creditcoin.
+The direct Creditcoin Hub and the destination route registry/ASC are the
+executable foundation. A concrete Base route still requires deployment of the
+Base liquidity emitter, Base payout contract, supported-chain configuration,
+and the Attestcoin message-route contracts/relayer for that environment.
+
+Official references: [Attestcoin dApp infrastructure](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure),
+[ASC contracts](https://www.npmjs.com/package/%40gluwa/asc-contracts), and the
+[official examples](https://github.com/gluwa/attestcoin-protocol-examples).

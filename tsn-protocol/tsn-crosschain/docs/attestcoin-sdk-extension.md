@@ -1,35 +1,61 @@
 # Attestcoin SDK Extension
 
-This module defines TSN-owned primitives for optional Creditcoin receipts. It
-does not import TCAP or TIN internals. Applications consume the TSN façade and
-provide a destination network plus an EVM address.
+This extension keeps applications on the TSN facade while adding destination
+route and verified-liquidity primitives. Applications do not import TCAP or TIN
+implementation modules directly.
 
-The proof worker should use the official Attestcoin SDK and examples linked from
-the [Attestcoin docs](https://docs.attestcoin.org/attestcoin-protocol/), then
-submit the verified payload to the deployed ASC. Keep proof generation out of
-the browser and never place deployer credentials in the client SDK.
+## Two distinct SDK/protocol paths
 
-## Public primitives
+### Readability: verify destination liquidity
 
-`tsn-protocol/tsn-sdk/src/cross-chain.ts` exports:
+The destination EVM liquidity contract emits a structured event. The Node-side
+proof worker uses the official USC SDK pattern to wait for source-block
+attestation, obtain the proof, and locally verify it with
+`PrecompileBlockProver.verifySingle`. The proof is then submitted to
+`DestinationLiquidityASC` on Creditcoin.
 
-- supported destination network identifiers;
-- a validated Creditcoin destination request;
-- a canonical receipt input shape;
-- a deterministic replay key input shape; and
-- an optional receipt status type.
+The ASC verifies the proof on-chain and records the result in
+`DestinationLiquidityRegistry`. This is the cryptographic route-eligibility
+record that the Node consumes before allowing a payout route.
 
-The primitives deliberately carry hashes and public routing metadata only.
+### Writability: trigger destination payout
 
-## Integration rules
+After Creditcoin consumes the Solana commitment, the Creditcoin-side message
+route publishes an authenticated instruction for the selected EVM network. A
+relayer delivers it to the destination Inbox, which verifies the message and
+invokes the destination payout contract. The payout contract transfers the
+stablecoin from its own prefunded vault.
 
-1. Resolve and authorize the Solana exit through the existing TSN façade.
-2. Call the adapter with the exact sealed TIP head hash and exit commitment
-   returned by the authorized flow.
-3. Treat `TinExitAttested` as an optional receipt status, never as proof that
-   Solana debit or payout still needs to occur.
-4. Correlate receipts by settlement ID and exit commitment.
-5. Reject duplicate receipt keys in the worker and ASC.
+The SDK/proof worker and message relayer do not create liquidity and do not
+replace the destination payout contract.
 
-The façade export is intentionally additive. Existing TSN exports remain
-unchanged, and no app should import TCAP/TIN implementation modules directly.
+## TSN facade primitives
+
+`src/destination-liquidity.ts` provides:
+
+- supported destination EVM route types;
+- deterministic route IDs;
+- the canonical `LiquidityAvailable` event signature and topic;
+- proof-backed observation validation with amount and expiry checks; and
+- a preflight guard that rejects unverified or expired destination liquidity.
+
+The primitives carry route addresses, token identifiers, amounts, nonces,
+expiry values, and hashes. They do not carry raw TIN values, device keys, or
+private balances.
+
+## Operational rules
+
+1. Run the fast destination RPC preflight before the SVM debit intent is
+   submitted.
+2. Require a current Creditcoin registry observation before authorizing an
+   onward destination route.
+3. Bind the destination route, token, recipient, amount, nonce, and expiry to
+   the authenticated settlement instruction.
+4. Let the destination payout contract perform the final balance check and
+   stablecoin transfer atomically.
+5. Keep proof generation and relaying off the browser and out of Solana
+   program logic.
+
+Official references: [Attestcoin dApp infrastructure](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure),
+[ASC contracts](https://www.npmjs.com/package/%40gluwa/asc-contracts), and the
+[official examples](https://github.com/gluwa/attestcoin-protocol-examples).
