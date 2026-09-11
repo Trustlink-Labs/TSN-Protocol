@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
     "deploy": "tsx scripts/deploy.ts",
-    "worker": "tsx worker/tin-exit-attest-worker.ts"
+    "attest:liquidity": "tsx worker/destination-liquidity-attest-worker.ts"
   },
   "dependencies": {
     "@gluwa/asc-contracts": "^0.2.1",

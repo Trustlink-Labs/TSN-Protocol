@@ -1,115 +1,93 @@
-# TSN Cross-Chain Starter
+# TSN Cross-Chain
 
-This folder is the single source of truth for TSN connections to Creditcoin and
-future EVM or non-EVM settlement domains. It describes the adapter boundary; it
-does not replace the Solana programs, TCAP accounting, TIN resolution, or the
-existing two-phase exit flow.
+This folder is the EVM and Attestcoin boundary for TSN. Solana remains the
+source accounting chain for TIN debit commitments, sealed TIP state, two-phase
+exit permits, Path 1/2 liability movement, one-vault custody, and GPRU-only
+authorization. None of those Solana programs are changed here.
 
-## Scope
+## The settlement model
 
-Creditcoin is the first destination domain. Creditcoin is an EVM-compatible
-Layer 1 with native CTC and smart-contract support. Its official resources are
-[Creditcoin](https://creditcoin.org/), [developer docs](https://docs.creditcoin.org/),
-[Deploy / Attestcoin](https://creditcoin.org/Deploy), and the
-[explorer](https://explorer.creditcoin.org/).
-
-[Attestcoin](https://docs.attestcoin.org/attestcoin-protocol/) is Creditcoin's
-cross-chain protocol. Its documented readability path verifies EVM transaction
-inclusion using Merkle and continuity proofs through the Block Prover precompile
-at `0x0000000000000000000000000000000000000FD2`. See the
-[architecture](https://docs.attestcoin.org/attestcoin-protocol/architecture),
-[readability](https://docs.attestcoin.org/attestcoin-protocol/readability),
-[writability](https://docs.attestcoin.org/attestcoin-protocol/writability),
-[environments](https://docs.attestcoin.org/attestcoin-protocol/environments),
-and [dApp builder](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure).
-
-## Integration story
-
-The user chooses a destination network from a TIN picker: Solana, Creditcoin,
-Base, Ethereum, or another network supported by a registered TSN adapter. The
-Solana side still performs the existing authorized debit and payout flow. For a
-Creditcoin destination, the node translates the finalized Solana evidence into
-a destination-specific payload and routes the payout to the selected EVM
-address.
-
-Attestcoin does not currently prove a Solana transaction directly through its
-EVM Block Prover path. The deployable proof-shaped route is therefore:
+Creditcoin is the first EVM settlement domain and the source chain for onward
+EVM instructions. The user selects a destination network, but TSN accepts the
+route only when the network, payout contract, token, and destination liquidity
+are registered and proof-backed.
 
 ```text
-Solana two-phase exit
-  -> TSN node observes the finalized exit evidence
-  -> Ethereum Sepolia anchor records the evidence digest
-  -> Attestcoin proof worker obtains the EVM inclusion proof
-  -> Creditcoin ASC verifies the proof through 0x0FD2
-  -> optional TinExitAttested receipt is emitted on Creditcoin
+SVM debit intent
+  -> Node validates route and destination-liquidity readiness
+  -> Creditcoin consumes the authorized Solana commitment
+  -> Creditcoin publishes an authenticated destination instruction
+  -> Attestcoin route delivers it to the selected EVM payout contract
+  -> destination vault pays the recipient in stablecoin
 ```
 
-The receipt is optional and informational. It does not mint raw TIN, create a
-second liability, move Solana funds, or change the Solana debit/credit path.
+The direct Creditcoin route uses the funded `CreditcoinSettlementHub`. An
+other-EVM route uses a destination payout vault. Native CTC or the destination
+chain's native token pays gas; stablecoins are the settlement value.
 
-## Preserved invariants
+## What Attestcoin verifies
 
-- Sealed TIP head remains an in-place 48-byte encrypted value plus its commit.
-- Exit intent records the commitment; payout consumes the permit without a
-  source TIP argument.
-- Path 1 deposit-credit and Path 2 debit-credit liability wiring remains in the
-  Solana program.
-- The one-vault model and liability PDA remain authoritative.
-- GPRU remains authorization and routing only; it never becomes a token account
-  or balance container.
-- Secondary chains receive an evidence digest and destination address, never a
-  raw TIN or Solana private state.
+The official Attestcoin readability pattern uses a source-chain contract that
+emits a structured event, an off-chain proof worker, a Creditcoin ASC, and the
+native Block Prover precompile at `0x0FD2`. The ASC verifies the Merkle and
+continuity proofs and then executes Creditcoin business logic. See the
+[official dApp infrastructure](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure).
 
-## Environment policy
+For TSN, a destination liquidity contract emits a structured
+`LiquidityAvailable` observation. `DestinationLiquidityASC.sol` verifies that
+source event and records it in `DestinationLiquidityRegistry.sol`. The registry
+does not custody funds; it records which routes are supported and which
+liquidity observations are currently valid.
 
-Testing is devnet/testnet-only. Do not use localnet and do not publish mainnet
-addresses from this starter. Contract addresses, chain IDs, proof-builder URLs,
-and transaction hashes belong in deployment records after a real test run.
+The SDK/proof worker does not create liquidity. The destination vault supplies
+the stablecoins. The destination route must be supported by Attestcoin and have
+an approved payout contract before TSN accepts it.
 
-See [architecture.md](./architecture.md),
-[attestation-protocol.md](./attestation-protocol.md), and
-[creditcoin-integration.md](./creditcoin-integration.md) for the operating
-model. The TypeScript façade is in
-[the TSN SDK cross-chain module](../../tsn-sdk/src/cross-chain.ts), with the
-protocol notes in [attestcoin-sdk-extension.md](./attestcoin-sdk-extension.md).
+## Contracts
 
-## Executable happy path
+- `CreditcoinSettlementHub.sol`: direct Creditcoin stablecoin reserve, signed
+  Solana commitment consumption, replay protection, and payout.
+- `DestinationLiquidityRegistry.sol`: supported EVM route registry, proof-backed
+  liquidity observations, and reservation accounting for onward settlements.
+- `DestinationLiquidityASC.sol`: the TSN Attestcoin Smart Contract deployed on
+  Creditcoin. It verifies a registered EVM liquidity event via the Creditcoin
+  native verifier and records the observation in the registry.
+- `../worker/destination-liquidity-attest-worker.ts`: uses `@gluwa/usc-sdk` to
+  wait for source attestation, obtain the proof, locally verify it, and submit
+  it to the liquidity ASC.
+- `future/BasePayoutVault.sol`: destination-vault template; it is not a claim
+  that Base liquidity already exists.
 
-The executable pieces are under `../contracts/`, `../worker/`, and `../scripts/`:
+## Deployment policy
 
-- `../contracts/SepoliaAnchor.sol` records the canonical public evidence tuple and
-  emits `TinExitAnchored`.
-- `../contracts/TinExitAttestedASC.sol` follows the official `ASCBase` and
-  `EvmV1Decoder` pattern. Its inherited `execute` verifies the Sepolia proof
-  through Creditcoin's native verifier at `0x0FD2`, then emits
-  `TinExitAttested` with replay protection.
-- `../worker/tin-exit-attest-worker.ts` uses `@gluwa/usc-sdk` to wait for
-  attestation, call `getProof`, locally run `PrecompileBlockProver.verifySingle`,
-  and submit the proof to the ASC.
-
-The implementation follows the [official Attestcoin SDK](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure/attestcoin-sdk-usc-sdk)
-and [custom-contract example](https://github.com/gluwa/attestcoin-protocol-examples/tree/main/bridge/custom-contracts-bridging).
-
-### One-command testnet deployment
-
-From `tsn-protocol/tsn-crosschain/`, copy `.env.example` to `.env`, provide a throwaway funded
-testnet key and Sepolia RPC URL, then run:
+Testing is Creditcoin CC3 Testnet/devnet and supported EVM testnets only. Localnet
+is forbidden. `scripts/deploy.ts` deploys the Hub, destination-liquidity
+registry, and the TSN Attestcoin Smart Contract, then writes deployment addresses to
+`deployments/latest.json`. A destination route still requires explicit
+`configureRoute` configuration and a verified liquidity observation before it
+is eligible.
 
 ```powershell
+cd tsn-protocol/tsn-crosschain
+Copy-Item .env.example .env
 npm install
+npm run build
 npm run deploy
 ```
 
-The deployer rejects localnet URLs and requires Ethereum Sepolia chain ID
-`11155111` plus CC3 Testnet chain ID `102031`. It writes addresses to
-`deployments/latest.json`; no address or transaction hash is considered live
-until this command succeeds.
+Do not publish addresses or transaction hashes until the command succeeds on
+the intended testnet.
 
-After anchoring a real test exit, set `ANCHOR_TX_HASH` in `.env` and run:
+## Official resources
 
-```powershell
-npm run worker
-```
+- [Creditcoin](https://creditcoin.org/)
+- [Creditcoin Deploy / Attestcoin](https://creditcoin.org/Deploy)
+- [Creditcoin docs](https://docs.creditcoin.org/)
+- [Attestcoin Protocol](https://docs.attestcoin.org/attestcoin-protocol)
+- [Attestcoin dApp infrastructure](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure)
+- [Attestcoin ASC contracts](https://www.npmjs.com/package/%40gluwa/asc-contracts)
+- [Attestcoin examples](https://github.com/gluwa/attestcoin-protocol-examples)
 
-The worker prints the Sepolia anchor transaction and Creditcoin attestation
-transaction. Do not replace those values with examples in public material.
+The TSN facade remains in
+[`tsn-protocol/tsn-sdk/src/cross-chain.ts`](../../tsn-sdk/src/cross-chain.ts)
+and does not expose direct TCAP or TIN implementation imports.

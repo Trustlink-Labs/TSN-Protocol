@@ -1,65 +1,55 @@
-# TinExitAttested Protocol
+# Destination Liquidity Attestation and Payout
 
-`TinExitAttested` is an optional Creditcoin receipt for a TIN-paid exit. It is
-not a bridge, a second balance, or a replacement for Solana settlement.
+## Purpose
 
-## Receipt flow
+TSN uses Attestcoin to restrict onward EVM payouts to supported routes with
+proof-backed destination liquidity. The attestation is evidence and message
+authorization; it is not the stablecoin value.
+
+## Readability path
+
+1. A destination liquidity contract emits `LiquidityAvailable`.
+2. The proof worker waits for source-chain block attestation.
+3. The worker obtains Merkle and continuity proofs through the official USC
+   SDK/Proof Builder flow.
+4. `DestinationLiquidityASC` verifies the proof through Creditcoin's native
+   verifier at `0x0FD2`.
+5. The ASC checks the registered route, source emitter, token, event, nonce,
+   and expiry.
+6. `DestinationLiquidityRegistry` records the verified observation.
+
+## Writability/payout path
+
+After Creditcoin consumes the authorized Solana commitment:
 
 ```text
-1. Solana completes the existing authorized two-phase exit.
-2. Node derives the sealed TIP head hash, amount, TIN hash, and exit commitment.
-3. Node publishes the canonical digest to the configured EVM anchor.
-4. Worker waits for the supported source block to be attested.
-5. Worker obtains Merkle and continuity proofs using the Attestcoin SDK.
-6. Creditcoin ASC verifies the proof through Block Prover 0x0FD2.
-7. ASC rejects a replay and emits TinExitAttested.
+Creditcoin Hub
+  -> authenticated destination message
+  -> Attestcoin relayer
+  -> destination Inbox
+  -> destination payout contract
+  -> destination stablecoin vault
 ```
 
-The official Attestcoin entry points are the
-[protocol overview](https://docs.attestcoin.org/attestcoin-protocol/),
-[architecture](https://docs.attestcoin.org/attestcoin-protocol/architecture),
-and [Deploy guide](https://creditcoin.org/Deploy). The worker must follow the
-published SDK and example-repository ABI rather than guessing a raw precompile
-signature.
+The destination payout contract performs the final balance and replay checks
+and transfers stablecoins to the recipient. No raw TIN or private Solana state
+is included in the destination message.
 
-## Event shape
+## Replay and freshness
 
-```solidity
-event TinExitAttested(
-    bytes32 indexed sealedTipHeadHash,
-    uint256 amount,
-    bytes32 indexed tinHash,
-    bytes32 indexed exitCommitment,
-    bytes32 settlementId,
-    uint256 sourceBlock,
-    bytes32 sourceTransaction
-);
-```
+`DestinationLiquidityRegistry` rejects duplicate/non-monotonic liquidity
+nonces, expires observations, and tracks route reservations by settlement ID.
+The destination payout contract must independently reject duplicate message IDs
+and expired instructions. Creditcoin settlement IDs and exit commitments remain
+the correlation keys back to Solana.
 
-The event contains hashes and settlement metadata only. It never contains a
-raw TIN, sealed TIP plaintext, device key, seed, or private balance.
+## Scope boundary
 
-## Merchant override
+The direct Creditcoin payout still uses the existing signed
+`CreditcoinSettlementHub` authorization and does not require a destination
+message. The Attestcoin route is used when Creditcoin is coordinating a payout
+to another supported EVM network.
 
-A merchant may request a receipt when creating a payment intent:
-
-```typescript
-const intentPolicy = {
-  destinationNetwork: "creditcoin-testnet",
-  destinationAddress: "0x...",
-  requestTinExitAttestation: true,
-  merchantOverride: true,
-};
-```
-
-The override is a policy flag for receipt creation. It does not authorize a
-different amount, token, recipient, commitment, expiry, or destination than the
-owner-authorized Solana intent. If the receipt path is unavailable, the node
-must report attestation failure separately from the already-authorized Solana
-settlement result.
-
-## Back-reference
-
-The TSN tracker links the Creditcoin receipt to the Solana settlement ID and
-exit commitment. This is an off-chain correlation record; it does not modify the
-Solana debit, payout, liability PDA, or private TIP state.
+Official references: [Attestcoin dApp infrastructure](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure),
+[ASC contracts](https://www.npmjs.com/package/%40gluwa/asc-contracts), and the
+[official examples](https://github.com/gluwa/attestcoin-protocol-examples).

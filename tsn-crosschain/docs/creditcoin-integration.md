@@ -1,67 +1,86 @@
 # Creditcoin Integration
 
-## Destination model
+## Creditcoin's role
 
-Creditcoin is the leader destination for the first cross-chain adapter. The
-user selects `creditcoin-testnet` and supplies an EVM `0x` address. The adapter
-must reject a malformed address, unsupported token mapping, wrong network, or
-missing destination capability before submitting work.
+Creditcoin is the first funded EVM settlement domain and the source chain for
+onward supported-EVM payout instructions. It does not replace Solana as the
+source accounting chain and does not receive raw TIN values or private device
+state.
 
-Creditcoin's official documentation describes its EVM compatibility and testnet
-environment. Use [Creditcoin docs](https://docs.creditcoin.org/), the
-[testnet environment](https://docs.creditcoin.org/environments/testnet), and
-[Deploy](https://creditcoin.org/Deploy) for current RPC and deployment values.
+Official references are [Creditcoin](https://creditcoin.org/),
+[Creditcoin docs](https://docs.creditcoin.org/), and the
+[Deploy / Attestcoin overview](https://creditcoin.org/Deploy).
 
-## No direct Solana bridge
+## Route admission
 
-The TSN node translates Solana settlement evidence into an EVM-compatible
-anchor payload. This is an adapter and evidence path, not a custody bridge. No
-Solana program is asked to understand EVM calldata, and no Creditcoin contract
-is given a raw TIN or Solana private state.
+A TIN picker option is not enabled merely because it has an EVM address. The
+route must have:
 
-Because Attestcoin's documented Block Prover path is EVM-oriented, the first
-receipt path uses an Ethereum Sepolia anchor before Creditcoin proof
-verification. Future source-chain support can add another adapter without
-changing the Solana exit contract.
+- a supported source chain key and decoder;
+- an approved source liquidity emitter;
+- an approved destination payout vault/contract;
+- a configured settlement token; and
+- a current proof-backed liquidity observation.
 
-## Account and vault model
+`DestinationLiquidityRegistry` stores this route configuration. A registered
+ASC can call `recordVerifiedLiquidity` only after the source-chain event has
+been verified by the native Creditcoin proof verifier. The observation expires
+and carries a monotonic nonce so stale liquidity cannot silently remain valid.
 
-The destination address is an external Creditcoin EVM account selected by the
-user or merchant. It does not become a Solana vault authority, liability PDA,
-GPRU identity, or TIN record. Solana remains the accounting source of truth.
+## Liquidity verification
 
-The one-vault model is preserved. The cross-chain layer adds only destination
-metadata, adapter state, and optional receipt correlation. It does not add an
-escrow, a second vault, a raw-TIN account, or a substitute liability ledger.
+The destination liquidity contract emits:
 
-## Exit sequence
-
-```text
-TIN picker
-  -> owner-authorized Solana exit intent
-  -> tsn_register_tcap_exit_debit_v1
-  -> node validates permit and destination adapter
-  -> register_tcap_exit_payout_v1
-  -> Creditcoin payout/receipt adapter
-  -> optional TinExitAttested tracker reference
+```solidity
+LiquidityAvailable(
+    bytes32 indexed routeId,
+    address indexed token,
+    uint256 availableAmount,
+    uint256 nonce,
+    uint256 validUntil
+)
 ```
 
-The payout path must use the existing `register_tcap_exit_payout_v1` builder
-and its current permit commitment semantics. This folder does not alter its
-accounts, discriminator, sealed-head behavior, or liability wiring.
+The official Attestcoin worker pattern waits for source-block attestation,
+requests a proof from the Proof Builder, and submits the proof to the
+Creditcoin ASC. `DestinationLiquidityASC` verifies the source emitter, route,
+token, event, and proof before recording the observation. See the
+[official dApp infrastructure](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure).
 
-## Testing policy
+The Node may also perform a fast destination RPC preflight before submitting
+the Solana intent. That is a UX and risk-reduction check; the Creditcoin ASC
+and destination payout contract remain the cryptographic/on-chain boundaries.
 
-Use Solana devnet and Creditcoin testnet/devnet only. Keep RPC URLs, deployer
-keys, contract addresses, and proof-builder configuration in deployment-specific
-secrets or `.env` files outside this documentation folder. Never commit private
-keys or claim a live receipt without a transaction hash.
+## Settlement sequence
 
-## Executable adapter files
+```text
+TIN picker selects supported EVM route
+  -> Node checks route + current verified liquidity
+  -> existing owner-authorized SVM debit intent
+  -> Cranker Job 1 submits Solana transaction
+  -> Node validates the Solana debit commitment
+  -> Cranker Job 2 submits the authorized Creditcoin transaction
+  -> CreditcoinSettlementHub consumes the commitment
+  -> Creditcoin pays directly, or publishes an onward EVM instruction
+  -> destination Inbox/payout contract pays from its stablecoin vault
+```
 
-The Sepolia anchor is deployed with `scripts/deploy.ts` alongside the ASC. The
-ASC links the registered source anchor address at construction time and accepts
-only the `TinExitAnchored` event signature from that address. The worker then
-submits the proof using the official `@gluwa/usc-sdk` and the standard
-`ASCBase.execute` argument layout. This completes the optional receipt path
-without changing `register_tcap_exit_payout_v1` or any Solana account model.
+The direct Creditcoin route uses `CreditcoinSettlementHub` and its configured
+ERC-20 settlement token. Native CTC pays gas only. An onward route never treats
+an Attestcoin message as value; its destination vault supplies the stablecoin.
+
+The existing Solana payout builder and
+`register_tcap_exit_payout_v1` remain unchanged. This EVM layer adds route
+metadata, verified liquidity observations, reservations, and destination
+message state only.
+
+## Deployment and test policy
+
+Use Creditcoin CC3 Testnet/devnet and supported EVM testnets only. Do not use
+localnet. `scripts/deploy.ts` deploys the Creditcoin Hub, the destination
+liquidity registry, and the liquidity ASC. Each destination route must then be
+configured explicitly; deployment alone does not enable Base or Ethereum.
+
+The proof and message infrastructure must follow the official
+[ASC contracts](https://www.npmjs.com/package/%40gluwa/asc-contracts) and
+[Attestcoin examples](https://github.com/gluwa/attestcoin-protocol-examples).

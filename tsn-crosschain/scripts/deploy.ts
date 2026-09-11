@@ -15,77 +15,103 @@ function required(name: string): string {
   return value;
 }
 
-function assertNoLocalnet(url: string, name: string): void {
+function assertNoLocalnet(url: string): void {
   if (/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(url)) {
-    throw new Error(`${name} must use devnet/testnet; localnet is forbidden`);
+    throw new Error("Creditcoin deployment must use devnet/testnet; localnet is forbidden");
   }
 }
 
 function importResolver(importPath: string): { contents?: string; error?: string } {
   const candidates = [
+    join(root, "contracts", importPath),
     join(root, "node_modules", importPath),
-    join(root, "node_modules", "@gluwa", "asc-contracts", "contracts", importPath),
+    join(root, "node_modules", "@gluwa", "asc-contracts", "node_modules", importPath),
   ];
   for (const candidate of candidates) {
     try {
       return { contents: readFileSync(candidate, "utf8") };
     } catch {
-      // Try the next package-relative resolution candidate.
+      // Continue through package-relative candidates.
     }
   }
   return { error: `Import not found: ${importPath}` };
 }
 
-async function compile(fileName: string): Promise<{ abi: any[]; bytecode: string }> {
+async function compile(fileName: string, contractName: string): Promise<{ abi: any[]; bytecode: string }> {
   const source = await readFile(join(root, "contracts", fileName), "utf8");
   const input = {
     language: "Solidity",
     sources: { [fileName]: { content: source } },
     settings: {
       optimizer: { enabled: true, runs: 200 },
+      viaIR: true,
       outputSelection: { "*": { "*": ["abi", "evm.bytecode.object"] } },
     },
   };
   const output = JSON.parse(solc.compile(JSON.stringify(input), { import: importResolver }));
   const errors = (output.errors ?? []).filter((item: { severity: string }) => item.severity === "error");
   if (errors.length > 0) throw new Error(errors.map((item: { formattedMessage: string }) => item.formattedMessage).join("\n"));
-  const contractName = fileName.replace(/\.sol$/, "");
   const artifact = output.contracts[fileName][contractName];
-  if (!artifact?.evm?.bytecode?.object) throw new Error(`No bytecode generated for ${contractName}`);
+  if (!artifact?.evm?.bytecode?.object) throw new Error(`No ${contractName} bytecode generated`);
   return { abi: artifact.abi, bytecode: `0x${artifact.evm.bytecode.object}` };
 }
 
 async function main(): Promise<void> {
-  const sepoliaRpc = required("SEPOLIA_RPC_URL");
-  const creditcoinRpc = required("CREDITCOIN_RPC_URL");
+  const rpcUrl = required("CREDITCOIN_RPC_URL");
   const privateKey = required("DEPLOYER_PRIVATE_KEY");
-  assertNoLocalnet(sepoliaRpc, "SEPOLIA_RPC_URL");
-  assertNoLocalnet(creditcoinRpc, "CREDITCOIN_RPC_URL");
+  assertNoLocalnet(rpcUrl);
 
-  const sepolia = new JsonRpcProvider(sepoliaRpc);
-  const creditcoin = new JsonRpcProvider(creditcoinRpc);
-  const [sepoliaNetwork, creditcoinNetwork] = await Promise.all([sepolia.getNetwork(), creditcoin.getNetwork()]);
-  if (sepoliaNetwork.chainId !== 11155111n) throw new Error(`Expected Ethereum Sepolia (11155111), got ${sepoliaNetwork.chainId}`);
-  if (creditcoinNetwork.chainId !== 102031n) throw new Error(`Expected CC3 Testnet (102031), got ${creditcoinNetwork.chainId}`);
+  const provider = new JsonRpcProvider(rpcUrl);
+  const network = await provider.getNetwork();
+  if (network.chainId !== 102031n) {
+    throw new Error(`Expected Creditcoin CC3 Testnet (102031), got ${network.chainId}`);
+  }
 
-  const sepoliaWallet = new Wallet(privateKey, sepolia);
-  const creditcoinWallet = new Wallet(privateKey, creditcoin);
-  const anchorArtifact = await compile("SepoliaAnchor.sol");
-  const anchor = await new ContractFactory(anchorArtifact.abi, anchorArtifact.bytecode, sepoliaWallet).deploy();
-  await anchor.waitForDeployment();
-  const anchorAddress = await anchor.getAddress();
+  const deployer = new Wallet(privateKey, provider);
+  const signer = process.env.CREDITCOIN_AUTHORIZATION_SIGNER ?? deployer.address;
+  const feeRecipient = process.env.CREDITCOIN_FEE_RECIPIENT ?? deployer.address;
+  const feeBps = BigInt(process.env.CREDITCOIN_FEE_BPS ?? "10");
+  const settlementToken = required("CREDITCOIN_SETTLEMENT_TOKEN");
+  const registryArtifact = await compile("DestinationLiquidityRegistry.sol", "DestinationLiquidityRegistry");
+  const registry = await new ContractFactory(registryArtifact.abi, registryArtifact.bytecode, deployer).deploy(deployer.address);
+  const registryDeploymentTx = registry.deploymentTransaction();
+  await registry.waitForDeployment();
+  const registryAddress = await registry.getAddress();
 
-  const ascArtifact = await compile("TinExitAttestedASC.sol");
-  const asc = await new ContractFactory(ascArtifact.abi, ascArtifact.bytecode, creditcoinWallet).deploy(anchorAddress);
+  const ascArtifact = await compile("DestinationLiquidityASC.sol", "DestinationLiquidityASC");
+  const asc = await new ContractFactory(ascArtifact.abi, ascArtifact.bytecode, deployer).deploy(registryAddress);
+  const ascDeploymentTx = asc.deploymentTransaction();
   await asc.waitForDeployment();
   const ascAddress = await asc.getAddress();
+  await (await (registry as any).setLiquidityASC(ascAddress)).wait();
+
+  const hubArtifact = await compile("CreditcoinSettlementHub.sol", "CreditcoinSettlementHub");
+  const hub = await new ContractFactory(hubArtifact.abi, hubArtifact.bytecode, deployer).deploy(signer, feeRecipient, feeBps, settlementToken);
+  const hubDeploymentTx = hub.deploymentTransaction();
+  await hub.waitForDeployment();
+  const hubAddress = await hub.getAddress();
+  await (await (registry as any).setSettlementHub(hubAddress)).wait();
 
   const deployment = {
-    sourceNetwork: "ethereum-sepolia",
-    destinationNetwork: "creditcoin-testnet",
-    sourceChainKey: 1,
-    sepoliaAnchor: anchorAddress,
-    creditcoinAsc: ascAddress,
+    chain: "creditcoin-cc3-testnet",
+    chainId: Number(network.chainId),
+    settlementHub: hubAddress,
+    destinationLiquidityRegistry: registryAddress,
+    destinationLiquidityASC: ascAddress,
+    attestcoinSmartContract: ascAddress,
+    authorizationSigner: signer,
+    feeRecipient,
+    feeBps: feeBps.toString(),
+    settlementToken,
+    deploymentTxs: {
+      settlementHub: hubDeploymentTx?.hash ?? null,
+      destinationLiquidityRegistry: registryDeploymentTx?.hash ?? null,
+      destinationLiquidityASC: ascDeploymentTx?.hash ?? null,
+    },
+    liquidityAsset: "creditcoin-stablecoin",
+    enabledDestinationNetworks: ["creditcoin-testnet"],
+    supportedDestinationNetworks: ["base", "ethereum"],
+    routeStatus: "registry deployed; each destination route requires configureRoute and a verified liquidity observation",
     deployedAt: new Date().toISOString(),
   };
   const deploymentDir = join(root, "deployments");
