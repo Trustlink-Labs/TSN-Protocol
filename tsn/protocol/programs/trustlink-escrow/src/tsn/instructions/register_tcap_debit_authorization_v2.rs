@@ -13,6 +13,7 @@ pub struct RegisterTcapDebitAuthorizationV2Args {
     pub previous_commitment: [u8; 32], pub new_commitment: [u8; 32], pub sequence: u64,
     pub token_id: u32, pub policy_commitment: [u8; 32], pub gpru_scope_commitment: [u8; 32],
     pub nullifier: [u8; 32], pub debit_amount: u64,
+    pub sealed: [u8; 48], pub seal_commitment: [u8; 32],
 }
 
 #[derive(Accounts)]
@@ -60,6 +61,7 @@ pub fn handler(ctx: Context<RegisterTcapDebitAuthorizationV2>, args: RegisterTca
         gpru_scope_commitment: args.gpru_scope_commitment,
         nullifier: args.nullifier,
         debit_amount: args.debit_amount,
+        sealed: args.sealed, seal_commitment: args.seal_commitment,
       },
     });
     let ix = Instruction { program_id: TCAP_DEBIT_PROGRAM_ID, accounts: vec![

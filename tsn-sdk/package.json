@@ -137,6 +137,10 @@
     "./gpru": {
       "import": "./dist/gpru.js",
       "types": "./dist/gpru.d.ts"
+    },
+    "./tsn-exit": {
+      "import": "./dist/tsn-exit.js",
+      "types": "./dist/tsn-exit.d.ts"
     }
   },
   "scripts": {

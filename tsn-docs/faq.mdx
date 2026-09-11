@@ -1,0 +1,89 @@
+---
+title: "TSN FAQ: Privacy Boundaries, Deployment Status, TCAP"
+sidebarTitle: "FAQ"
+description: "Common questions about the Transfer Settlement Network by TrustLink Labs: privacy boundaries, deployment status, TCAP, TIN, GPRU, and the debit gate."
+---
+
+**In plain English:** Answers to the questions that come up most often about the Transfer Settlement Network. If the answer here contradicts something on the [Architecture](/architecture) page, the Architecture page is canonical.
+
+## What is TSN?
+
+TSN is the Transfer Settlement Network. It is settlement and authorization coordination infrastructure built by TrustLink Labs. It runs on Solana Devnet today.
+
+## Is TSN the same thing as TrustLink Labs?
+
+No. TrustLink Labs is the team. The Transfer Settlement Network is the protocol.
+
+## Is TSN a bridge?
+
+No. Cross-network settlement uses a correspondent-bank model: Solana authorizes, Sepolia publishes, Attestcoin proves, Creditcoin settles. There are no wrapped tokens and no cross-chain message passing.
+
+## Is TSN a mixer?
+
+No. Every payout is authorized by a specific Mother-rooted DNA permit. The Node/Mother holds the encrypted payment binding. Payments can be audited by the parties holding the settlement DNA and the encrypted binding.
+
+## What is deployed on Devnet?
+
+- **TSN program.** Handles epoch treasury, opaque slot settlement, cranker registration, and TCAP authorization registration.
+- **TCAP program.** Handles asset governance, TIN-TIP credits, GPRU debits (gated), and deposits.
+- **TIN Registrar.** Identity resolution and TIN-scoped PDAs.
+- **Stable TCAP Faucet.** Devnet-only test mint.
+
+## What is GPRU?
+
+GPRU is non-custodial authorization and routing. It carries scoped permissions, commitments, expiry, and replay material. It never holds funds, balances, or custody keys. A GPRU signature alone cannot move custody.
+
+## What is TIN?
+
+TIN is the payment identity. It binds identity ownership to a privacy-receiving root and the TCAP route without becoming a token account or private key.
+
+## What is TCAP?
+
+TCAP is the Transfer Confidential Asset Protocol. It is private balance accounting: commitment-backed tips plus encrypted owner snapshots. Balances live off-chain in encrypted snapshots. On-chain state stores only opaque commitments and sequence values.
+
+## Who is the Mother?
+
+Mother is the authorization root that signs DNA permits. Every settlement is bound to a Mother-rooted permit that carries the opaque slot, commitment digest, nullifier, recipient, mint, amount, and lease.
+
+## What is on-chain and what is not?
+
+**On-chain:** governed program accounts, opaque commitments, sequence values, token IDs, scoped authorization commitments, validity windows, `EpochClaimSlot` state (`SETTLED` or `REFUNDED`).
+
+**Not on-chain:** plaintext receiving roots, private balance values, master seeds, snapshot plaintext, payment intent IDs, recipient TINs inside the TCAP transition.
+
+## Can a cranker rewrite a payment?
+
+No. The cranker submits the exact leased work. It cannot change amount, token, recipient binding, commitments, sequence, policy, nullifier, or expiry. Any change breaks the Mother-rooted permit.
+
+## What happens if a payment does not settle?
+
+If the intent expires without settlement, Node/Mother signs a refund against the same opaque slot. The first valid refund initializes and consumes the slot as `REFUNDED` and pays the authorized refund destination from the epoch treasury. First-writer-wins: after `SETTLED` or `REFUNDED`, any later operation against the slot fails before token movement.
+
+## Why is confidential debit disabled?
+
+Live confidential debit and exit return `ProofSystemNotEnabled`. A GPRU signature, hash-only payload, or placeholder proof cannot spend, exit, mutate a tip, or drain a liquidity pool. Enabling spend requires an audited proof verifier, commitment opening and successor checks, nullifier consumption, destination binding for exits, and protocol liquidity invariants. None of these are turned on today.
+
+## What about ZK-PRU?
+
+Retired. It was an earlier receiving and spending experiment, replaced by TIN privacy-receiving root, GPRU authorization, and TCAP encrypted snapshots. Historical material only.
+
+## Is TSN audited?
+
+Not yet. Do not use with real funds. Devnet only.
+
+## Where is the source?
+
+- Docs source: `bigdreamsweb3/tsn-docs`
+- Protocol source: `bigdreamsweb3/trustlink-pay`
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Introduction" icon="house" href="/">
+    Back to the overview.
+  </Card>
+
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    The canonical TIN, GPRU, TSN, TCAP model.
+  </Card>
+</CardGroup>

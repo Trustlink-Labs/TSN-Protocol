@@ -1,0 +1,83 @@
+---
+title: "GPRU Layer: Non-Custodial Authorization and Routing"
+sidebarTitle: "GPRU"
+description: "GPRU is scoped authorization and routing for TSN transfers. It carries permissions, commitments, expiry, and replay material, but never holds funds."
+---
+
+**In plain English:** GPRU is authorization and routing only. It tells TSN and TCAP what may happen, for how long, and where the authorized work may go. It never holds funds, balances, or custody keys. A GPRU signature alone cannot move custody.
+
+## Why GPRU exists
+
+TSN and TCAP need to know that a transfer is authorized without exposing who authorized it. GPRU carries:
+
+- scoped permissions (what the transfer is allowed to do)
+- commitments (predecessor and successor)
+- validity window
+- one-time nullifier material
+- policy commitment and scope commitment
+
+It carries none of: token accounts, private keys, balances, custody, or payment intent identifiers on the privacy-safe path.
+
+## What GPRU is bound to
+
+The privacy-safe authorization ABI carries:
+
+- opaque `authorization_digest`
+- validity window (`valid_after_slot`, `expires_at_slot`)
+- predecessor and successor commitments (`previous_commitment`, `new_commitment`)
+- `sequence`, `token_id`
+- `policy_commitment`, `gpru_scope_commitment`
+- one-time `nullifier`
+
+It intentionally excludes payment intent identifiers, recipient TINs, settlement commitments, epoch roots, accepted-intent records, and TCAP authorization receipts.
+
+## Where GPRU sits
+
+<Note>
+  **Status: Live on Devnet as the authorization layer for TCAP tip credits.**
+</Note>
+
+GPRU is not a program. It is the authorization envelope that TSN produces and TCAP consumes. TSN registers the authorization; TCAP validates the digest against a PDA-signed CPI from the approved TSN program.
+
+## What GPRU deliberately does not link
+
+The sender's payment intent and the recipient's GPRU / TCAP transition are not joined by a protocol-level on-chain payment identifier. The privacy-safe path does not pass an intent commitment, recipient TIN, settlement commitment, accepted-intent root, epoch receipt, or TCAP authorization receipt into the TCAP credit instruction. It also does not create a per-transfer nullifier account.
+
+Timing, amount, and wallet-level correlations remain outside GPRU's guarantee.
+
+## What remains bound for safety
+
+- Governed asset check
+- Active policy
+- GPRU scope commitment
+- Validity window
+- Previous commitment and next sequence
+- Transition nullifier
+
+The tip's monotonic sequence and previous commitment provide successor continuity without a durable per-transfer receipt account.
+
+## Boundary rules
+
+- GPRU cannot spend, exit, mutate a tip, or drain a liquidity pool.
+- A GPRU signature is not a spend proof.
+- A hash-only or placeholder payload is not a spend proof.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TSN" icon="network-wired" href="/layers/tsn">
+    Settlement coordination and epoch treasury.
+  </Card>
+
+  <Card title="TIN" icon="id-card" href="/layers/tin">
+    Payment identity and route discovery.
+  </Card>
+
+  <Card title="TCAP" icon="lock" href="/layers/tcap">
+    Private balance accounting.
+  </Card>
+
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    End-to-end sequence diagram.
+  </Card>
+</CardGroup>
