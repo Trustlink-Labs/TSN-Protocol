@@ -112,4 +112,8 @@ pub enum TcapError {
     InvalidReserveLiability,
     #[msg("The reserve has no pending private transfer liability for this credit")]
     InvalidTransferLiability,
+    #[msg("The TIP seal head is already present")]
+    TipSealAlreadyMigrated,
+    #[msg("The TIP seal payload is missing")]
+    TipSealRequired,
 }

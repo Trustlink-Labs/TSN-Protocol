@@ -12,6 +12,7 @@ pub struct RegisterTcapOneTimeCreditArgs {
     pub next_commitment: [u8; 32], pub nonce: [u8; 32], pub sequence: u64, pub token_id: u32, pub amount: u64,
     pub policy_commitment: [u8; 32], pub gpru_scope_commitment: [u8; 32],
     pub previous_commitment: [u8; 32],
+    pub sealed: [u8; 48], pub seal_commitment: [u8; 32],
 }
 
 #[derive(Accounts)]
@@ -55,6 +56,8 @@ pub fn handler(ctx: Context<RegisterTcapOneTimeCredit>, args: RegisterTcapOneTim
         amount: args.amount,
         valid_after_slot: args.valid_after_slot,
         expires_at_slot: args.expires_at_slot,
+        sealed: args.sealed,
+        seal_commitment: args.seal_commitment,
     });
     let ix = Instruction { program_id: TCAP_PROGRAM_ID, accounts: vec![
         AccountMeta::new(ctx.accounts.authority.key(), true), AccountMeta::new_readonly(ctx.accounts.tcap_config.key(), false),

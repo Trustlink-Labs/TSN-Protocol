@@ -1,0 +1,79 @@
+---
+title: "TIN Layer: Transfer Identity Number and Route Discovery"
+sidebarTitle: "TIN"
+description: "TIN is the 10-digit Transfer Identity Number issued by the Transfer Identity Protocol. It resolves payment routing without exposing a wallet address."
+---
+
+**In plain English:** TIN is a portable 10-digit payment identity. A sender can pay a TIN without knowing the recipient's wallet address. TIN resolves to routing metadata and the TCAP relationship, not to a private key. The root wallet is the TIN authority.
+
+## What TIN is (and is not)
+
+| Wallet address | TIN |
+| --- | --- |
+| Public cryptographic account identifier | Payment identity and route-discovery identifier |
+| Identifies a public key or account authority | Resolves permitted payment routing metadata |
+| May own token accounts | Does not itself hold tokens or act as a private key |
+| Usually exposed directly | Binds to the TCAP relationship and encrypted snapshot path |
+
+TIN is not a username, bank account number, or legal identity. Any name, business, phone, or verification context is optional enrichment and is not payment authorization.
+
+## Registrar program
+
+<Note>
+  **Status: Live on Devnet.**
+</Note>
+
+The TIN Registrar exposes deterministic PDA helpers rather than a large instruction surface:
+
+| Helper | Seeds |
+| --- | --- |
+| `identity_pda` | `identity_seed: [u8;32]` |
+| `registry_pda` | `tin: u64` |
+| `escrow_pda` | `tin, escrow_id` |
+| `vault_pda` | `tin, escrow_id` |
+| `global_state_pda` | (singleton) |
+| `platform_registry_pda` | (singleton) |
+| `tin_mutation_staging_pda` | mutation-scoped |
+
+## Resolution flow
+
+1. Sender supplies a 10-digit TIN.
+2. TIN service resolves the active public routing metadata.
+3. TSN SDK resolves the GPRU / TCAP relationship commitment and policy.
+4. Recipient route is bound into the signed plan commitment.
+5. If local private derivation is required, the owning wallet gives a fresh approval on that device.
+
+Resolution must not return plaintext seeds, child private keys, or an unrestricted wallet-to-person mapping. Registrars apply non-enumeration, rate limiting, revocation, and state-version checks.
+
+## Record classes
+
+| Class | Examples | Boundary |
+| --- | --- | --- |
+| Public | TIN number, display label, active status, route version | Returned for resolution subject to anti-enumeration |
+| Integrity metadata | Owner-key commitment, route commitment, state version | Public verification material, not private authority |
+| Encrypted | Privacy-receiving-root metadata, snapshot refs, recovery material | Ciphertext; unlock requires owner wallet approval |
+| Off-chain app data | Optional profile or notification references | Stored under the app's own access policy |
+
+## Ownership and recovery
+
+The root wallet is the TIN authority. It can approve access from any device. Encrypted TIN material is never sent in plaintext to a backend, Node, Receiver, or Cranker. Older device-bound envelopes require a one-time upgrade from a device that can already unlock them; new and upgraded TINs use the wallet-owned envelope model.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TSN" icon="network-wired" href="/layers/tsn">
+    Settlement coordination and epoch treasury.
+  </Card>
+
+  <Card title="GPRU" icon="route" href="/layers/gpru">
+    Non-custodial authorization and routing.
+  </Card>
+
+  <Card title="TCAP" icon="lock" href="/layers/tcap">
+    Private balance accounting.
+  </Card>
+
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    End-to-end sequence diagram.
+  </Card>
+</CardGroup>

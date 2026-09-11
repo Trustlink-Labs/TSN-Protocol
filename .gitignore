@@ -9,6 +9,8 @@ Thumbs.db
 .codex-target/
 .git/
 
+.commandcode/
+
 .env
 .fb_creds/
 **/.fb_creds/

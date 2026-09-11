@@ -16,6 +16,8 @@ use crate::state::{TcapAssetEntryV1, TcapAssetStatusV1, TcapGlobalConfigV1, Tcap
     amount: u64,
     valid_after_slot: u64,
     expires_at_slot: u64,
+    sealed: [u8; 48],
+    seal_commitment: [u8; 32],
 )]
 pub struct CreditOneTimeTip<'info> {
     #[account(mut)] pub payer: Signer<'info>,
@@ -52,6 +54,8 @@ pub fn handler(
     amount: u64,
     valid_after_slot: u64,
     expires_at_slot: u64,
+    sealed: [u8; 48],
+    seal_commitment: [u8; 32],
 ) -> Result<()> {
     let clock = Clock::get()?;
     require!(authorization_digest != [0; 32] && new_commitment != [0; 32] && nonce != [0; 32], TcapError::EmptyCommitment);
@@ -75,6 +79,9 @@ pub fn handler(
     require!(authorization_digest == expected_permit, TcapError::InvalidTipAuthorization);
 
     let current = &mut ctx.accounts.current_tip;
+    let has_current_seal = current.sealed != [0; 48] && current.seal_commitment != [0; 32];
+    let is_first_seal = current.sealed == [0; 48] && current.seal_commitment == [0; 32];
+    require!(has_current_seal || is_first_seal, TcapError::TipSealRequired);
     require!(previous_commitment == current.commitment, TcapError::TipCommitmentMismatch);
     require!(sequence == current.sequence.checked_add(1).ok_or(TcapError::ArithmeticOverflow)?, TcapError::InvalidTipSequence);
     require!(token_id == current.token_id, TcapError::AssetUnavailable);
@@ -84,10 +91,13 @@ pub fn handler(
     require!(ctx.accounts.reserve_state.pending_liabilities >= amount, TcapError::InvalidReserveLiability);
     require!(ctx.accounts.reserve_state.actual_assets >= ctx.accounts.reserve_state.settled_confidential_liabilities.checked_add(amount).ok_or(TcapError::ArithmeticOverflow)?, TcapError::InvalidReserveLiability);
     require!(ctx.accounts.liability.version == 2, TcapError::InvalidTipLiability);
+    require!(sealed != [0; 48] && seal_commitment != [0; 32], TcapError::TipSealRequired);
 
     current.commitment = new_commitment;
     current.sequence = sequence;
     current.transition_nullifier = nonce;
+    current.sealed = sealed;
+    current.seal_commitment = seal_commitment;
     // The blinded-root TIP is a stable custody index. Rotate only its
     // commitment/nullifier in place; no successor TIP or per-credit liability
     // account is created.

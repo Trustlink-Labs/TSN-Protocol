@@ -1325,3 +1325,151 @@ bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ npm run tcap:
 "newTcapAccounts": 0
 }
 bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$
+
+<!--  -->
+
+bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ npm run tcap:tip-seal:repair:devnet
+
+> trustlink-pay@1.0.0 tcap:tip-seal:repair:devnet
+> node protocol-tests/scenarios/tcap-tip-seal-repair.mjs
+
+(node:940) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+{
+"status": "REPAIRED",
+"instruction": "repair_tip_seal_v1",
+"tip": "6ZS66tZLLuEFKovAjzb5vRLLMqqEJUia8UMr4hBNdWLj",
+"signature": "3uHfvmE6rrpCwp3Y3kJaZJn6dTDWTv2CiAdmyHLdbBPXDmPYaiKnAbxubKKDJ9nShLtKfx5Efh4GmytASNkTRhG6"
+}
+bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ npm run tcap:one-time:deposit-credit:devnet -- --user A --amount 1000000
+
+> trustlink-pay@1.0.0 tcap:one-time:deposit-credit:devnet
+> node protocol-tests/scenarios/tcap-one-time-deposit-credit.mjs --user A --amount 1000000
+
+(node:964) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+{"tip":"6ZS66tZLLuEFKovAjzb5vRLLMqqEJUia8UMr4hBNdWLj","liability":"241Jos16AjhRat17bRVqXNEoe7Dcmrk8s454hXqcjMCp","available":"0","liveCommitment":"d11111b8338c2ece0f1dd133cd65ecb7d355b89a01beb9e2e633c23b0420ac68","snapshotCommitment":"cbb0404dcc8323fc94e1bdbfcd873ab4097acabecaea8fc2f04cb5a743ce25c5","adoptedLiveCommitment":true}
+ADOPTED_LIVE_COMMITMENT d11111b8338c2ece0f1dd133cd65ecb7d355b89a01beb9e2e633c23b0420ac68; no predecessor snapshot found. Existing snapshots: 1d376951be302a11e1b5b7d25b7697741b53dfd2c48b513a2fda9d76db221467.json, 24b6f063e033f4913463aeb3eac8b38a7dba4d70dfaa7b838cbb2eaf8465b17c.json, 2b58fc3e1a9bc9c2be9d9c39f86d5c6066d2d2342a70ce90c75f165ca9e3323d.json, 3b004eefd6882e5dd5b9dc185e0505e79b2a0b25e336d363f642e0e55703dc95.json, 44d2e3d1fa93e228b888e60d09cec4d92c95552fb83e0228bc6b23ddab259f0d.json, 55225e3a954a0c91673159324b1b06da25e1f5bc884172da1c362e6329ed069c.json, 5b866c52d89fc7758b8e4d83a037929112ea17b9af400459613ea70b6b3463cd.json, 701b42f027b5f016ae3c291002a7b51520666df08e6dfe9755e970196e3978e3.json, 7696f05aa4028eca15f17c9fadbc4b98ea94acc3f6003e69c1b6888f46c3f724.json, 7cdaac269bf742eee3884ae157f9d1daf31e151dfaa30aa1f432df79620d1c68.json, 7f277e30356c2fa34c391e556143a2d10155e22ff08c099ae80fe84be6aa9a54.json, 89f284196459c5d2011b35edad2078b3d766cb728689f4cbae39f8ce448fc28d.json, 913cb2eab06fcf9d65c64996190ee6e48c90e00f71decb683912b8f2ff9381be.json, 92803c04692fde19bcfb32ed51724492bcfe8ba10c0aa740f6023b8f3151a7d0.json, 93b1bde340233ebbd00bfb4cf24e1f783f6d0b3a78b0bcbfaa1e25ad0e792351.json, a2f3595476cb1ed3ab2a2260d3a24eeb6e517cef7a9c1bd2d1466f1b63c9b195.json, ab8c7b99a12c71aa3f8d6513e224c5eaee073595bc3e5b9702c20fd065223090.json, ad45d587bd65fa46de9b9278f159f71254bfdef8094dd6ef84223a738034d892.json, bc0532f65316637d44b98db485e1adfe2bd40740c260824d20886870a347d887.json, bc1214ddbdb8537df13f310c232ac618275b8871b5b065933a2c9c029bef474f.json, bf7c9fb9a308e35982dc01ea1c76bcbba13bd6af5d2f53d0a153d3974592d64e.json, c9866f80ab407976a5e71d86f17600c7f7be72b35b321dc3662bdc7a8041a49c.json, cb8f038264c143fa3c468ec36534b04eff0749e5447171dcc574240d8013a99c.json, cb9e043851b4e6d0fe122f0cd0aedc9b04569a88c5d4b307d7786aa00f3e0984.json, cbb0404dcc8323fc94e1bdbfcd873ab4097acabecaea8fc2f04cb5a743ce25c5.json, d1e0d345039bf02d463fa74601fd735386f1037b0994ad494e88c6808015e1e0.json, d40a15a62e996b8323b856a4ee2edc91ab0e40ce3cf3087418d3b7485c5e6c36.json, d64874da0d2f3d15ece4c3d3f2e7767b2dc73b5705026195467ebb91d7476849.json, dd8ce2b212ec5ae2480f926bf4b45e7bd866177f782640a58c4b84348d73aeed.json, dd995ea4f0a0b84a32a5353d539dfb5db0600a02703ce3192062fc0652ced994.json, e53e024ef4aebebd0b95fea53812a3ada549b790e415c42dd42b9092cd2a5c58.json, eacebefc73860f6e17cd4d56859fb5025120066ebb35753d3797fcb394bfe4fe.json, eba717be9484c1f8e2bdee69c4b81381e6b0728524ca3df04a565c5d2ada87ff.json
+{
+"status": "PASSED",
+"scenario": "TCAP V2 funding + GPRU credit",
+"user": "A",
+"programs": {
+"tsn": "TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V",
+"tcap": "TcApT4CytBqvqEDpRYVB7Wfi6aFzmtSZdWvDsq6bp9x"
+},
+"funding": {
+"instruction": "deposit_asset_v2",
+"signature": "W8hsQQcyxScSPgp9ws1kYKXb8oRKgx8XtNLsNvFEkA4hPD1yEDd6MnenPgRfDG3kEaS5eGcK3Qaq8azXGSN7sFn",
+"slot": 494121292,
+"amountBaseUnits": "1000000",
+"sourceTokenAccount": "LPQpFgL3EhZxs5DhrTaLnjP4eLyRwLztUkvG7i7FaPU",
+"sourceResolution": "derived-associated-token-account",
+"governedVault": "2R76WD9xbzt3yMHtXEBLoxEbi2bkXYN9Hpk8nQoxsAnh",
+"vaultBalanceBefore": "62010000",
+"vaultBalanceAfter": "63010000",
+"vaultTokenDelta": "1000000",
+"reservePendingBefore": "9000000",
+"reservePendingAfter": "10000000",
+"reserveStatePresent": true
+},
+"credit": {
+"instruction": "tsn_register_tcap_one_time_credit -> credit_one_time_tip",
+"signature": "2UrzxVTF7u4BuKBAaYSHiHZU85azNEzjcQTzNivTTZtH6X4vBhgW2ZY9byqNMuLPhfRvEmNqmJK66jfkrs2rFmky",
+"slot": 494121307,
+"tip": "6ZS66tZLLuEFKovAjzb5vRLLMqqEJUia8UMr4hBNdWLj",
+"sequence": "32",
+"previousCommitment": "d11111b8338c2ece0f1dd133cd65ecb7d355b89a01beb9e2e633c23b0420ac68",
+"commitment": "1847378ac2ca234fd4df427ba6e65f0309765bb5ca7e33867a51ee59c2b276da",
+"authorizationDigest": "6deb6cdb238bb01cae7305a7c5ae1cd8698d6bb6b1b627d5a1b791a7954462ca",
+"accountKeys": [
+"FnTrWDNgsXedkoCxpgKvwmEF3By4G6wzu9oyoU1n9xUG",
+"241Jos16AjhRat17bRVqXNEoe7Dcmrk8s454hXqcjMCp",
+"3f6KxF1FRPY4ntyXxr1RbMEMwMHngV7vMGcAdBKdEc5d",
+"6ZS66tZLLuEFKovAjzb5vRLLMqqEJUia8UMr4hBNdWLj",
+"2Q48b1TAhJECiGtLwMirvyNerFSBUBcpQvCPPemQryVY",
+"4Wa3iHf2k65H3P3tLMFYTcc8mfn9euu5q654Q56SQhg3",
+"ETNJWb2KDNdHSscVNbEiz1iWboddZdr8EPgmzw53hNkR",
+"GzZboGDkJTDpRredv6N5GSwF1Gb9BD6KHeHyprczsFbW",
+"TcApT4CytBqvqEDpRYVB7Wfi6aFzmtSZdWvDsq6bp9x",
+"TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V"
+],
+"v2Instructions": [
+{
+"scope": "outer",
+"name": "tsn_register_tcap_one_time_credit"
+},
+{
+"scope": "inner:0",
+"name": "credit_one_time_tip"
+}
+],
+"encryptedSnapshot": "/mnt/c/Users/codepara/Desktop/trust-link/protocol-tests/tcap-v2-fixture/users/A/snapshots/1847378ac2ca234fd4df427ba6e65f0309765bb5ca7e33867a51ee59c2b276da.json",
+"identity": {
+"user": "A",
+"tin": "1000000001",
+"tip": "6ZS66tZLLuEFKovAjzb5vRLLMqqEJUia8UMr4hBNdWLj",
+"availableBefore": "0",
+"availableAfter": "1000000"
+},
+"reservePendingAfter": "9000000",
+"newTcapAccounts": 0
+},
+"unlinkability": {
+"status": "PASSED",
+"forbiddenAccounts": [],
+"forbiddenInstructions": [],
+"fundingAccountsInCredit": [],
+"note": "Credit transaction contains no funding token account, vault, or per-deposit PDA; the stable TIP is updated in place."
+}
+}
+bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ cd /mnt/c/Users/codepara/Desktop/trust-link
+npm run tcap:one-time:exit:devnet -- --user A --amount 1000000
+
+> trustlink-pay@1.0.0 tcap:one-time:exit:devnet
+> node protocol-tests/scenarios/tcap-one-time-exit.mjs --user A --amount 1000000
+
+(node:1010) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+/mnt/c/Users/codepara/Desktop/trust-link/node_modules/@solana/web3.js/lib/index.cjs.js:8208
+throw new SendTransactionError({
+^
+
+SendTransactionError: Simulation failed.
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0xbc0.
+Logs:
+[
+"Program TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V invoke [1]",
+"Program log: Instruction: TsnRegisterTcapExitDebitV1",
+"Program log: AnchorError caused by account: system_program. Error Code: InvalidProgramId. Error Number: 3008. Error Message: Program ID was not as expected.",
+"Program log: Left:",
+"Program log: GFtayhjBwQsRe7rKKUiPzcYW3Uh5Ed8B7KJgqDfUEcv3",
+"Program log: Right:",
+"Program log: 11111111111111111111111111111111",
+"Program TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V consumed 8088 of 200000 compute units",
+"Program TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V failed: custom program error: 0xbc0"
+].
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+at Connection.sendEncodedTransaction (/mnt/c/Users/codepara/Desktop/trust-link/node_modules/@solana/web3.js/lib/index.cjs.js:8208:13)
+at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+at async Connection.sendRawTransaction (/mnt/c/Users/codepara/Desktop/trust-link/node_modules/@solana/web3.js/lib/index.cjs.js:8173:20)
+at async Connection.sendTransaction (/mnt/c/Users/codepara/Desktop/trust-link/node_modules/@solana/web3.js/lib/index.cjs.js:8164:12)
+at async sendAndConfirmTransaction (/mnt/c/Users/codepara/Desktop/trust-link/node_modules/@solana/web3.js/lib/index.cjs.js:2273:21)
+at async file:///mnt/c/Users/codepara/Desktop/trust-link/protocol-tests/scenarios/tcap-one-time-exit-debit.mjs:12:1601 {
+signature: '',
+transactionMessage: 'Transaction simulation failed: Error processing Instruction 0: custom program error: 0xbc0',
+transactionLogs: [
+'Program TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V invoke [1]',
+'Program log: Instruction: TsnRegisterTcapExitDebitV1',
+'Program log: AnchorError caused by account: system_program. Error Code: InvalidProgramId. Error Number: 3008. Error Message: Program ID was not as expected.',
+'Program log: Left:',
+'Program log: GFtayhjBwQsRe7rKKUiPzcYW3Uh5Ed8B7KJgqDfUEcv3',
+'Program log: Right:',
+'Program log: 11111111111111111111111111111111',
+'Program TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V consumed 8088 of 200000 compute units',
+'Program TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V failed: custom program error: 0xbc0'
+]
+}
+
+Node.js v22.22.2
+bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$

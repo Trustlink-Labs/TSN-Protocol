@@ -1,0 +1,92 @@
+---
+title: "TSN Cranker: Lease, Submit, and Pay Solana Fees"
+sidebarTitle: "TSN Cranker"
+description: "The TSN Cranker is an operator process that leases Node-verified work, submits the exact authorized transaction, and pays Solana fees."
+---
+
+**In plain English:** A Cranker is an operator process, not a program. It watches the Receiver for verified work, leases work the Node has authorized, and submits the exact Mother-DNA-authorized transaction to Solana. It pays fees. It cannot change amount, recipient, or anything else. Anyone can run one.
+
+## Cranker role
+
+<Note>
+  **Status: Live on Devnet.** Anyone can run a Cranker against the deployed TSN program.
+</Note>
+
+A Cranker may:
+
+- lease Node-verified `AUTHORIZED_FUNDING` work
+- lease internally-created DNA `SETTLEMENT` work that is already eligible
+- submit the exact sender-signed epoch-treasury funding transaction
+- submit the exact Mother-DNA settlement transaction supplied by the protocol
+- pay Solana fees from its operator wallet
+- report transaction signatures and retry safe failures
+
+## Hard boundaries
+
+A Cranker must not:
+
+- decrypt a user's master seed or reconstruct a private commitment key
+- choose a different source, recipient, amount, tranche, fee, or change route
+- sign as a user, a user authorization, or any Mother-controlled settlement authority
+- mark an intent paid, recoverable, or reimbursable by itself
+- authorize refunds (Node and Mother only)
+- expose Receiver API keys, operator secret keys, or private route material
+
+If a Cranker tampers with any bound field (amount, mint, recipient, commitments, sequence, policy, nullifier, expiry), the Mother-rooted permit breaks and the TSN program rejects the transaction before token movement.
+
+## What the Cranker sees
+
+- Opaque settlement commitment and nullifier
+- Public payout coordinates (recipient wallet, mint, amount)
+- CrankerVault
+- Signed Mother-rooted permit
+- Lease id, version, expiry
+
+**Never sees:**
+
+- Encrypted payment binding
+- Payment-specific escrow account
+- A per-payment PDA (does not exist on the privacy-safe path)
+- Sender identity beyond what public payout coordinates require
+
+## Reimbursement
+
+After the Cranker pays the recipient from its CrankerVault, TSN reimburses that exact CrankerVault for the exact amount from the epoch treasury, only if the Mother-rooted permit checks out. Reimbursement is atomic with settlement.
+
+## Prerequisites for running a Cranker
+
+Before starting, the deployment owner must provide:
+
+1. A deployed TSN program ID and matching build / IDL
+2. A reachable TSN Receiver with Cranker work endpoints
+3. A running or reachable TSN Node that verifies and publishes work
+4. The current Receiver Cranker API credential
+5. Direct Solana Devnet RPC and WebSocket access
+6. A funded operator keypair (dedicated, never an upgrade authority or user wallet)
+7. A supported token mint and enough Devnet SOL for fees; a funded CrankerVault if policy requires
+
+The Cranker submits to Solana directly. The TSN RPC Gateway is used by browsers and application services, not as a substitute for the operator's submission RPC.
+
+## Deployment boundary
+
+There is no separate Cranker program to deploy. A Cranker is a signed operator process that uses the already-deployed TSN program. Only the deployment owner should build or upgrade the on-chain program.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TSN Node" icon="server" href="/operators/tsn-node">
+    The verification and permit-signing service.
+  </Card>
+
+  <Card title="TSN Layer" icon="network-wired" href="/layers/tsn">
+    Program-level settlement, refund, and vault reimbursement.
+  </Card>
+
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    End-to-end sequence diagram.
+  </Card>
+
+  <Card title="FAQ" icon="circle-question" href="/faq">
+    What a cranker can and cannot do.
+  </Card>
+</CardGroup>

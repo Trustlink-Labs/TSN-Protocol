@@ -12,11 +12,9 @@ pub const TSN_EPOCH_TREASURY_AUTHORITY_SEED: &[u8] = b"tsn_epoch_treasury_author
 pub const TSN_EPOCH_LEDGER_SEED: &[u8] = b"tsn_epoch_ledger";
 pub const TSN_EPOCH_CLAIM_SLOT_SEED: &[u8] = b"tsn_epoch_claim_slot";
 pub const TSN_SETTLEMENT_DNA_SEED: &[u8] = b"tsn_settlement_dna";
-pub const TSN_PRU_SPEND_GUARD_SEED: &[u8] = b"pru_spend_guard";
 pub const TSN_TCAP_AUTHORITY_SEED: &[u8] = b"tsn:tcap-authorization:v1";
 pub const TSN_EPOCH_COMMITMENT_V1_SEED: &[u8] = b"tsn:epoch-commitment:v1";
 pub const TSN_TRUSTLINK_INTENT_DOMAIN_TAG: &[u8] = b"TSN_TRUSTLINK_INTENT_V1";
-pub const TSN_PRU_SPEND_GUARD_DOMAIN_TAG: &[u8] = b"TRUSTLINK_PRU_SPEND_GUARD_V1";
 
 pub const TSN_DEFAULT_LEASE_SECONDS: i64 = 30;
 pub const TSN_DEFAULT_EPOCH_SECONDS: i64 = 7 * 60 * 60; // 7 hours

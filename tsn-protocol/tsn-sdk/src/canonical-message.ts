@@ -122,42 +122,6 @@ export function isCanonicalTsnMessage(message: string) {
   return typeof message === "string" && message.startsWith("TSN ") && message.includes("\n---\n");
 }
 
-export function buildPruSpendMessage(params: {
-  amountBaseUnits: bigint | string | number;
-  recipientTin: string;
-  recipientRouteCommitment: string;
-  recipientRouteVersion: number;
-  feeBaseUnits: bigint | string | number;
-  pruSource?: "TIN Balance" | string;
-  nonce: string;
-  expires: string | Date;
-}) {
-  return buildMessage("PRU Spend", [
-    ["Amount", formatUsdcBaseUnits(BigInt(params.amountBaseUnits))],
-    ["Recipient TIN", parseTin(params.recipientTin, "Recipient TIN")],
-    ["Recipient Route Commitment", parseHash32(params.recipientRouteCommitment, "Recipient Route Commitment")],
-    ["Recipient Route Version", parseRouteVersion(params.recipientRouteVersion)],
-    ["Fee", formatUsdcBaseUnits(BigInt(params.feeBaseUnits))],
-    ["PRU Source", params.pruSource ?? "TIN Balance"],
-    ["Nonce", params.nonce],
-    ["Expires", params.expires instanceof Date ? params.expires : new Date(params.expires)],
-  ]);
-}
-
-export function parsePruSpendMessage(message: string) {
-  const fields = parseMessage(message, "PRU Spend");
-  return {
-    amountBaseUnits: parseUsdc(requireField(fields, "Amount"), "Amount"),
-    recipientTin: parseTin(requireField(fields, "Recipient TIN"), "Recipient TIN"),
-    recipientRouteCommitment: parseHash32(requireField(fields, "Recipient Route Commitment"), "Recipient Route Commitment"),
-    recipientRouteVersion: parseRouteVersion(requireField(fields, "Recipient Route Version")),
-    feeBaseUnits: parseUsdc(requireField(fields, "Fee"), "Fee"),
-    pruSource: requireField(fields, "PRU Source"),
-    nonce: requireField(fields, "Nonce"),
-    expires: parseExpiry(requireField(fields, "Expires")),
-  };
-}
-
 export function buildPaymentIntentMessage(params: {
   amountBaseUnits: bigint | string | number;
   recipientTin: string;
@@ -189,48 +153,6 @@ export function parsePaymentIntentMessage(message: string) {
     recipientRouteVersion: parseRouteVersion(requireField(fields, "Recipient Route Version")),
     feeBaseUnits: parseUsdc(requireField(fields, "Fee"), "Fee"),
     sender: requireField(fields, "Sender"),
-    nonce: requireField(fields, "Nonce"),
-    expires: parseExpiry(requireField(fields, "Expires")),
-  };
-}
-
-export function buildMixedPaymentMessage(params: {
-  amountBaseUnits: bigint | string | number;
-  recipientTin: string;
-  recipientRouteCommitment: string;
-  recipientRouteVersion: number;
-  feeBaseUnits: bigint | string | number;
-  pruPortionBaseUnits: bigint | string | number;
-  walletTopUpPortionBaseUnits: bigint | string | number;
-  nonce: string;
-  expires: string | Date;
-}) {
-  return buildMessage("Mixed Payment", [
-    ["Amount", formatUsdcBaseUnits(BigInt(params.amountBaseUnits))],
-    ["Recipient TIN", parseTin(params.recipientTin, "Recipient TIN")],
-    ["Recipient Route Commitment", parseHash32(params.recipientRouteCommitment, "Recipient Route Commitment")],
-    ["Recipient Route Version", parseRouteVersion(params.recipientRouteVersion)],
-    ["Fee", formatUsdcBaseUnits(BigInt(params.feeBaseUnits))],
-    ["PRU Portion", formatUsdcBaseUnits(BigInt(params.pruPortionBaseUnits))],
-    ["Wallet Top-Up Portion", formatUsdcBaseUnits(BigInt(params.walletTopUpPortionBaseUnits))],
-    ["Nonce", params.nonce],
-    ["Expires", params.expires instanceof Date ? params.expires : new Date(params.expires)],
-  ]);
-}
-
-export function parseMixedPaymentMessage(message: string) {
-  const fields = parseMessage(message, "Mixed Payment");
-  return {
-    amountBaseUnits: parseUsdc(requireField(fields, "Amount"), "Amount"),
-    recipientTin: parseTin(requireField(fields, "Recipient TIN"), "Recipient TIN"),
-    recipientRouteCommitment: parseHash32(requireField(fields, "Recipient Route Commitment"), "Recipient Route Commitment"),
-    recipientRouteVersion: parseRouteVersion(requireField(fields, "Recipient Route Version")),
-    feeBaseUnits: parseUsdc(requireField(fields, "Fee"), "Fee"),
-    pruPortionBaseUnits: parseUsdc(requireField(fields, "PRU Portion"), "PRU Portion"),
-    walletTopUpPortionBaseUnits: parseUsdc(
-      requireField(fields, "Wallet Top-Up Portion"),
-      "Wallet Top-Up Portion",
-    ),
     nonce: requireField(fields, "Nonce"),
     expires: parseExpiry(requireField(fields, "Expires")),
   };
@@ -308,60 +230,6 @@ export function parseTinUpgradeMessage(message: string) {
   return {
     tin: parseTin(requireField(fields, "TIN"), "TIN"),
     displayName: requireField(fields, "Display Name"),
-    nonce: requireField(fields, "Nonce"),
-    expires: parseExpiry(requireField(fields, "Expires")),
-  };
-}
-
-export function buildPruRouteSessionMessage(params: {
-  tin: string;
-  purpose?: string;
-  nonce: string;
-  expires: string | Date;
-}) {
-  return buildMessage("Balance Access", [
-    ["TIN", parseTin(params.tin, "TIN")],
-    ["Purpose", params.purpose ?? "Load TIN Balance"],
-    ["Nonce", params.nonce],
-    ["Expires", params.expires instanceof Date ? params.expires : new Date(params.expires)],
-  ]);
-}
-
-export function parsePruRouteSessionMessage(message: string) {
-  const fields = parseMessage(message, "Balance Access");
-  return {
-    tin: parseTin(requireField(fields, "TIN"), "TIN"),
-    purpose: requireField(fields, "Purpose"),
-    nonce: requireField(fields, "Nonce"),
-    expires: parseExpiry(requireField(fields, "Expires")),
-  };
-}
-
-export function buildSweepMessage(params: {
-  tin: string;
-  destination: string;
-  mode: string;
-  estimatedAmountBaseUnits: bigint | string | number;
-  nonce: string;
-  expires: string | Date;
-}) {
-  return buildMessage("Sweep", [
-    ["TIN", parseTin(params.tin, "TIN")],
-    ["Destination", params.destination],
-    ["Mode", params.mode],
-    ["Estimated Amount", formatUsdcBaseUnits(BigInt(params.estimatedAmountBaseUnits))],
-    ["Nonce", params.nonce],
-    ["Expires", params.expires instanceof Date ? params.expires : new Date(params.expires)],
-  ]);
-}
-
-export function parseSweepMessage(message: string) {
-  const fields = parseMessage(message, "Sweep");
-  return {
-    tin: parseTin(requireField(fields, "TIN"), "TIN"),
-    destination: requireField(fields, "Destination"),
-    mode: requireField(fields, "Mode"),
-    estimatedAmountBaseUnits: parseUsdc(requireField(fields, "Estimated Amount"), "Estimated Amount"),
     nonce: requireField(fields, "Nonce"),
     expires: parseExpiry(requireField(fields, "Expires")),
   };

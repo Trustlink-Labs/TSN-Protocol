@@ -6,7 +6,6 @@ const root = process.cwd();
 const lockfiles = [
   "tsn-protocol/tsn/protocol/Cargo.lock",
   "transfer-identity-protocol/tin-registrar/program/Cargo.lock",
-  "ZK-PRU/programs/zk-pru-registry/Cargo.lock",
   "tcap-protocol/Cargo.lock",
 ];
 const requiredPins = [

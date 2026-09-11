@@ -172,11 +172,8 @@ warnIfHostCargoCanRewriteLockfile(cargoVersion);
 const tsnAnchorPath = "tsn-protocol/tsn/protocol/Anchor.toml";
 const tinsAnchorPath = "transfer-identity-protocol/tin-registrar/program/Anchor.toml";
 const tinsCargoPath = "transfer-identity-protocol/tin-registrar/program/Cargo.toml";
-const zkPruAnchorPath = "ZK-PRU/programs/zk-pru-registry/Anchor.toml";
-const zkPruCargoPath = "ZK-PRU/programs/zk-pru-registry/programs/zk-pru-registry/Cargo.toml";
 const tsnLockPath = "tsn-protocol/tsn/protocol/Cargo.lock";
 const tinsLockPath = "transfer-identity-protocol/tin-registrar/program/Cargo.lock";
-const zkPruLockPath = "ZK-PRU/programs/zk-pru-registry/Cargo.lock";
 const tcapAnchorPath = "tcap-protocol/Anchor.toml";
 const tcapCargoPath = "tcap-protocol/programs/tcap/Cargo.toml";
 const tcapLockPath = "tcap-protocol/Cargo.lock";
@@ -184,11 +181,8 @@ const tcapLockPath = "tcap-protocol/Cargo.lock";
 const tsnAnchor = read(tsnAnchorPath);
 const tinsAnchor = read(tinsAnchorPath);
 const tinsCargo = read(tinsCargoPath);
-const zkPruAnchor = existsSync(join(root, zkPruAnchorPath)) ? read(zkPruAnchorPath) : null;
-const zkPruCargo = existsSync(join(root, zkPruCargoPath)) ? read(zkPruCargoPath) : null;
 const tsnLock = read(tsnLockPath);
 const tinsLock = read(tinsLockPath);
-const zkPruLock = existsSync(join(root, zkPruLockPath)) ? read(zkPruLockPath) : null;
 const tcapAnchor = existsSync(join(root, tcapAnchorPath)) ? read(tcapAnchorPath) : null;
 const tcapCargo = existsSync(join(root, tcapCargoPath)) ? read(tcapCargoPath) : null;
 const tcapLock = existsSync(join(root, tcapLockPath)) ? read(tcapLockPath) : null;
@@ -198,14 +192,6 @@ const requiredSnippets = [
   [tinsAnchorPath, tinsAnchor, `anchor_version = "${requiredAnchor}"`],
   [tinsCargoPath, tinsCargo, `solana-program = "=${pinnedProgramCrate}"`],
 ];
-
-if (zkPruAnchor) {
-  requiredSnippets.push([zkPruAnchorPath, zkPruAnchor, `anchor_version = "${requiredAnchor}"`]);
-}
-
-if (zkPruCargo) {
-  requiredSnippets.push([zkPruCargoPath, zkPruCargo, `anchor-lang = "0.30.1"`]);
-}
 
 if (tcapAnchor) {
   requiredSnippets.push([tcapAnchorPath, tcapAnchor, `anchor_version = "${requiredAnchor}"`]);
@@ -226,10 +212,6 @@ const forbiddenSnippets = [
   [tinsAnchorPath, tinsAnchor, "solana_version"],
 ];
 
-if (zkPruAnchor) {
-  forbiddenSnippets.push([zkPruAnchorPath, zkPruAnchor, "solana_version"]);
-}
-
 for (const [path, body, snippet] of forbiddenSnippets) {
   if (body.includes(snippet)) {
     throw new Error(
@@ -244,10 +226,6 @@ const lockfiles = [
   [tsnLockPath, tsnLock],
   [tinsLockPath, tinsLock],
 ];
-
-if (zkPruLock) {
-  lockfiles.push([zkPruLockPath, zkPruLock]);
-}
 
 if (tcapLock) {
   lockfiles.push([tcapLockPath, tcapLock]);

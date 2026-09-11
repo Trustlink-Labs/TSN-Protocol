@@ -1,0 +1,128 @@
+---
+title: "TCAP Layer: Credit, Debit, and Exit (Confidential Balances)"
+sidebarTitle: "TCAP"
+description: "TCAP is the Transfer Confidential Asset Protocol: commitment-backed tip credits, gated confidential debit and exit, and encrypted balance snapshots."
+---
+
+**In plain English:** TCAP (Transfer Confidential Asset Protocol) is the private balance layer. It advances commitment-backed tips per TIN, anchors encrypted balance snapshots off-chain, and gates confidential debit and exit behind a proof verifier. Balances are never public; the chain only stores opaque commitments and sequence values.
+
+## What TCAP owns
+
+- Global config and per-asset governed reserves and vaults.
+- The TIN-TIP tip commitment root and monotonic sequence.
+- The nullifier registry.
+- The liability account per governed asset.
+- The credit, debit, and exit statements (only credit is enabled today).
+
+## Credit
+
+<Note>
+  **Status: Live on Devnet.**
+</Note>
+
+The credit instruction advances the tip commitment from `previous_commitment` to `new_commitment` under a GPRU-scoped authorization. It carries:
+
+- `authorization_digest`
+- validity window
+- `previous_commitment`, `new_commitment`
+- `sequence`, `token_id`
+- `policy_commitment`, `gpru_scope_commitment`
+- one-time `nullifier`
+
+**No per-transfer PDA. No intent, epoch, receipt, or nullifier account.** The credit is authorized by a PDA-signed CPI from the approved TSN program.
+
+## Debit
+
+<Warning>
+  **Status: In development. Not enabled on Devnet.**
+
+  The debit instruction validates structural fields and returns `ProofSystemNotEnabled`. A GPRU signature, hash-only payload, or placeholder proof cannot mutate a tip.
+</Warning>
+
+The debit statement, when enabled, must prove for a private witness `(old_balance, debit_amount, new_balance)`:
+
+```text
+old_balance >= debit_amount
+new_balance = old_balance - debit_amount
+new_balance >= 0
+stable_units = convert(native_units, registered rate_version)
+```
+
+The proof must:
+
+- open the predecessor commitment
+- bind the successor to `new_balance`, the predecessor, and `sequence + 1`
+- prove a one-time nullifier
+- satisfy the policy commitment, registered rate version, expiry window, and layer-zero conditions
+
+Enabling debit requires an audited proof verifier, registered rate/version rules, commitment opening and successor checks, nullifier consumption, and protocol liquidity invariants. None of these are turned on today.
+
+## Exit
+
+<Warning>
+  **Status: In development. Not enabled on Devnet.**
+
+  The exit instruction validates structural fields and returns `ProofSystemNotEnabled`.
+</Warning>
+
+Exit uses the same conservation equations as debit, plus a destination binding and pool invariants:
+
+```text
+destination_binding = bind(protocol_domain, token_id, destination, amount)
+actual_assets >= reserved_liabilities + requested_exit_liability
+exit_nullifier is unused and the exit receipt is unconsumed
+```
+
+The liquidity pool is protocol and governance controlled. It is not cranker custody. The skeleton account is intentionally not mutated by the disabled instruction.
+
+## Deposit
+
+<Note>
+  **Status: Live on Devnet.**
+</Note>
+
+Two deposit paths exist:
+
+- **Direct deposit.** Public deposit into a governed reserve vault; increases reserve balance directly.
+- **Deposit with funding commitment.** Binds a `FundingClaim` and `FundingRoot`, producing a `funding_commitment` used later by confidential settlement.
+
+## Asset governance
+
+<Note>
+  **Status: Live on Devnet.**
+</Note>
+
+TCAP governance instructions manage which SPL mints are approved and what they can do:
+
+- Register a governed asset
+- Approve or revoke an asset
+- Set settlement policy (settlements, public exit, confidential settlement)
+- Set operational status (pause or resume)
+- Initialize the governed reserve and vault
+- Sync asset infrastructure
+- Toggle deposit policy
+- Raise the minimum instruction version
+
+## Encrypted snapshots
+
+Private balance state lives off-chain in encrypted snapshots. The owner device verifies the tip commitment and sequence, then decrypts a single commitment-keyed snapshot. Plaintext balances never leave the owner.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TSN" icon="network-wired" href="/layers/tsn">
+    Settlement coordination and epoch treasury.
+  </Card>
+
+  <Card title="TIN" icon="id-card" href="/layers/tin">
+    Payment identity and route discovery.
+  </Card>
+
+  <Card title="GPRU" icon="route" href="/layers/gpru">
+    Non-custodial authorization and routing.
+  </Card>
+
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    End-to-end sequence diagram.
+  </Card>
+</CardGroup>

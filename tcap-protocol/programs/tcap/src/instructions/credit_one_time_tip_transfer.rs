@@ -16,6 +16,8 @@ pub struct CreditOneTimeTipTransferArgs {
     pub amount: u64,
     pub valid_after_slot: u64,
     pub expires_at_slot: u64,
+    pub sealed: [u8; 48],
+    pub seal_commitment: [u8; 32],
 }
 
 #[derive(Accounts)]
@@ -44,6 +46,7 @@ pub fn handler(ctx: Context<CreditOneTimeTipTransfer>, args: CreditOneTimeTipTra
     let asset = &ctx.accounts.asset_entry;
     require!(args.authorization_digest != [0; 32] && args.previous_commitment != [0; 32] && args.new_commitment != [0; 32] && args.nonce != [0; 32], TcapError::EmptyCommitment);
     require!(args.policy_commitment != [0; 32] && args.amount > 0, TcapError::InvalidDepositAmount);
+    require!(args.sealed != [0; 48] && args.seal_commitment != [0; 32], TcapError::TipSealRequired);
     require!(args.expires_at_slot >= args.valid_after_slot && clock.slot >= args.valid_after_slot && clock.slot <= args.expires_at_slot, TcapError::AuthorizationExpired);
     let expected_permit = hashv(&[b"TCAP_ONE_TIME_TRANSFER_CREDIT_PERMIT_V1", ctx.accounts.current_tip.key().as_ref(), &args.amount.to_le_bytes(), &args.token_id.to_le_bytes(), asset.asset.mint.as_ref(), &args.nonce, &args.sequence.to_le_bytes(), &args.previous_commitment]).to_bytes();
     require!(args.authorization_digest == expected_permit, TcapError::InvalidTipAuthorization);
@@ -51,6 +54,7 @@ pub fn handler(ctx: Context<CreditOneTimeTipTransfer>, args: CreditOneTimeTipTra
     require_keys_eq!(expected, ctx.accounts.tsn_authorization_signer.key(), TcapError::InvalidTsnAuthorizationSigner);
     require!(ctx.accounts.tsn_authorization_signer.is_signer, TcapError::InvalidTsnAuthorizationSigner);
     require!(args.previous_commitment == tip.commitment, TcapError::TipCommitmentMismatch);
+    require!(tip.sealed != [0; 48] && tip.seal_commitment != [0; 32], TcapError::TipSealRequired);
     require!(args.sequence == tip.sequence.checked_add(1).ok_or(TcapError::ArithmeticOverflow)?, TcapError::InvalidTipSequence);
     require!(args.policy_commitment == tip.policy_commitment, TcapError::TipCommitmentMismatch);
     require!(args.nonce != tip.transition_nullifier, TcapError::NullifierAlreadyConsumed);
@@ -67,5 +71,7 @@ pub fn handler(ctx: Context<CreditOneTimeTipTransfer>, args: CreditOneTimeTipTra
     tip.commitment = args.new_commitment;
     tip.sequence = args.sequence;
     tip.transition_nullifier = args.nonce;
+    tip.sealed = args.sealed;
+    tip.seal_commitment = args.seal_commitment;
     Ok(())
 }

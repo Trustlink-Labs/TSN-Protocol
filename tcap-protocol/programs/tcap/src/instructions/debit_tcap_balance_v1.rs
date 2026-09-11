@@ -22,6 +22,8 @@ pub struct DebitTcapBalanceV1Args {
     pub gpru_scope_commitment: [u8; 32],
     pub nullifier: [u8; 32],
     pub debit_amount: u64,
+    pub sealed: [u8; 48],
+    pub seal_commitment: [u8; 32],
 }
 
 #[derive(Accounts)]
@@ -49,6 +51,7 @@ pub fn handler(ctx: Context<DebitTcapBalanceV1>, args: DebitTcapBalanceV1Args) -
     require!(args.authorization_digest != [0; 32] && args.previous_commitment != [0; 32] && args.new_commitment != [0; 32], TcapError::EmptyCommitment);
     require!(args.policy_commitment != [0; 32] && args.gpru_scope_commitment != [0; 32] && args.nullifier != [0; 32], TcapError::InvalidGpruScope);
     require!(args.debit_amount > 0, TcapError::InvalidDepositAmount);
+    require!(args.sealed != [0; 48] && args.seal_commitment != [0; 32], TcapError::TipSealRequired);
     require!(args.expires_at_slot >= args.valid_after_slot && clock.slot >= args.valid_after_slot && clock.slot <= args.expires_at_slot, TcapError::AuthorizationExpired);
     let expected_authorization = hashv(&[
         b"TSN_GPRU_TCAP_DEBIT_V2",
@@ -66,6 +69,7 @@ pub fn handler(ctx: Context<DebitTcapBalanceV1>, args: DebitTcapBalanceV1Args) -
     ]).to_bytes();
     require!(args.authorization_digest == expected_authorization, TcapError::InvalidTipAuthorization);
     require!(args.previous_commitment == tip.commitment, TcapError::TipCommitmentMismatch);
+    require!(tip.sealed != [0; 48] && tip.seal_commitment != [0; 32], TcapError::TipSealRequired);
     require!(args.sequence == tip.sequence.checked_add(1).ok_or(TcapError::ArithmeticOverflow)?, TcapError::InvalidTipSequence);
     require!(args.policy_commitment == tip.policy_commitment, TcapError::TipCommitmentMismatch);
     require!(args.nullifier != tip.transition_nullifier, TcapError::NullifierAlreadyConsumed);
@@ -90,6 +94,8 @@ pub fn handler(ctx: Context<DebitTcapBalanceV1>, args: DebitTcapBalanceV1Args) -
     tip.commitment = args.new_commitment;
     tip.sequence = args.sequence;
     tip.transition_nullifier = args.nullifier;
+    tip.sealed = args.sealed;
+    tip.seal_commitment = args.seal_commitment;
     Ok(())
 }
 

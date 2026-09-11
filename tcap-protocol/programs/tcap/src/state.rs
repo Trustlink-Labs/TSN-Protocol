@@ -481,3 +481,18 @@ pub struct TsnAuthorizationReceiptV1 {
 impl TsnAuthorizationReceiptV1 {
     pub const SPACE: usize = 8 + 2 + 32 + 32 + 8 + 32 + 32 + 8 + (32 * 11) + 8 + 4 + 1 + 8 + 8 + 1 + 1 + 1;
 }
+
+#[account]
+pub struct TcapExitPermitV1 {
+  pub tip: Pubkey,
+  pub destination_commitment: [u8; 32],
+    pub mint: Pubkey,
+    pub amount: u64,
+    pub sequence: u64,
+    pub nonce: [u8; 32],
+  pub source_debit_signature: [u8; 64],
+    pub consumed: bool,
+    pub bump: u8,
+}
+
+ impl TcapExitPermitV1 { pub const SPACE: usize = 8 + 32 + 32 + 32 + 8 + 8 + 32 + 64 + 1 + 1; }

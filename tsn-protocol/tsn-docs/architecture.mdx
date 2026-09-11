@@ -1,0 +1,141 @@
+---
+title: "TSN Current Architecture: TIN, GPRU, Epoch Treasury, TCAP"
+sidebarTitle: "Architecture"
+description: "The canonical Transfer Settlement Network architecture: TIN identity, GPRU authorization, TSN epoch treasury with Mother-rooted DNA permits, and TCAP tip credits."
+---
+
+**In plain English:** This is the canonical description of the current Transfer Settlement Network. A payment moves from a signed authorization on the sender's device through TIN identity, GPRU authorization, TSN epoch treasury coordination, a Mother-rooted DNA permit, and a TCAP tip credit against an encrypted snapshot. There is no public accepted-intent record, no per-payment PDA, and no receipt joining funding to credit.
+
+## The credit path
+
+```text
+TIN identity
+  → privacy-receiving root
+  → GPRU authorization/routing (never holds funds)
+  → TSN Epoch Treasury coordination
+  → Mother/TSN ConfidentialSettlement authorization
+  → TCAP tip credit
+  → encrypted private balance snapshot
+  → owner private balance read
+```
+
+## End-to-end credit sequence
+
+```mermaid
+sequenceDiagram
+    participant D as Authorized user device
+    participant T as TIN identity layer
+    participant R as Receiver
+    participant N as TSN Node
+    participant M as Mother / TSN program
+    participant E as Epoch Treasury
+    participant C as Cranker
+    participant P as TCAP program
+    participant S as Encrypted snapshot store
+
+    D->>T: Resolve identity and privacy-receiving root relationship
+    D->>D: Build and sign the payment intent and GPRU scope
+    D->>R: Submit signed intent
+    R->>N: Store redacted work and lease state
+    N->>N: Verify signatures, policy, commitments, sequence and expiry
+    N->>M: Create settlement intent; inactive until funding is verified
+    C->>E: Submit exact authorized funding work
+    E->>N: Funding proof becomes available
+    N->>C: Activate settlement after exact proof checks
+    C->>C: Pay selected destination from Cranker vault
+    N->>M: Approve reimbursement only for leased Cranker
+    M->>P: Advance opaque GPRU tip through TCAP CPI
+    P->>S: Bind resulting commitment to encrypted snapshot persistence
+    D->>S: Fetch, verify and decrypt the matching snapshot locally
+```
+
+## Component responsibilities
+
+- **TIN** is the human-facing payment identity. It binds identity ownership to a privacy-receiving root relationship and the TCAP route without becoming a token account or private key.
+- **Privacy-receiving root** is the owner-controlled root used to derive the blinded TCAP tip relationship. Plaintext roots and spendable secrets remain on the authorized device.
+- **GPRU** is authorization and routing only. It carries scoped permissions, commitments, expiry, and replay material. It never holds funds, balances, or custody keys.
+- **Receiver** is durable ingress, redacted work storage, leases, and status. It does not receive plaintext roots or private balance snapshots.
+- **TSN Node** verifies the signed intent and canonical fields, creates the authorized work record, and coordinates the Epoch Treasury and Mother authorization boundary.
+- **Epoch Treasury** records aggregate funding and settlement liability. It is protocol-controlled accounting, not a user balance container.
+- **Mother / TSN program** authorizes the bounded settlement and reimbursement decision. The CPI wrapper into TCAP supplies only opaque tip-transition fields. A GPRU signature alone cannot move custody.
+- **Cranker** leases and submits the exact authorized transaction. It can pay fees and submit work, but cannot change amount, token, recipient binding, commitments, sequence, policy, nullifier, or expiry.
+- **TCAP** owns the tip and sequence checks. A successful credit advances the tip from `previous_commitment` to `new_commitment` without a per-transfer receipt or nullifier account.
+- **Encrypted snapshots** hold private balance state off-chain. The owner device verifies the tip commitment and sequence before decrypting a single commitment-keyed snapshot.
+
+## Mother-rooted DNA (opaque settlement slot)
+
+TSN uses an epoch treasury and opaque, keyed settlement slots. Funding sends tokens only to the epoch treasury token account and increments aggregate pending liability. **Funding creates no payment account, escrow account, commitment PDA, or public payment identifier.**
+
+The Node/Mother keeps the payment binding (recipient route, sender refund destination, funding lineage, amount, mint, epoch, payment hash) in encrypted storage. The encryption key and plaintext never leave Node/Mother. A keyed slot is derived by authorized Node/Mother with HMAC-SHA256 and is withheld until settlement or refund.
+
+For a lease, Node signs a permit binding:
+
+- the opaque slot
+- commitment digest, random nonce, nullifier
+- Mother-rooted epoch treasury and ledger
+- CrankerVault, recipient, mint, amount
+- lease id, version, expiry
+- authorization expiry
+
+The `EpochClaimSlot` PDA is derived from the epoch treasury and opaque slot. It is initialized by the first valid settlement or refund, so the slot first appears on-chain at that operation. It stores no payment id, sender, or recipient identity beyond the public payout coordinate.
+
+**First successful operation wins.** Settlement atomically checks the Node permit, lease, slot state, nullifier, and treasury liability; pays the recipient from the CrankerVault; reimburses that exact CrankerVault for the exact amount; marks the slot `SETTLED`; records the successful Cranker. Refund uses the same slot and marks it `REFUNDED`, returning the exact amount from epoch treasury to the Node-authorized refund destination. A later operation against the same slot fails before token movement.
+
+## Authorization contract
+
+The privacy-safe authorization ABI carries:
+
+- opaque `authorization_digest`
+- validity window (`valid_after_slot`, `expires_at_slot`)
+- predecessor and successor commitments (`previous_commitment`, `new_commitment`)
+- `sequence`, `token_id`
+- `policy_commitment`, `gpru_scope_commitment`
+- one-time `nullifier`
+
+It intentionally excludes payment intent identifiers, recipient TINs, settlement commitments, epoch roots, accepted-intent records, and TCAP authorization receipts. The predecessor and sequence checks prevent replay without creating an account for every transfer.
+
+## What is visible vs private
+
+**On-chain:** governed program accounts, opaque commitments, sequence values, token IDs, scoped authorization commitments, validity windows.
+
+**Never on-chain:** plaintext receiving roots, private balance values, master seeds, snapshot plaintext, payment intent IDs, recipient TINs inside the TCAP transition.
+
+Receiver, Node, and Cranker APIs expose only the redacted work and public evidence required for coordination. The owner device retains private roots, snapshot keys, and decrypted balances.
+
+## Debit and exit boundary
+
+Debit and exit interfaces exist for future compatibility, but live confidential debit and exit remain proof-gated and disabled. A GPRU signature, hash-only payload, or placeholder proof cannot spend, exit, mutate a tip, or drain a liquidity pool.
+
+Enabling spend requires:
+
+- an audited proof verifier
+- registered rate/version rules
+- commitment opening and successor checks
+- nullifier consumption
+- destination binding for exits
+- protocol liquidity invariants
+
+Until those are in place, live confidential debit and exit return `ProofSystemNotEnabled`.
+
+## Layer summary
+
+- **TSN** is settlement and authorization coordination infrastructure. It verifies intent, leases, epoch liability, and one-time execution authority.
+- **TCAP** (Transfer Confidential Asset Protocol) is private balance accounting. It advances commitment-backed tips and anchors encrypted owner snapshots.
+- **GPRU** is non-custodial authorization and routing. It tells the system what may happen and where the authorized work may go without holding value.
+- **TIN** is the payment identity and route-discovery system.
+
+## Architecture history
+
+The repository previously explored ZK-PRU-based receiving and spending. That experiment was superseded by the TIN privacy-receiving root, GPRU authorization, and TCAP encrypted-snapshot credit model. The history remains documented for auditability, but new implementations must target the current architecture.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Introduction" icon="house" href="/">
+    Back to the overview.
+  </Card>
+
+  <Card title="FAQ" icon="circle-question" href="/faq">
+    Common questions about privacy boundaries and deployment status.
+  </Card>
+</CardGroup>

@@ -1,40 +1,10 @@
 import { assertCanonicalAssetId, assertTcapReserveBacked, assertTsnFeeReserveBacked } from "./contracts.js";
 import type {
   AtomicFundingPlanV1,
-  ConfidentialSettlementRequestV1,
-  PaymentIntentV2,
-  PublicSettlementRequestV1,
   TcapAssetEntryV1,
   TcapReserveStateV1,
   TsnFeeReserveStateV1,
 } from "./models.js";
-
-const FORBIDDEN_SETTLEMENT_KEYS = new Set([
-  "payer",
-  "payerWallet",
-  "payerTokenAccount",
-  "paymentIntent",
-  "paymentIntentPda",
-  "pendingLiability",
-  "pendingLiabilityPda",
-  "legacyEscrow",
-  "senderContainer",
-  "fundingTransaction",
-  "fundedIntentLeaf",
-]);
-
-export function assertSettlementBoundary(request: PublicSettlementRequestV1 | ConfidentialSettlementRequestV1): void {
-  for (const key of Object.keys(request)) {
-    if (FORBIDDEN_SETTLEMENT_KEYS.has(key)) throw new Error(`forbidden_settlement_field:${key}`);
-  }
-}
-
-export function assertPaymentIntentV2DataOnly(intent: PaymentIntentV2): void {
-  const forbidden = ["tokenBalance", "vault", "recipient", "assignedCranker", "payoutSignature", "reimbursed"];
-  for (const key of forbidden) {
-    if (key in intent) throw new Error(`forbidden_payment_intent_v2_field:${key}`);
-  }
-}
 
 export function assertAssetEntry(entry: TcapAssetEntryV1): void {
   assertCanonicalAssetId(entry.asset);

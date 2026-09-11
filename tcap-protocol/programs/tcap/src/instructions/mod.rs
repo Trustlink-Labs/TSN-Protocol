@@ -8,7 +8,6 @@ pub mod debit_tcap_gpru_tip_v2;
 pub mod initialize_tcap_tip_liability_v2;
 pub mod migrate_asset_entry_custody_graph_v2;
 pub mod debit_tcap_balance_v1;
-pub mod exit_tcap_tip_v1;
 pub mod deposit_asset_v2;
 pub mod deposit_with_funding_commitment_v2;
 pub mod exit_tcap_liquidity_v1;
@@ -23,6 +22,10 @@ pub mod credit_one_time_tip_transfer;
 pub mod initialize_one_time_tip_liability;
 pub mod migrate_tcap_config_layout_v1;
 pub mod migrate_reserve_transfer_pending_v1;
+pub mod migrate_tip_seal_v1;
+pub mod repair_tip_seal_v1;
+pub mod debit_tcap_exit_v1;
+pub mod payout_tcap_exit_v1;
 pub mod initialize_tcap_v1;
 
 pub use credit_tcap_tin_tip_v1::*;
@@ -31,7 +34,6 @@ pub use debit_tcap_gpru_tip_v2::*;
 pub use initialize_tcap_tip_liability_v2::*;
 pub use migrate_asset_entry_custody_graph_v2::*;
 pub use debit_tcap_balance_v1::*;
-pub use exit_tcap_tip_v1::*;
 pub use exit_tcap_liquidity_v1::*;
 pub use credit_one_time_tip::*;
 pub use credit_one_time_tip_transfer::*;
@@ -58,6 +60,10 @@ pub use one_time_tip::*;
 pub use encrypted_snapshot::*;
 pub use migrate_tcap_config_layout_v1::*;
 pub use migrate_reserve_transfer_pending_v1::*;
+pub use migrate_tip_seal_v1::*;
+pub use repair_tip_seal_v1::*;
+pub use debit_tcap_exit_v1::*;
+pub use payout_tcap_exit_v1::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct UpdateAssetStatusArgsV1 {

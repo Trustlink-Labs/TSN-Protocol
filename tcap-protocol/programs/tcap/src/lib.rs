@@ -71,6 +71,8 @@ pub mod tcap {
         amount: u64,
         valid_after_slot: u64,
         expires_at_slot: u64,
+        sealed: [u8; 48],
+        seal_commitment: [u8; 32],
     ) -> Result<()> {
         instructions::credit_one_time_tip::handler(
             ctx,
@@ -84,6 +86,8 @@ pub mod tcap {
             amount,
             valid_after_slot,
             expires_at_slot,
+            sealed,
+            seal_commitment,
         )
     }
 
@@ -118,11 +122,12 @@ pub mod tcap {
         instructions::debit_tcap_balance_v1::handler(ctx, args)
     }
 
-    pub fn exit_tcap_tip_v1(
-        ctx: Context<ExitTcapTipV1>,
-        args: ExitTcapTipV1Args,
-    ) -> Result<()> {
-        instructions::exit_tcap_tip_v1::handler(ctx, args)
+    pub fn debit_tcap_exit_v1(ctx: Context<DebitTcapExitV1>, args: DebitTcapExitArgsV1) -> Result<()> {
+        instructions::debit_tcap_exit_v1::handler(ctx, args)
+    }
+
+    pub fn payout_tcap_exit_v1(ctx: Context<PayoutTcapExitV1>, args: PayoutTcapExitArgsV1) -> Result<()> {
+        instructions::payout_tcap_exit_v1::handler(ctx, args)
     }
 
     pub fn exit_tcap_liquidity_v1(
@@ -140,6 +145,14 @@ pub mod tcap {
         ctx: Context<MigrateReserveTransferPendingV1>,
     ) -> Result<()> {
         instructions::migrate_reserve_transfer_pending_v1::handler(ctx)
+    }
+
+    pub fn migrate_tip_seal_v1(ctx: Context<MigrateTipSealV1>) -> Result<()> {
+        instructions::migrate_tip_seal_v1::handler(ctx)
+    }
+
+    pub fn repair_tip_seal_v1(ctx: Context<RepairTipSealV1>) -> Result<()> {
+        instructions::repair_tip_seal_v1::handler(ctx)
     }
 
     pub fn raise_minimum_instruction_version_v2(
