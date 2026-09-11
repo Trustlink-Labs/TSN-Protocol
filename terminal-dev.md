@@ -417,9 +417,9 @@ bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$
 <!--  -->
 
 bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ unset TCAP_SKIP_FUNDING
-npm run tcap:credit:v2:devnet
-trustlink-pay@1.0.0 tcap:credit:v2:devnet
-node protocol-tests/scenarios/tcap-credit-v2.mjs
+npm run tcap:one-time:deposit-credit:devnet
+trustlink-pay@1.0.0 tcap:one-time:deposit-credit:devnet
+node protocol-tests/scenarios/tcap-one-time-deposit-credit.mjs
 (node:5710) [DEP0040] DeprecationWarning: The punycode module is deprecated. Please use a userland alternative instead.
 (Use node --trace-deprecation ... to show where the warning was created)
 {
@@ -483,10 +483,10 @@ bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$
 
 <!--  -->
 
-bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ npm run tcap:credit:v2:devnet -- --user A --amount 1000000
+bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ npm run tcap:one-time:deposit-credit:devnet -- --user A --amount 1000000
 
-> trustlink-pay@1.0.0 tcap:credit:v2:devnet
-> node protocol-tests/scenarios/tcap-credit-v2.mjs --user A --amount 1000000
+> trustlink-pay@1.0.0 tcap:one-time:deposit-credit:devnet
+> node protocol-tests/scenarios/tcap-one-time-deposit-credit.mjs --user A --amount 1000000
 
 {"identity":{"user":"A","tin":"1000000001","privacyPubkey":"8f0b34fb","gpru":"6dfe3d84","tip":"FgHMXMdyeDN7NGnaf1XTSGsN5BCy1n7swQdGpNUkotxs","available":"2000000"}}
 (node:9209) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
@@ -556,10 +556,10 @@ ws error:
 "note": "Credit transaction contains only opaque GPRU tip-transition accounts; funding bookkeeping and token accounts are absent."
 }
 }
-bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ npm run tcap:credit:v2:devnet -- --user A --amount 1000000
+bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ npm run tcap:one-time:deposit-credit:devnet -- --user A --amount 1000000
 
-> trustlink-pay@1.0.0 tcap:credit:v2:devnet
-> node protocol-tests/scenarios/tcap-credit-v2.mjs --user A --amount 1000000
+> trustlink-pay@1.0.0 tcap:one-time:deposit-credit:devnet
+> node protocol-tests/scenarios/tcap-one-time-deposit-credit.mjs --user A --amount 1000000
 
 {"identity":{"user":"A","tin":"1000000001","privacyPubkey":"8f0b34fb","gpru":"6dfe3d84","tip":"FgHMXMdyeDN7NGnaf1XTSGsN5BCy1n7swQdGpNUkotxs","available":"3000000"}}
 (node:9242) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
@@ -1473,3 +1473,4 @@ transactionLogs: [
 
 Node.js v22.22.2
 bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$
+

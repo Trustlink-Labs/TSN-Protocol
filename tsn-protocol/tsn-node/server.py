@@ -2648,18 +2648,6 @@ async def read_tin_pru_route(tin: str) -> Optional[dict[str, Any]]:
         await r.hset(k_tin_pru_routes(), str(tin), json.dumps(route))
     return route
 
-def _compute_pru_spend_auth_hash(*, tin: str, pru_index: int, owner_pubkey: str) -> str:
-    return hashlib.sha256(
-        b"".join(
-            [
-                int(tin).to_bytes(8, "little", signed=False),
-                int(pru_index).to_bytes(2, "little", signed=False),
-                decode_base58(owner_pubkey),
-                b"TRUSTLINK_PRU_SPEND_GUARD_V1",
-            ]
-        )
-    ).hexdigest()
-
 def _route_owner_pubkey_hash(route: dict[str, Any]) -> Optional[str]:
     owner_pubkey_hash = route.get("ownerPubkeyHash")
     if isinstance(owner_pubkey_hash, str) and owner_pubkey_hash.strip():

@@ -195,7 +195,7 @@ export TCAP_GPRU_SCOPE_COMMITMENT="<authorized-GPRU-scope>"
 export TCAP_TSN_SETTLEMENT_COMMITMENT="<TSN-settlement-commitment>"
 export TCAP_TOKEN_ID="<registered-token-id>"
 export TCAP_TOKEN_BALANCES_JSON='[{"token_id":1,"native_amount":"100","stable_units":"100","stable_rate_version":1}]'
-node protocol-tests/scenarios/tcap-credit-bootstrap.mjs
+node protocol-tests/scenarios/tcap-one-time-deposit-credit.mjs
 source protocol-tests/tcap-credit-devnet.env
 node protocol-tests/scenarios/tcap-credit-smoke.mjs --dry-run
 ```
@@ -278,3 +278,4 @@ If the existing Devnet config is detected in the legacy pre-proof-verifier layou
   the program upgrade has not completed.
 - `MISSING_DEPENDENCY TCAP_EMPTY_TREE_ROOT_HEX`: governance/root setup is not
   complete; never substitute a random or zero root.
+

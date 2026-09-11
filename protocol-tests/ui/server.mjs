@@ -11,6 +11,7 @@ import { diagnosticConfig, diagnosticConfigFromBody, loadDiagnosticRecords, save
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const runsRoot = path.join(root, "protocol-test-runs");
 const tsnSdk = await import(pathToFileURL(path.join(root, "tsn-protocol/tsn-sdk/dist/index.js")).href);
+const splToken = await import(pathToFileURL(path.join(root, "tsn-protocol/tsn-sdk/node_modules/@solana/spl-token/lib/esm/index.js")).href);
 const CURRENT_ROUTE_VERSION = 1;
 const port = Number(process.env.TRUSTLINK_UI_PORT || 4317);
 const clients = new Set();
@@ -126,13 +127,27 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/tsn/sdk/prepare-tin") {
     const body = await readJson(req);
     if (!session.wallet?.publicKey) return json(res, 409, { error: "TEST_WALLET_NOT_LOADED" });
-    const tin = String(body.tin ?? "").trim();
     const displayName = String(body.displayName ?? "").trim();
-    if (!/^\d{10}$/.test(tin) || !displayName) return json(res, 422, { error: "TIN_AND_DISPLAY_NAME_REQUIRED" });
-    const nonce = randomBytes(16).toString("hex");
-    const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    const message = tsnSdk.buildTinCreationMessage({ tin, displayName, nonce, expires });
-    return json(res, 200, { status: "AUTHORIZATION_READY", intentType: "tin_creation", tin, displayName, nonce, expires, message, directCreate: "DISABLED_BY_SDK" });
+    if (!displayName) return json(res, 422, { error: "DISPLAY_NAME_REQUIRED" });
+    return json(res, 501, { error: "TIP_TIN_ALLOCATOR_NOT_WIRED", message: "TIN assignment belongs to the TIP program/TSN Cranker. The current SDK disables direct createTin and the Node creation contract still requires the allocator result." });
+  }
+  if (req.method === "POST" && url.pathname === "/api/tsn/sdk/resolve-route") {
+    const body = await readJson(req);
+    const tin = String(body.tin ?? "").trim();
+    if (!/^\d{10}$/.test(tin)) return json(res, 422, { error: "TEN_DIGIT_TIN_REQUIRED" });
+    const identity = await tsnSdk.resolveTIN({
+      tin,
+      connection,
+      programId: process.env.TIN_PROGRAM_ID ?? "TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT",
+    });
+    if (!identity.tcapRelationshipCommitment || identity.tcapRouteVersion == null) return json(res, 409, { error: "CURRENT_TCAP_ROUTE_NOT_AVAILABLE", tin });
+    return json(res, 200, {
+      status: "CURRENT_ROUTE_RESOLVED",
+      tin,
+      routeCommitment: identity.tcapRelationshipCommitment,
+      routeVersion: identity.tcapRouteVersion,
+      source: "TIP_TIN_ACCOUNT",
+    });
   }
   if (req.method === "POST" && url.pathname === "/api/tsn/sdk/prepare-payment") {
     const body = await readJson(req);
@@ -154,6 +169,32 @@ async function handleApi(req, res, url) {
       fundingMode: "wallet_only_v2",
     });
     return json(res, 200, { status: "SIGNATURE_REQUIRED", paymentId: randomBytes(16).toString("hex"), ...authorization, recipientTin: String(body.recipientTin), recipientRouteCommitment: String(body.recipientRouteCommitment ?? ""), recipientRouteVersion: routeVersion, tokenMintAddress: String(body.tokenMintAddress ?? ""), amount });
+  }
+  if (req.method === "POST" && url.pathname === "/api/tsn/sdk/prepare-wallet-transfer") {
+    const body = await readJson(req);
+    if (!session.wallet?.publicKey) return json(res, 409, { error: "TEST_WALLET_NOT_LOADED" });
+    let recipientWallet;
+    let mint;
+    try {
+      recipientWallet = new PublicKey(String(body.recipientWallet ?? ""));
+      mint = new PublicKey(String(body.tokenMintAddress ?? ""));
+    } catch {
+      return json(res, 422, { error: "INVALID_WALLET_OR_MINT" });
+    }
+    const decimals = Number(body.tokenDecimals ?? 6);
+    const amountUi = String(body.amountUi ?? "").trim();
+    const [whole, fraction = ""] = amountUi.split(".");
+    if (!/^\d+$/.test(whole) || !/^\d*$/.test(fraction) || fraction.length > decimals || decimals < 0 || decimals > 18) return json(res, 422, { error: "INVALID_TOKEN_AMOUNT" });
+    const amount = BigInt(whole) * 10n ** BigInt(decimals) + BigInt((fraction + "0".repeat(decimals)).slice(0, decimals) || "0");
+    if (amount <= 0n) return json(res, 422, { error: "AMOUNT_MUST_BE_POSITIVE" });
+    const sender = new PublicKey(session.wallet.publicKey);
+    const senderAta = splToken.getAssociatedTokenAddressSync(mint, sender);
+    const recipientAta = splToken.getAssociatedTokenAddressSync(mint, recipientWallet);
+    const latest = await connection.getLatestBlockhash("confirmed");
+    const transaction = new Transaction({ feePayer: sender, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight });
+    transaction.add(splToken.createAssociatedTokenAccountIdempotentInstruction(sender, recipientAta, recipientWallet, mint));
+    transaction.add(splToken.createTransferCheckedInstruction(senderAta, mint, recipientAta, sender, amount, decimals));
+    return json(res, 200, { status: "WALLET_TRANSFER_READY", senderWallet: sender.toBase58(), recipientWallet: recipientWallet.toBase58(), tokenMintAddress: mint.toBase58(), amountUi, tokenDecimals: decimals, transactionBase64: transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString("base64"), liveSubmission: true });
   }
   if (req.method === "POST" && url.pathname === "/api/tsn/sdk/submit-payment") {
     const body = await readJson(req);
