@@ -10,12 +10,12 @@ description: "The Transfer Settlement Network (TSN) by TrustLink Labs is private
 
 TSN is not one program. It is four cooperating layers, each with a strict boundary.
 
-| Layer | Role | Custody |
-| --- | --- | --- |
-| **TIN** | Payment identity and route discovery | None |
-| **GPRU** | Non-custodial authorization and routing | Never holds funds |
-| **TSN** | Settlement coordination, epoch treasury, Mother-rooted permits | Program-owned epoch treasury and cranker vaults |
-| **TCAP** | Private balance accounting through commitment tips and encrypted snapshots | Governed reserves and vaults, per-asset |
+| Layer    | Role                                                                       | Custody                                         |
+| -------- | -------------------------------------------------------------------------- | ----------------------------------------------- |
+| **TIN**  | Payment identity and route discovery                                       | None                                            |
+| **GPRU** | Non-custodial authorization and routing                                    | Never holds funds                               |
+| **TSN**  | Settlement coordination, epoch treasury, Mother-rooted permits             | Program-owned epoch treasury and cranker vaults |
+| **TCAP** | Private balance accounting through commitment tips and encrypted snapshots | Governed reserves and vaults, per-asset         |
 
 The layers are separated on purpose. A GPRU signature alone cannot move custody. A cranker cannot rewrite an authorization. TCAP owns the tip and sequence, not payment intent. TIN never holds a key.
 
@@ -34,13 +34,13 @@ Each layer has its own page detailing every operation and its status.
     Settlement coordination, epoch treasury, Mother-rooted DNA permits.
   </Card>
 
-  <Card title="TIN" icon="id-card" href="/layers/tin">
-    10-digit payment identity and route discovery.
-  </Card>
+<Card title="TIN" icon="id-card" href="/layers/tin">
+  10-digit payment identity and route discovery.
+</Card>
 
-  <Card title="GPRU" icon="route" href="/layers/gpru">
-    Non-custodial authorization and routing.
-  </Card>
+<Card title="GPRU" icon="route" href="/layers/gpru">
+  Non-custodial authorization and routing.
+</Card>
 
   <Card title="TCAP" icon="lock" href="/layers/tcap">
     Confidential balances: credit (live), debit and exit (in development).
@@ -50,17 +50,22 @@ Each layer has its own page detailing every operation and its status.
 ## Where to go next
 
 <CardGroup cols={2}>
-  <Card title="How a Payment Feels" icon="hand-pointer" href="/how-a-payment-feels">
-    What the user sees vs what actually happens under the hood, in one second.
+  <Card title="How It Works" icon="hand-pointer" href="/how-it-works/how-a-payment-feels">
+    What the user sees versus what happens under the hood.
   </Card>
 
-  <Card title="Current Architecture" icon="diagram-project" href="/architecture">
-    The canonical TIN → GPRU → TSN → TCAP model with the end-to-end sequence diagram.
-  </Card>
+<Card
+  title="Current Architecture"
+  icon="diagram-project"
+  href="/how-it-works/architecture"
+>
+  The canonical TIN → GPRU → TSN → TCAP model with the end-to-end sequence
+  diagram.
+</Card>
 
-  <Card title="FAQ" icon="circle-question" href="/faq">
-    Answers about privacy boundaries, deployment status, and the debit gate.
-  </Card>
+<Card title="FAQ" icon="circle-question" href="/how-it-works/faq">
+  Answers about privacy boundaries, deployment status, and the debit gate.
+</Card>
 
   <Card title="Run a Cranker" icon="gears" href="/operators/tsn-cranker">
     Operator process that leases work and pays Solana fees.
@@ -76,17 +81,21 @@ TrustLink Labs is the team building TSN. Everything on this site describes the T
     All open-source repositories from TrustLink Labs.
   </Card>
 
-  <Card title="Follow on X" icon="x-twitter" href="https://x.com/TrustLinkLabs">
-    Protocol announcements and Devnet updates.
-  </Card>
+<Card title="Follow on X" icon="x-twitter" href="https://x.com/TrustLinkLabs">
+  Protocol announcements and Devnet updates.
+</Card>
 
-  <Card title="Blog" icon="rss" href="https://tsn-protocol.blogspot.com">
-    Engineering notes and protocol write-ups.
-  </Card>
+<Card title="Blog" icon="rss" href="https://tsn-protocol.blogspot.com">
+  Engineering notes and protocol write-ups.
+</Card>
 
-  <Card title="Protocol Source" icon="code" href="https://github.com/bigdreamsweb3/trustlink-pay">
-    TSN, TCAP, TIN Registrar, and Faucet program source.
-  </Card>
+<Card
+  title="Protocol Source"
+  icon="code"
+  href="https://github.com/bigdreamsweb3/trustlink-pay"
+>
+  TSN, TCAP, TIN Registrar, and Faucet program source.
+</Card>
 
   <Card title="Docs Source" icon="book" href="https://github.com/bigdreamsweb3/tsn-docs">
     This documentation site.

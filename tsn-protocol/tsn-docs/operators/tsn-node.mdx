@@ -69,9 +69,7 @@ The permit is what makes the settlement instruction valid. Without it, the TSN p
 
 ## Refund authorization
 
-<Note>
-  **Status: Live on Devnet.**
-</Note>
+<Note>**Status: Live on Devnet.**</Note>
 
 If an intent expires without settlement, the Node signs a refund permit against the same opaque slot. The first valid refund initializes and consumes the slot as `REFUNDED` and returns the exact amount from the epoch treasury to the sender's authorized refund destination.
 
@@ -82,15 +80,19 @@ If an intent expires without settlement, the Node signs a refund permit against 
     The operator process that submits Node-authorized work.
   </Card>
 
-  <Card title="TSN Layer" icon="network-wired" href="/layers/tsn">
-    Program-level settlement instructions.
-  </Card>
+<Card title="TSN Layer" icon="network-wired" href="/layers/tsn">
+  Program-level settlement instructions.
+</Card>
 
-  <Card title="Architecture" icon="diagram-project" href="/architecture">
-    End-to-end sequence diagram.
-  </Card>
+<Card
+  title="Architecture"
+  icon="diagram-project"
+  href="/how-it-works/architecture"
+>
+  End-to-end sequence diagram.
+</Card>
 
-  <Card title="FAQ" icon="circle-question" href="/faq">
+  <Card title="FAQ" icon="circle-question" href="/how-it-works/faq">
     Privacy boundaries and Devnet status.
   </Card>
 </CardGroup>

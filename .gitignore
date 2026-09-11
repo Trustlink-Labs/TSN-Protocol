@@ -154,6 +154,7 @@ protocol-tests/ui/public/*
 !protocol-tests/ui/public/bridge-controller.js
 !protocol-tests/ui/public/index.html
 !protocol-tests/ui/public/wallet-controller.js
+!protocol-tests/ui/public/tsn-dapp.js
 !protocol-tests/lib/
 protocol-tests/lib/*
 !protocol-tests/lib/privacy-root-commitment.mjs

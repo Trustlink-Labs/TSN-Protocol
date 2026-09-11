@@ -2,7 +2,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
@@ -10,6 +10,8 @@ import { diagnosticConfig, diagnosticConfigFromBody, loadDiagnosticRecords, save
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const runsRoot = path.join(root, "protocol-test-runs");
+const tsnSdk = await import(pathToFileURL(path.join(root, "tsn-protocol/tsn-sdk/dist/index.js")).href);
+const CURRENT_ROUTE_VERSION = 1;
 const port = Number(process.env.TRUSTLINK_UI_PORT || 4317);
 const clients = new Set();
 function readEnvDefaults(file) {
@@ -69,10 +71,11 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/" || url.pathname.startsWith("/runs/")) {
     const html = await fs.readFile(path.join(root, "protocol-tests/ui/public/index.html"), "utf8");
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); res.end(html.replace("</body>", '<script src="/wallet-controller.js"></script><script src="/bridge-controller.js"></script></body>')); return;
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); res.end(html.replace("</body>", '<script src="/wallet-controller.js"></script><script src="/bridge-controller.js"></script><script src="/tsn-dapp.js"></script></body>')); return;
   }
   if (url.pathname === "/wallet-controller.js") { const js = await fs.readFile(path.join(root, "protocol-tests/ui/public/wallet-controller.js"), "utf8"); res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" }); res.end(js); return; }
   if (url.pathname === "/bridge-controller.js") { const js = await fs.readFile(path.join(root, "protocol-tests/ui/public/bridge-controller.js"), "utf8"); res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" }); res.end(js); return; }
+  if (url.pathname === "/tsn-dapp.js") { const js = await fs.readFile(path.join(root, "protocol-tests/ui/public/tsn-dapp.js"), "utf8"); res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" }); res.end(js); return; }
   res.writeHead(404); res.end("Not found");
 });
 
@@ -120,6 +123,56 @@ async function handleApi(req, res, url) {
     try { const body = await readJson(req); const publicKey = new PublicKey(body.publicKey); session.signer = null; session.wallet = { type: "BROWSER_WALLET", publicKey: publicKey.toBase58(), source: "Browser wallet", signerLoaded: false }; return json(res, 200, await safeWallet(session, true)); } catch { return json(res, 400, { error: "INVALID_BROWSER_WALLET" }); }
   }
   if (req.method === "GET" && url.pathname === "/api/session/wallet") return json(res, 200, await safeWallet(session));
+  if (req.method === "POST" && url.pathname === "/api/tsn/sdk/prepare-tin") {
+    const body = await readJson(req);
+    if (!session.wallet?.publicKey) return json(res, 409, { error: "TEST_WALLET_NOT_LOADED" });
+    const tin = String(body.tin ?? "").trim();
+    const displayName = String(body.displayName ?? "").trim();
+    if (!/^\d{10}$/.test(tin) || !displayName) return json(res, 422, { error: "TIN_AND_DISPLAY_NAME_REQUIRED" });
+    const nonce = randomBytes(16).toString("hex");
+    const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const message = tsnSdk.buildTinCreationMessage({ tin, displayName, nonce, expires });
+    return json(res, 200, { status: "AUTHORIZATION_READY", intentType: "tin_creation", tin, displayName, nonce, expires, message, directCreate: "DISABLED_BY_SDK" });
+  }
+  if (req.method === "POST" && url.pathname === "/api/tsn/sdk/prepare-payment") {
+    const body = await readJson(req);
+    if (!session.wallet?.publicKey) return json(res, 409, { error: "TEST_WALLET_NOT_LOADED" });
+    const amount = Number(body.amount);
+    const routeVersion = Number(body.routeVersion ?? CURRENT_ROUTE_VERSION);
+    if (routeVersion !== CURRENT_ROUTE_VERSION) return json(res, 409, { error: "LEGACY_ROUTE_VERSION_NOT_SUPPORTED", currentRouteVersion: CURRENT_ROUTE_VERSION });
+    if (!Number.isFinite(amount) || amount <= 0 || !/^\d{10}$/.test(String(body.recipientTin ?? ""))) return json(res, 422, { error: "RECIPIENT_TIN_AND_POSITIVE_AMOUNT_REQUIRED" });
+    const authorization = tsnSdk.createPaymentAuthorization({
+      senderWallet: session.wallet.publicKey,
+      senderIdentity: `wallet:${session.wallet.publicKey}`,
+      receiverIdentity: `tin:${body.recipientTin}`,
+      recipientRouteCommitment: String(body.recipientRouteCommitment ?? ""),
+      recipientRouteVersion: routeVersion,
+      tokenMintAddress: String(body.tokenMintAddress ?? ""),
+      amount,
+      senderFeeAmount: Number(body.senderFeeAmount ?? 0),
+      totalTokenRequiredUi: amount + Number(body.senderFeeAmount ?? 0),
+      fundingMode: "wallet_only_v2",
+    });
+    return json(res, 200, { status: "SIGNATURE_REQUIRED", paymentId: randomBytes(16).toString("hex"), ...authorization, recipientTin: String(body.recipientTin), recipientRouteCommitment: String(body.recipientRouteCommitment ?? ""), recipientRouteVersion: routeVersion, tokenMintAddress: String(body.tokenMintAddress ?? ""), amount });
+  }
+  if (req.method === "POST" && url.pathname === "/api/tsn/sdk/submit-payment") {
+    const body = await readJson(req);
+    const receiverUrl = process.env.TSN_RECEIVER_URL?.trim();
+    const receiverKey = process.env.TSN_RECEIVER_NODE_API_KEY?.trim();
+    if (!receiverUrl || !receiverKey) return json(res, 503, { error: "TSN_RECEIVER_URL_AND_NODE_API_KEY_REQUIRED" });
+    const request = tsnSdk.buildPaymentAuthorizationIntentRequest({
+      paymentId: String(body.paymentId), recipientHash: String(body.recipientHash ?? body.recipientTin), recipientTin: String(body.recipientTin), recipientRouteCommitment: String(body.recipientRouteCommitment), recipientRouteVersion: Number(body.recipientRouteVersion), tokenMintAddress: String(body.tokenMintAddress), senderWallet: String(body.senderWallet), senderAuthorizationMessage: String(body.message), senderAuthorizationSignature: String(body.signatureBase64), senderAuthorizationNonce: String(body.nonce), senderAuthorizationIssuedAt: String(body.issuedAt), senderAuthorizationExpiresAt: String(body.expiresAt), amount: Number(body.amount), senderFundingMode: "wallet_only_v2", source: "protocol-test-dapp",
+    });
+    const response = await fetch(`${receiverUrl.replace(/\/$/, "")}/intents`, { method: "POST", headers: { "content-type": "application/json", "x-api-key": receiverKey }, body: JSON.stringify(request) });
+    const result = await response.json().catch(() => ({}));
+    return json(res, response.status, result);
+  }
+  if (req.method === "POST" && url.pathname === "/api/tsn/sdk/build-funding") {
+    const body = await readJson(req);
+    if (!session.wallet?.publicKey) return json(res, 409, { error: "TEST_WALLET_NOT_LOADED" });
+    const funding = await tsnSdk.buildTsnSponsoredSettlementTransaction({ crankerFeePayer: session.wallet.publicKey, senderWallet: session.wallet.publicKey, tokenMintAddress: String(body.tokenMintAddress), amountUi: String(body.amountUi), tokenDecimals: Number(body.tokenDecimals ?? 6), epochId: body.epochId == null ? undefined : Number(body.epochId), rpcUrl: rpc });
+    return json(res, 200, { status: "FUNDING_TRANSACTION_READY", ...funding, signer: session.wallet.publicKey, liveSubmission: false });
+  }
   if (req.method === "POST" && url.pathname === "/api/tcap/credit/preflight") {
     if (!session.wallet?.publicKey) return json(res, 409, { status: "BLOCKED_TEST_WALLET_NOT_LOADED", error: "TEST_WALLET_NOT_LOADED" });
     const accountChecks = [];
@@ -273,7 +326,7 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/test-asset/create-ata") {
     return submitTestAta(req, res, session);
   }
-  if (["/api/tcap/build-funding","/api/tcap/simulate-funding","/api/tcap/submit-funding","/api/tcap/verify-funding"].includes(url.pathname)) return json(res, 409, { error: "CONTROLLER_ACTION_NOT_READY", action: url.pathname, reason: "Canonical manual transaction builder has not been extracted; no automatic fallback is permitted." });
+  if (["/api/tcap/build-funding", "/api/tcap/simulate-funding", "/api/tcap/submit-funding", "/api/tcap/verify-funding"].includes(url.pathname)) return json(res, 409, { error: "CONTROLLER_ACTION_NOT_READY", action: url.pathname, reason: "Canonical manual transaction builder has not been extracted; no automatic fallback is permitted." });
   return json(res, 404, { error: "NOT_FOUND" });
 }
 
@@ -391,8 +444,8 @@ async function discoverStableTcap(session) {
     safeMessage: !mintAccount
       ? "The reserved Stable-TCAP mint account is absent on Devnet. Mint creation and faucet requests remain disabled."
       : faucetReady
-      ? "The deployed faucet and Stable-TCAP mint identities are ready for manual requests."
-      : "The public identities are reserved, but the complete Devnet faucet deployment is not yet proven."
+        ? "The deployed faucet and Stable-TCAP mint identities are ready for manual requests."
+        : "The public identities are reserved, but the complete Devnet faucet deployment is not yet proven."
   };
 }
 

@@ -141,6 +141,10 @@
     "./tsn-exit": {
       "import": "./dist/tsn-exit.js",
       "types": "./dist/tsn-exit.d.ts"
+    },
+    "./cross-chain": {
+      "import": "./dist/cross-chain.js",
+      "types": "./dist/cross-chain.d.ts"
     }
   },
   "scripts": {

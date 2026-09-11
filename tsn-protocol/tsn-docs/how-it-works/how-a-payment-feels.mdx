@@ -1,6 +1,6 @@
 ---
 title: "How a TSN Payment Feels: One Action, Many Checks"
-sidebarTitle: "How It Works"
+sidebarTitle: "How It Feels"
 description: "A TSN payment looks like one action to the user. Under the hood, TIN, GPRU, TSN, and TCAP cooperate. This page shows both views side by side."
 ---
 
@@ -16,7 +16,7 @@ description: "A TSN payment looks like one action to the user. Under the hood, T
 
 That is the intended product surface. No wallet address to copy and no settlement network to choose. The wallet still authorizes the payment, and the app should distinguish a submitted payment from a confirmed one.
 
-## What actually happens behind the action
+## What actually happens
 
 ```mermaid
 sequenceDiagram
@@ -33,13 +33,12 @@ sequenceDiagram
     GPRU->>TSN: Sender authorization and route commitment
     TSN->>TSN: Node verifies and submits authorized work to Receiver
     TSN->>TSN: Cranker leases and submits the exact authorized transaction
-    TSN->>TSN: Verify Mother-rooted DNA permit
     TSN->>TCAP: Advance opaque tip commitment (CPI)
     TCAP-->>U: Encrypted snapshot updated
-    U-->>U: Payment status becomes pending or confirmed
+    U-->>U: Pending or confirmed status
 ```
 
-Four layers, one payment action. Each layer stays inside its boundary, so no layer needs to know more than it should.
+Each layer stays inside its boundary, so no layer needs to know more than it should.
 
 ## Layer-by-layer, in one line each
 
@@ -54,16 +53,18 @@ Any single layer, on its own, is incomplete. Together, they form a payment path.
 
 ## Why the user does not see any of this
 
-Because no layer needs the full picture, the user does not have to hand it out. There is no wallet address to copy and no settlement network to choose. The wallet still authorizes the payment, while TSN and Solana enforce the protocol boundaries.
+Because no layer needs the full picture, the user does not have to hand it out. The wallet approves the signed authorization, while the Node, Receiver, Cranker, TSN program, and TCAP program each perform only their assigned checks.
+
+The product is a payment. The architecture is a set of enforced boundaries.
 
 ## Related
 
 <CardGroup cols={2}>
   <Card title="Architecture" icon="diagram-project" href="/how-it-works/architecture">
-    The architecture and role boundaries behind the payment flow.
+    The current TIN, GPRU, TSN, and TCAP architecture.
   </Card>
 
   <Card title="FAQ" icon="circle-question" href="/how-it-works/faq">
-    What is on-chain, what is not, and what the operator can see.
+    What is on-chain, what is private, and what operators can see.
   </Card>
 </CardGroup>
