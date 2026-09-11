@@ -21,13 +21,14 @@ TSN Receiver, Node, and Cranker are operator-run services. As an integrator, you
 
 <Steps>
   <Step title="Install tooling and set environment variables">
-    Install the SDK and configure the Devnet endpoints:
+    The TSN SDK is currently a private workspace package; it is not published to the public npm registry. From the repository root, install and build the local SDK:
 
-    ```bash title="Install SDK"
-    npm install @trustlink/tsn-sdk @trustlink/tcap-sdk
+    ```bash title="Install the local SDK"
+    npm --prefix tsn-protocol/tsn-sdk install
+    npm run tsn:sdk:build
     ```
 
-    Set the required environment variables:
+    Configure the Devnet endpoints for your integration:
 
     ```bash title="Environment variables"
     export TSN_RPC_GATEWAY_URL=https://tsn-rpc-gateway.vercel.app
@@ -36,14 +37,17 @@ TSN Receiver, Node, and Cranker are operator-run services. As an integrator, you
     ```
   </Step>
   <Step title="Obtain or register a TIN">
-    A TIN is a portable 10-digit identity issued by the Transfer Identity Protocol (TIP). Register or resolve one through the TIN registry program on Devnet.
+    A TIN is a portable 10-digit identity issued by the Transfer Identity Protocol (TIP). Resolve it through the TIP program using a Solana `Connection`.
 
     ```ts title="Resolve a TIN"
-    import { resolveTin } from "@trustlink/tsn-sdk/tin";
+    import { Connection, PublicKey } from "@solana/web3.js";
+    import { resolveTIN } from "@trustlink/tsn-sdk/tins";
     
-    const tinRecord = await resolveTin({
+    const connection = new Connection(process.env.TSN_RPC_GATEWAY_URL!, "confirmed");
+    const tinRecord = await resolveTIN({
       tin: "1234567890",
-      registryProgram: "TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT",
+      connection,
+      programId: new PublicKey("TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT"),
     });
     ```
 
@@ -52,7 +56,7 @@ TSN Receiver, Node, and Cranker are operator-run services. As an integrator, you
   <Step title="Construct and sign a payment intent locally">
     Build the canonical payment message on your authorized device. The intent binds amount, mint, fee limits, expiry, a one-time nonce, sender authorization, transaction commitment, recipient route commitment, and route version.
 
-    ```json title="Illustrative intent shape"
+    ```json title="Conceptual intent fields"
     {
       "amount": "1000000",
       "tokenMint": "E7jSHdPLzgGafBou5PswKcsS5JxiPnek7TxquFAxXm6h",
@@ -88,30 +92,45 @@ TSN Receiver, Node, and Cranker are operator-run services. As an integrator, you
     ```
   </Step>
   <Step title="Submit to the TSN Receiver">
-    Send the signed intent to the Receiver endpoint:
+    The Node submits an authorized funding work item to the Receiver. This endpoint is service-authenticated; do not call it directly from a browser or expose the API key.
 
-    ```ts title="Submit intent"
-    const response = await fetch(`${TSN_RECEIVER_URL}/v1/intent`, {
+    ```ts title="Submit authorized funding work"
+    const response = await fetch(`${TSN_RECEIVER_URL}/intents`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(signedIntent),
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.TSN_RECEIVER_NODE_API_KEY!,
+      },
+      body: JSON.stringify({
+        paymentId,
+        recipientHash,
+        recipientRouteCommitment,
+        tokenMintAddress,
+        amount,
+        senderWallet,
+        senderAuthorizationMessage,
+        senderAuthorizationSignature,
+        senderAuthorizationNonce,
+      }),
     });
-    const { workId } = await response.json();
+    if (!response.ok) throw new Error(await response.text());
+    const work = await response.json();
+    console.log(work.id, work.receiverStatus);
     ```
 
-    The Receiver records the work as `RECEIVED` and leases it to the Node for verification.
+    The Receiver records the work as `RECEIVED`. The response uses `id` as the stable work/payment identifier. The Node then verifies the signed authorization before a Cranker can lease it.
   </Step>
   <Step title="Observe the work lifecycle">
-    Poll the Receiver for status transitions:
+    The internal Receiver state machine is:
 
     ```text
     RECEIVED -> NODE_VERIFYING -> VERIFIED -> CRANKER_LEASED -> SUBMITTED -> CONFIRMED
     ```
 
-    `REJECTED` is terminal. A lease expiration may return eligible work to the queue.
+    Node services can list payment work with authenticated `GET /intents`. The public view maps active internal states to `pending`, `REJECTED` to `canceled`, and `CONFIRMED` to `executed`; use `receiverStatus` when you need the raw state. There is no public `GET /intents/:id` endpoint in the current Receiver.
   </Step>
   <Step title="Confirm on Solana">
-    Once the status reaches `CONFIRMED`, fetch the transaction signature from the Receiver and verify it on Solana Explorer (Devnet cluster):
+    Once `receiverStatus` reaches `CONFIRMED`, read the returned transaction signature and verify it on Solana Explorer (Devnet cluster):
 
     ```bash
     solana confirm -ud <transaction_signature>
@@ -127,11 +146,11 @@ TSN Receiver, Node, and Cranker are operator-run services. As an integrator, you
 | --- | --- | --- |
 | TSN / TrustLink Escrow | `TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V` | Active Devnet |
 | TIN registry | `TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT` | Active Devnet |
-| TCAP | `TcApT4CytBqvqEDpRYVB7WfiB1e53VJJg9X8NoRP8V` | Credit-only Devnet |
+| TCAP | Deployment-specific; set `TCAP_PROGRAM_ID` | Credit-only path; verify the deployed ID before use |
 | Stable-TCAP faucet | `E7jSHdPLzgGafBou5PswKcsS5JxiPnek7TxquFAxXm6h` | Devnet test infrastructure |
 
 <Info>
-  The Stable-TCAP faucet is Devnet-only and valueless. It is not USDC or any production stablecoin.
+  The Stable-TCAP faucet is Devnet-only and valueless. It is not USDC or any production stablecoin. Historical TCAP ID placeholders are not valid Solana public keys; obtain the deployed ID before constructing TCAP instructions.
 </Info>
 
 ## Next steps

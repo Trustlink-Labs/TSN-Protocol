@@ -8,14 +8,18 @@ This page explains the funding and acceptance phase of a TSN payment. You will l
 
 ## Funding a payment
 
-The SDK builds a `fund_epoch_treasury` transaction that sends SPL tokens directly to the current epoch's treasury token account. The funding transaction creates no payment-specific account, escrow PDA, commitment account, or claim slot.
+The SDK builds a `tsn_fund_epoch_treasury` transaction that sends SPL tokens directly to the current epoch's treasury token account. The funding transaction creates no payment-specific account, escrow PDA, commitment account, or claim slot. The SDK returns an unsigned transaction serialized as base64; the sender must sign and submit it before the Node accepts the payment work.
 
 ```ts title="Build funding transaction"
-const fundTx = await tsnSdk.buildFundEpochTreasury({
+import { buildTsnSponsoredSettlementTransaction } from "@trustlink/tsn-sdk/sponsored-settlement";
+
+const funding = await buildTsnSponsoredSettlementTransaction({
+  crankerFeePayer,
+  senderWallet,
+  tokenMintAddress,
+  amountUi: "1.00",
+  tokenDecimals: 6,
   epochId,
-  amount,
-  tokenMint,
-  senderTokenAccount,
 });
 ```
 
