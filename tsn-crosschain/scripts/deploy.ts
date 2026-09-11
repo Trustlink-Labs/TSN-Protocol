@@ -36,7 +36,7 @@ function importResolver(importPath: string): { contents?: string; error?: string
   return { error: `Import not found: ${importPath}` };
 }
 
-async function compile(fileName: string): Promise<{ abi: unknown[]; bytecode: string }> {
+async function compile(fileName: string): Promise<{ abi: any[]; bytecode: string }> {
   const source = await readFile(join(root, "contracts", fileName), "utf8");
   const input = {
     language: "Solidity",

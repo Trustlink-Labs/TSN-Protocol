@@ -70,19 +70,20 @@ See [architecture.md](./architecture.md),
 [attestation-protocol.md](./attestation-protocol.md), and
 [creditcoin-integration.md](./creditcoin-integration.md) for the operating
 model. The TypeScript façade is in
-[attestcoin-sdk-extension.ts](./attestcoin-sdk-extension.ts).
+[the TSN SDK cross-chain module](../../tsn-sdk/src/cross-chain.ts), with the
+protocol notes in [attestcoin-sdk-extension.md](./attestcoin-sdk-extension.md).
 
 ## Executable happy path
 
-The executable pieces are under `contracts/`, `worker/`, and `scripts/`:
+The executable pieces are under `../contracts/`, `../worker/`, and `../scripts/`:
 
-- `contracts/SepoliaAnchor.sol` records the canonical public evidence tuple and
+- `../contracts/SepoliaAnchor.sol` records the canonical public evidence tuple and
   emits `TinExitAnchored`.
-- `contracts/TinExitAttestedASC.sol` follows the official `ASCBase` and
+- `../contracts/TinExitAttestedASC.sol` follows the official `ASCBase` and
   `EvmV1Decoder` pattern. Its inherited `execute` verifies the Sepolia proof
   through Creditcoin's native verifier at `0x0FD2`, then emits
   `TinExitAttested` with replay protection.
-- `worker/tin-exit-attest-worker.ts` uses `@gluwa/usc-sdk` to wait for
+- `../worker/tin-exit-attest-worker.ts` uses `@gluwa/usc-sdk` to wait for
   attestation, call `getProof`, locally run `PrecompileBlockProver.verifySingle`,
   and submit the proof to the ASC.
 
@@ -91,7 +92,7 @@ and [custom-contract example](https://github.com/gluwa/attestcoin-protocol-examp
 
 ### One-command testnet deployment
 
-From this directory, copy `.env.example` to `.env`, provide a throwaway funded
+From `tsn-protocol/tsn-crosschain/`, copy `.env.example` to `.env`, provide a throwaway funded
 testnet key and Sepolia RPC URL, then run:
 
 ```powershell

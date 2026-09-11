@@ -51,7 +51,7 @@ async function waitForReceipt(
 async function proveAndSubmit(
   txHash: string,
   sourceProvider: JsonRpcProvider,
-  creditcoinProvider: JsonRpcProvider,
+  creditcoinProvider: any,
   asc: Contract,
   chainKey: number,
   proofBuilderUrl: string,

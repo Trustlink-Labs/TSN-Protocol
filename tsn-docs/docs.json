@@ -39,15 +39,15 @@
             "group": "Get Started",
             "pages": [
               "overview/introduction",
-              "developers/getting-started"
+              "developers/getting-started",
+              "get-started/faq"
             ]
           },
           {
             "group": "How It Works",
             "pages": [
               "how-it-works/how-a-payment-feels",
-              "how-it-works/architecture",
-              "how-it-works/faq"
+              "how-it-works/architecture"
             ]
           },
 
@@ -58,10 +58,6 @@
           {
             "group": "Operators",
             "pages": ["operators/tsn-node", "operators/tsn-cranker"]
-          },
-          {
-            "group": "FAQ",
-            "pages": ["how-it-works/faq"]
           },
           {
             "group": "Concepts",
