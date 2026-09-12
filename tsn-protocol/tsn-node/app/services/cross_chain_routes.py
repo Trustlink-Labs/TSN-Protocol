@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import httpx
@@ -61,8 +61,8 @@ class DestinationRoute:
     network: str
     route_id: str
     registry: str
-    executor: str
-    token: str
+    executor: str | None
+    token: str | None
     destination_chain_id: int
     rpc_url: str
 
@@ -86,12 +86,14 @@ def load_destination_routes() -> dict[str, DestinationRoute]:
         network = str(entry.get("network") or "").strip().lower()
         if not network or network in routes:
             raise RuntimeError("destination route network is missing or duplicated")
+        executor = str(entry.get("executor") or "").strip()
+        token = str(entry.get("token") or "").strip()
         route = DestinationRoute(
             network=network,
             route_id=_bytes32(str(entry.get("routeId") or ""), "routeId"),
             registry=_address(str(entry.get("registry") or os.environ.get("TSN_CREDITCOIN_REGISTRY_ADDRESS", "")), "registry"),
-            executor=_address(str(entry.get("executor") or ""), "executor"),
-            token=_address(str(entry.get("token") or ""), "token"),
+            executor=_address(executor, "executor") if executor else None,
+            token=_address(token, "token") if token else None,
             destination_chain_id=int(entry.get("destinationChainId") or 0),
             rpc_url=str(entry.get("rpcUrl") or default_rpc).strip(),
         )
@@ -128,9 +130,9 @@ async def verify_destination_route(
         raise ValueError("destination network is not active in the TSN registry")
     if _bytes32(route_id, "routeId") != route.route_id:
         raise ValueError("settlement route ID is not registered for the destination network")
-    if _address(executor, "destinationExecutor") != route.executor:
+    if route.executor and _address(executor, "destinationExecutor") != route.executor:
         raise ValueError("destination executor is not the registered executor")
-    if _address(token, "destinationToken") != route.token:
+    if route.token and _address(token, "destinationToken") != route.token:
         raise ValueError("destination token is not the registered route asset")
     if requested_amount <= 0:
         raise ValueError("destination amount must be positive")
@@ -143,8 +145,18 @@ async def verify_destination_route(
         route_raw = await _eth_call(client, route.rpc_url, route.registry, GET_ROUTE_SELECTOR + route_arg)
         if _word(route_raw, 0) != 1:
             raise ValueError("destination route is disabled on Creditcoin")
-        if _word_address(route_raw, 7) != route.executor or _word_address(route_raw, 4) != route.token:
+        onchain_executor = _word_address(route_raw, 7)
+        onchain_token = _word_address(route_raw, 4)
+        if _word(route_raw, 6) != route.destination_chain_id:
+            raise ValueError("Creditcoin route chain ID does not match the Node mirror")
+        if route.executor and onchain_executor != route.executor:
+            raise ValueError("Creditcoin route executor does not match the registry mirror")
+        if route.token and onchain_token != route.token:
             raise ValueError("Creditcoin route configuration does not match the signed intent")
+        if _address(executor, "destinationExecutor") != onchain_executor:
+            raise ValueError("destination executor is not the registered executor")
+        if _address(token, "destinationToken") != onchain_token:
+            raise ValueError("destination token is not the registered route asset")
         observation_raw = await _eth_call(client, route.rpc_url, route.registry, LATEST_OBSERVATION_SELECTOR + route_arg)
         available = _word(observation_raw, 0)
         valid_until = _word(observation_raw, 3)
@@ -152,7 +164,7 @@ async def verify_destination_route(
             raise ValueError("destination liquidity observation is expired")
         if available < requested_amount:
             raise ValueError("verified destination liquidity is insufficient")
-    return route
+    return replace(route, executor=onchain_executor, token=onchain_token)
 
 
 def configured_destination_networks() -> list[dict[str, Any]]:

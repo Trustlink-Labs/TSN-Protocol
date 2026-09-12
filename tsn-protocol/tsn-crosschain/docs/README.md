@@ -1,5 +1,9 @@
 # TSN Cross-Chain
 
+For the evidence-backed contract and token inventory, see the team
+[verified-address register](../../../docs/team/cross-chain/verified-addresses.md).
+Only deployed and network-checked addresses belong in that register.
+
 This folder is the EVM and Attestcoin boundary for TSN. Solana remains the
 source accounting chain for TIN debit commitments, sealed TIP state, two-phase
 exit permits, Path 1/2 liability movement, one-vault custody, and GPRU-only
@@ -50,6 +54,18 @@ an approved payout contract before TSN accepts it.
 - `CreditcoinSettlementHub.sol`: signed Solana commitment consumption, route
   binding, replay protection, verified-liquidity reservation, and authenticated
   Attestcoin message publication.
+- `contracts/creditcoin/CreditcoinDirectSettlementHub.sol`: direct Creditcoin
+  destination settlement from the signed Solana commitment.
+- `contracts/creditcoin/CreditcoinDirectLiquidityRegistry.sol`: on-chain direct
+  Creditcoin route and local vault-capacity authority.
+- `contracts/creditcoin/CreditcoinDirectSettlementExecutor.sol`: exact direct
+  Creditcoin vault-release boundary.
+- `contracts/creditcoin/CreditcoinDirectSettlementHub.sol`: direct Creditcoin
+  destination settlement from the signed Solana commitment.
+- `contracts/creditcoin/CreditcoinDirectLiquidityRegistry.sol`: on-chain direct
+  Creditcoin route and local vault-capacity authority.
+- `contracts/creditcoin/CreditcoinDirectSettlementExecutor.sol`: exact direct
+  Creditcoin vault-release boundary.
 - `DestinationLiquidityRegistry.sol`: supported EVM route registry, proof-backed
   liquidity observations, and reservation accounting for onward settlements.
 - `DestinationRegistry.sol`: community route admission with verified Creditcoin

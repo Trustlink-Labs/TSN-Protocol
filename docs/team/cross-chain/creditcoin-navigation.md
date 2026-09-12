@@ -58,6 +58,32 @@ to inspect the corresponding runtime extrinsic when the faucet reports a
 Substrate-side transaction. Treat the two explorers as complementary evidence,
 not as two separate deposits.
 
+### Obtaining CC3 test stablecoins
+
+The official Creditcoin faucet documentation covers CTC EVM and CTC Substrate
+funding. It does not document a faucet command for `USDC-T` or `USDT-T`.
+Blockscout lists both test ERC-20 contracts, but explorer visibility is not
+proof that a public mint or faucet is available.
+
+The safe acquisition order is:
+
+1. Ask the Creditcoin testnet operators or community for a transfer of the
+   exact `USDC-T` or `USDT-T` contract listed in the
+   [verified address register](./verified-addresses.md).
+2. Confirm the incoming ERC-20 transfer on the CC3 Blockscout token page and
+   query the deployer balance before attempting route funding.
+3. If no operator or holder can transfer the tokens, deploy a TSN-owned test
+   ERC-20 with an explicit name such as `TSN USDC Test` or `TSN USDT Test`.
+   Do not call that token official USDC or USDT, and record its deployment
+   address, mint authority, decimals, and transaction hash before registering
+   it.
+
+The CC3 Discord faucet is for CTC gas, not stablecoin liquidity. The official
+[faucet guide](https://docs.creditcoin.org/wallets/using-testnet-faucet) and
+[Attestcoin deployment page](https://creditcoin.org/Deploy) should be used for
+CTC funding only. A route cannot be activated until the selected token is in
+the payout vault and `observeLocalLiquidity` records that balance.
+
 ## What the current deployment needs
 
 Do not copy an old `.env` example without checking the current deployment

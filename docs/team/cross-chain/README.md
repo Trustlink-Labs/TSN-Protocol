@@ -9,11 +9,25 @@ liquidity, EVM executors, and cross-network route activation.
 - [Creditcoin-first settlement](../../../tsn-protocol/tsn-crosschain/docs/creditcoin-first-settlement.md)
 - [Cross-chain architecture](../../../tsn-protocol/tsn-crosschain/docs/architecture.md)
 - [Creditcoin navigation and deployment experience](./creditcoin-navigation.md)
+- [Direct Creditcoin settlement](./creditcoin-direct-settlement.md) — the
+  first destination prototype: registry, stablecoin vault, executor, and
+  direct Solana-commitment settlement.
+- [Direct Creditcoin settlement](./creditcoin-direct-settlement.md)
+  â€” the first destination prototype: registry, stablecoin vault, executor,
+  and direct Solana-commitment settlement.
 
 Every route guide must identify the source accounting chain, Creditcoin
 settlement boundary, destination executor, local stablecoin vault, Attestcoin
 message boundary, Cranker submission, and real transaction evidence required
 for activation.
+
+The [verified-addresses.md](./verified-addresses.md) register contains the
+observed Solana Devnet and Creditcoin CC3 Testnet contract and token addresses.
+It intentionally leaves unsupported chains and unverified USDC/USDT addresses
+out of the active route inventory.
+
+- [USDSET deployment guide](./usdset-deployment.md) â€” deploy and fund TSN's
+  own CC3 settlement test asset with explicit evidence.
 
 ## CC3 Testnet deployment gate
 
