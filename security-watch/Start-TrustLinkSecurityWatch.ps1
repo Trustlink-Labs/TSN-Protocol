@@ -55,6 +55,23 @@ function Invoke-Watcher([switch]$AuditOnly) {
   }
 }
 
+function Invoke-WorkspaceProtectedWatcher {
+  if (-not (Test-Administrator)) {
+    Write-Warning "Administrator PowerShell is required for Controlled Folder Access protection."
+    Pause-Menu
+    return
+  }
+  $workspace = (Resolve-Path (Join-Path $root "..\")).Path
+  Write-Warning "Controlled Folder Access can block VS Code, Git, npm, and other apps from writing to the workspace."
+  $confirmation = Read-Host "Protect $workspace now? Type PROTECT to continue"
+  if ($confirmation -cne "PROTECT") {
+    Write-Host "Protection cancelled."
+    Pause-Menu
+    return
+  }
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $watcher -ProtectWorkspacePath $workspace -BlockSuspiciousWorkspaceAccess
+}
+
 while ($true) {
   Clear-Host
   Write-Host "TrustLink Security Watch" -ForegroundColor Cyan
@@ -68,7 +85,9 @@ while ($true) {
   Write-Host "   Inspect a ZIP or directory before checkout, install, or build."
   Write-Host "4. TrustLink credential audit" -ForegroundColor Green
   Write-Host "   Find sensitive files and credential-shaped content without printing values."
-  Write-Host "5. Exit"
+  Write-Host "5. Runtime protection + block suspicious workspace access" -ForegroundColor Red
+  Write-Host "   Enable Defender protection and terminate outside script hosts touching the workspace."
+  Write-Host "6. Exit"
   Write-Host ""
 
   $choice = Read-Host "Choose an action"
@@ -77,7 +96,8 @@ while ($true) {
     "2" { Invoke-Watcher -AuditOnly }
     "3" { Invoke-Preflight }
     "4" { Invoke-CredentialAudit }
-    "5" { break }
-    default { Write-Warning "Choose 1, 2, 3, 4, or 5."; Start-Sleep -Seconds 2 }
+    "5" { Invoke-WorkspaceProtectedWatcher }
+    "6" { break }
+    default { Write-Warning "Choose 1, 2, 3, 4, 5, or 6."; Start-Sleep -Seconds 2 }
   }
 }

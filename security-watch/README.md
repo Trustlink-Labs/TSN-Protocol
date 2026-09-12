@@ -16,46 +16,61 @@ Requirements:
 
 Clone the repository and enter its directory:
 
-~~~powershell
+```powershell
 git clone https://github.com/bigdreamsweb3/trustlink-security-watch.git
 cd trustlink-security-watch
-~~~
+```
 
 Launch the interactive menu to choose a protection function:
 
-~~~powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Start-TrustLinkSecurityWatch.ps1
-~~~
+```
 
 The menu provides full runtime protection, audit-only monitoring, preflight assignment scanning, and TrustLink credential auditing.
 
 Before opening or installing an unfamiliar assignment, run the static preflight scanner against the ZIP file. It reads the archive without extracting or executing the project:
 
-~~~powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Invoke-TrustLinkPreflight.ps1 -TargetPath C:\path\to\assignment.zip -ReportPath .\preflight-report.json -FailOnSuspicious
-~~~
+```
 
 If the result is suspicious, do not run Git, npm, a build, or any project script inside that assignment. Review the report first.
 
 To start the runtime watcher, open PowerShell as Administrator and run:
 
-~~~powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Watch-SuspiciousActivity.ps1
-~~~
+```
 
 Enforcement is enabled by default. The watcher terminates matching processes, quarantines matching temporary payloads, and adds outbound firewall blocks for the known endpoints.
 
+To additionally block unauthorized applications from writing to the TrustLink workspace,
+run the protected-workspace mode from an Administrator PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Watch-SuspiciousActivity.ps1 -ProtectWorkspacePath C:\Users\codepara\Desktop\trust-link
+```
+
+This enables Microsoft Defender Controlled Folder Access and adds the workspace as a
+protected folder. It also enables NTFS file-access auditing and terminates outside
+Node, Python, PowerShell, CMD, Bash, and similar script-host processes when they access
+the workspace. It can block VS Code, Git, npm, and other tools from writing there.
+Use `-AllowApplicationPath` only for reviewed executable paths. The Defender protection
+and NTFS audit policy remain active after the watcher stops until they are changed in
+Windows Security or with the Defender and audit-policy PowerShell configuration.
+
 For observation-only mode:
 
-~~~powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Watch-SuspiciousActivity.ps1 -Audit
-~~~
+```
 
 Stop the watcher with Ctrl+C. Logs and quarantined files are stored at:
 
-~~~text
+```text
 %LOCALAPPDATA%\TrustLinkSecurityWatch\
-~~~
+```
 
 ## What the watcher protects against
 
@@ -73,16 +88,16 @@ The watcher provides an additional response layer for suspicious behavior such a
 
 The preflight scanner performs static inspection before checkout, commit, install, or build. It reads ZIP entries without extracting or executing them and checks directories for Git hooks, VS Code auto-run configuration, and package lifecycle scripts.
 
-~~~powershell
+```powershell
 cd C:\Users\codepara\Desktop\trust-link\security-watch
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Invoke-TrustLinkPreflight.ps1 -TargetPath C:\path\to\assignment.zip -ReportPath .\preflight-report.json -FailOnSuspicious
-~~~
+```
 
 For an extracted directory:
 
-~~~powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Invoke-TrustLinkPreflight.ps1 -TargetPath C:\path\to\assignment
-~~~
+```
 
 The scanner does not run npm, Git checkout, Git commit, project builds, lifecycle scripts, or any target entry point. A suspicious result means the project should remain isolated for further static analysis.
 
@@ -90,9 +105,9 @@ The scanner does not run npm, Git checkout, Git commit, project builds, lifecycl
 
 Use the credential audit against a TrustLink workspace after a suspected incident. It reports sensitive filenames and credential-shaped content patterns without printing secret values. It does not revoke credentials; rotate or revoke every reported credential from a clean device.
 
-~~~powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Invoke-TrustLinkCredentialAudit.ps1 -WorkspacePath C:\path\to\trustlink -ReportPath .\credential-audit.json
-~~~
+```
 
 The audit checks for environment files, private keys, wallet and credential files, GitHub tokens, cloud access-key patterns, private-key blocks, seed phrases, and generic secret assignments. It skips Git internals, dependency folders, and build output to reduce noise.
 
@@ -104,34 +119,34 @@ Enforcement also alerts the logged-in user and attempts to disable active physic
 
 Run it from an Administrator PowerShell window:
 
-~~~powershell
+```powershell
 cd C:\Users\codepara\Desktop\trust-link\security-watch
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Watch-SuspiciousActivity.ps1
-~~~
+```
 
 To keep process enforcement and firewall blocking but disable automatic adapter shutdown:
 
-~~~powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Watch-SuspiciousActivity.ps1 -NoNetworkIsolation
-~~~
+```
 
 Use audit mode when reviewing behavior without terminating processes or quarantining files:
 
-~~~powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Watch-SuspiciousActivity.ps1 -Audit
-~~~
+```
 
 The polling interval defaults to two seconds and can be changed:
 
-~~~powershell
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Watch-SuspiciousActivity.ps1 -IntervalSeconds 1
-~~~
+```
 
 Logs and quarantined files are stored under:
 
-~~~text
+```text
 %LOCALAPPDATA%\TrustLinkSecurityWatch\
-~~~
+```
 
 Stop the watcher with Ctrl+C.
 
@@ -139,10 +154,10 @@ Stop the watcher with Ctrl+C.
 
 The investigated package was assessed as an RCE dropper. Its malicious behavior was associated with two weaponized Git hooks:
 
-~~~text
+```text
 .git/hooks/post-checkout
 .git/hooks/pre-commit
-~~~
+```
 
 The hooks were designed to run when the assignment instructions caused a checkout or commit, then download and execute a per-operating-system second stage from a hard-coded command-and-control endpoint. The visible React/Express application and PDF functioned as decoys for the delivery mechanism.
 
@@ -152,52 +167,52 @@ The public investigation reports similarities to the DPRK/Lazarus Contagious Int
 
 ### Network indicators
 
-~~~text
+```text
 144.172.118.214
 216.126.239.166
-~~~
+```
 
 Observed endpoint patterns included:
 
-~~~text
+```text
 /upload
 /api/service/makelog
 /728/728w
 /728/728l
 /728/728m
-~~~
+```
 
 ### Git hooks
 
-~~~text
+```text
 .git/hooks/post-checkout
 .git/hooks/pre-commit
-~~~
+```
 
 ### Temporary payload indicators
 
-~~~text
+```text
 wct1ECFA.tmp
 wc*.tmp
 wcb34e91.tmp
 wcl2ba34.tmp
-~~~
+```
 
 Observed hashes from the local incident evidence:
 
-~~~text
+```text
 wcl2ba34.tmp
 DB862C2E98B8A76D68CF12469DCD356CAB171B5C779AF15F75EFC291426428AD
 
 wcb34e91.tmp
 E59CED1528ED7E6EBBB40462B2461726D7D8C0ED112244280875A26E28EBC15D
-~~~
+```
 
 ### Observed Git metadata indicator
 
-~~~text
+```text
 wondev_mum <wondev.mum@gmail.com>
-~~~
+```
 
 This is self-asserted Git commit metadata observed in the investigated sample. It is an unverified forensic indicator, not proof of a person's real-world identity, employer, or involvement.
 

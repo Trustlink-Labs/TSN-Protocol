@@ -1,8 +1,8 @@
 # Creditcoin-first settlement
 
-Creditcoin is the first live liquidity and settlement rail. The initial hub
-holds configured stablecoin liquidity and pays Creditcoin addresses after the TSN Node has
-validated the existing Solana exit flow. Solana programs, sealed TIP state,
+Creditcoin is the first settlement and authenticated-message rail. The hub
+does not pay every destination itself; each destination has its own prefunded
+stablecoin vault and executor. Solana programs, sealed TIP state,
 two-phase exits, Path 1/2 wiring, liability PDAs, and the one-vault model are
 unchanged.
 
@@ -15,13 +15,14 @@ Solana debit commitment
         v
 CreditcoinSettlementHub
         |
-        | consumes commitment and pays from Creditcoin stablecoin liquidity
+        | consumes commitment and publishes an authenticated payout message
         v
-Creditcoin recipient
+Selected EVM Inbox -> destination executor -> local stablecoin vault -> recipient
 ```
 
-Messages and attestations are not funds. The `CreditcoinSettlementHub` has a
-real ERC-20 stablecoin balance and will execute a payout only when the Node's EIP-712
+Messages and attestations are not funds. The destination vault has the real
+ERC-20 stablecoin balance and releases it only through its registered executor.
+The `CreditcoinSettlementHub` publishes a payout message only when the Node's EIP-712
 authorization matches the configured authorization signer. A Cranker submits
 that exact authorization and cannot change the recipient, amount, hashes, or
 network.
@@ -46,11 +47,12 @@ destination liquidity. See the [official Creditcoin
 deployment overview](https://creditcoin.org/Deploy) and [Attestcoin
 infrastructure documentation](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure).
 
-The Base boundary is represented by
-`contracts/future/BasePayoutVault.sol`. A provider or treasury prefunds that
-vault on Base; the Attestcoin route supplies the authenticated destination
-instruction and the vault pays the Base recipient. The direct Creditcoin path
-remains a two-transaction user flow.
+The destination boundary is implemented by `TSNERCLiquidityVault.sol` and
+`TSNSettlementExecutor.sol`. A provider or treasury prefunds the vault on the
+selected EVM network; Attestcoin delivers the authenticated instruction and
+the executor pays the recipient. The direct Creditcoin and onward-EVM paths
+remain one Solana debit transaction plus the required EVM submission(s), not a
+second Solana payout.
 
 ## Devnet deployment
 
@@ -68,8 +70,9 @@ $env:CREDITCOIN_FEE_BPS="10"
 npm run deploy
 ```
 
-Fund the deployed hub with the configured testnet stablecoin before submitting
-an exit. Keep native CTC available for gas. The
+Prefund each deployed destination vault with the configured testnet stablecoin
+before submitting an exit. Keep native CTC or the destination chain's native
+token available for gas. The
 per-exit flow is one Solana debit-commitment transaction followed by one
 Creditcoin exit transaction. No second Solana payout transaction is created by
 this cross-chain route. No Sepolia anchor, proof worker, or localnet process is

@@ -166,7 +166,7 @@ export function parsePaymentIntentMessage(message: string) {
 export function buildCrossChainPaymentIntentMessage(params: {
   intentId: string;
   amountBaseUnits: bigint | string | number;
-  asset: string;
+  destinationToken: string;
   recipientTin: string;
   recipientRouteCommitment: string;
   recipientRouteVersion: number;
@@ -178,7 +178,7 @@ export function buildCrossChainPaymentIntentMessage(params: {
   destinationExecutor: string;
   settlementRouteId: string;
 }) {
-  if (!params.intentId.trim() || !params.asset.trim() || !params.destinationNetwork.trim()) {
+  if (!params.intentId.trim() || !params.destinationToken.trim() || !params.destinationNetwork.trim()) {
     throw new CanonicalMessageError("cross-chain intent fields must not be empty");
   }
   if (!/^0x[0-9a-fA-F]{40}$/.test(params.destinationExecutor)) {
@@ -187,7 +187,7 @@ export function buildCrossChainPaymentIntentMessage(params: {
   return buildMessage("Cross-Chain Payment Intent", [
     ["Intent ID", params.intentId],
     ["Amount", formatUsdcBaseUnits(BigInt(params.amountBaseUnits))],
-    ["Asset", params.asset],
+    ["Asset", params.destinationToken.toLowerCase()],
     ["Recipient TIN", parseTin(params.recipientTin, "Recipient TIN")],
     ["Recipient Route Commitment", parseHash32(params.recipientRouteCommitment, "Recipient Route Commitment")],
     ["Recipient Route Version", parseRouteVersion(params.recipientRouteVersion)],
@@ -210,7 +210,7 @@ export function parseCrossChainPaymentIntentMessage(message: string) {
   return {
     intentId: requireField(fields, "Intent ID"),
     amountBaseUnits: parseUsdc(requireField(fields, "Amount"), "Amount"),
-    asset: requireField(fields, "Asset"),
+    destinationToken: requireField(fields, "Asset").toLowerCase(),
     recipientTin: parseTin(requireField(fields, "Recipient TIN"), "Recipient TIN"),
     recipientRouteCommitment: parseHash32(requireField(fields, "Recipient Route Commitment"), "Recipient Route Commitment"),
     recipientRouteVersion: parseRouteVersion(requireField(fields, "Recipient Route Version")),

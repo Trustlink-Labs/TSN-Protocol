@@ -61,6 +61,10 @@ from app.services.route_attestation import (
     canonical_route_message,
     sign_route_message,
 )
+from app.services.cross_chain_routes import (
+    ready_destination_networks,
+    verify_destination_route,
+)
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
@@ -1423,6 +1427,7 @@ class CreateIntentRequest(BaseModel):
     )
     destinationNetwork: Optional[str] = Field(None, description="Signed destination settlement network for cross-chain exits")
     destinationExecutor: Optional[str] = Field(None, description="Signed destination executor contract for cross-chain exits")
+    destinationToken: Optional[str] = Field(None, description="Signed destination-chain ERC-20 settlement token")
     settlementRouteId: Optional[str] = Field(None, description="Signed registered TSN settlement route")
     source:            Optional[str] = Field(None)
 
@@ -2065,14 +2070,14 @@ async def _verify_payment_authorization_from_signed_message(req: CreateIntentReq
     cross_chain_fields: dict[str, str] = {}
     if is_cross_chain:
         intent_id = str(fields.get("Intent ID") or "").strip()
-        asset = str(fields.get("Asset") or "").strip()
+        asset = str(fields.get("Asset") or "").strip().lower()
         destination_network = str(fields.get("Destination Network") or "").strip()
         destination_executor = str(fields.get("Destination Executor") or "").strip().lower()
         settlement_route_id = str(fields.get("Settlement Route ID") or "").strip().lower()
         if not intent_id or intent_id != req.paymentId:
             raise HTTPException(400, "Intent ID differs from the signed cross-chain intent")
-        if not asset or asset != req.tokenMintAddress:
-            raise HTTPException(400, "asset differs from the signed cross-chain intent")
+        if not asset or not req.destinationToken or asset != req.destinationToken.lower():
+            raise HTTPException(400, "destination asset differs from the signed cross-chain intent")
         if not destination_network or not re.fullmatch(r"[a-z0-9-]+", destination_network):
             raise HTTPException(400, "destination network is invalid")
         if not re.fullmatch(r"0x[0-9a-f]{40}", destination_executor):
@@ -2088,6 +2093,7 @@ async def _verify_payment_authorization_from_signed_message(req: CreateIntentReq
         cross_chain_fields = {
             "destinationNetwork": destination_network,
             "destinationExecutor": destination_executor,
+            "destinationToken": asset,
             "settlementRouteId": f"0x{settlement_route_id}",
         }
     sender_public_key = str(req.senderWallet or "").strip()
@@ -2102,6 +2108,18 @@ async def _verify_payment_authorization_from_signed_message(req: CreateIntentReq
         sender_public_key=sender_public_key,
         nonce=str(fields.get("Nonce") or "").strip(),
     )
+    if is_cross_chain:
+        try:
+            await verify_destination_route(
+                network=cross_chain_fields["destinationNetwork"],
+                route_id=cross_chain_fields["settlementRouteId"],
+                executor=cross_chain_fields["destinationExecutor"],
+                token=cross_chain_fields["destinationToken"],
+                requested_amount=amount_base_units,
+                now_seconds=int(time.time()),
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(409, f"destination route preflight failed: {exc}") from exc
     return {
         "recipientTin": recipient_tin,
         "recipientRouteCommitment": recipient_route_commitment,
@@ -3998,6 +4016,20 @@ async def post_cranker_heartbeat(req: CrankerHeartbeatRequest) -> CrankerHeartbe
     )
     await r.hset(k_crankers(), req.operator_pubkey, json.dumps(record.model_dump()))
     return record
+
+@app.get("/settlement-networks")
+async def get_settlement_networks() -> list[dict[str, Any]]:
+    """Return only destination routes ready for Creditcoin settlement.
+
+    A chain ID or static configuration alone never makes a network active. The
+    endpoint performs the same live route and liquidity checks used at intent
+    admission; the exact requested amount is checked again for each intent.
+    """
+    try:
+        return await ready_destination_networks(int(datetime.now(timezone.utc).timestamp()))
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(503, f"settlement network registry is invalid: {exc}") from exc
+
 
 @app.get("/network/overview", response_model=NetworkOverviewResponse)
 async def get_network_overview() -> NetworkOverviewResponse:

@@ -9,20 +9,30 @@ observation are registered and verified.
 
 ```mermaid
 flowchart TD
-  Intent[DEBIT INTENT - SVM] --> Attest[Attestcoin SDK + Creditcoin ASC verify selected route liquidity]
-  Attest --> Node[Node validation and authorization]
-  Node --> SolCranker[Cranker Job 1 - Solana submission]
-  SolCranker --> CommitNode[Node confirms debit commitment and authorizes handoff]
-  CommitNode --> Handoff[SVM to EVM settlement handoff]
-  Handoff --> CcCranker[Cranker Job 2 - Creditcoin submission]
-  CcCranker --> Hub[Attestcoin settlement]
-  Hub --> Route[Attestcoin payout message]
-  Route --> Selected[Selected supported EVM network payout execution]
-  Selected --> Vault[Prefunded stablecoin liquidity vault]
+  Intent[DEBIT INTENT - SVM] --> Node[Node validates policy, route, auth, and liquidity]
+  Node --> SolCranker[Cranker Job 1 - submits Solana debit intent]
+  SolCranker --> Node2[Node observes the signed debit commitment]
+  Node2 --> CcCranker[Cranker Job 2 - submits authorized Creditcoin settlement]
+  CcCranker --> Hub[Creditcoin settlement hub]
+  Hub --> Attest[Attestcoin authenticated message]
+  Attest --> DestCranker[Cranker Job 3 - submits destination delivery]
+  DestCranker --> Inbox[Destination Inbox]
+  Inbox --> Executor[Destination executor]
+  Executor --> Vault[Prefunded local stablecoin vault]
   Vault --> Recipient[Recipient wallet]
 ```
 
 ## Destination route eligibility
+
+## Adapter layout
+
+Solana is TSN's settlement source and remains unchanged. Each EVM destination
+is isolated under `contracts/adapters/<network>/`. An adapter contains that
+network's prefunded stablecoin vault, settlement executor, deployment
+configuration, and any proof-readable liquidity contract required by
+Attestcoin. New networks clone the adapter template and provide their own RPC,
+chain ID, Attestcoin chain key, token, finality, explorer, and deployment
+evidence without changing Solana or the shared settlement contracts.
 
 The Node performs a fast preflight before Solana debit submission. It checks
 the destination allowlist, token mapping, payout contract, expiry, and the most
@@ -41,6 +51,10 @@ Destination liquidity contract emits LiquidityAvailable
 
 The registry records evidence and reservations; it does not custody
 stablecoins. The destination payout vault remains the source of value.
+After the destination executor's payout event is observed, the Creditcoin hub
+owner releases the corresponding registry reservation. That operation only
+frees accounting capacity; it cannot transfer destination funds or authorize a
+new settlement.
 
 ## Creditcoin as source for onward EVM settlement
 
@@ -72,10 +86,10 @@ balances are not sent to EVM chains.
 
 ## Implementation status
 
-The direct Creditcoin Hub and the destination route registry/ASC are the
-executable foundation. A concrete Base route still requires deployment of the
-Base liquidity emitter, Base payout contract, supported-chain configuration,
-and the Attestcoin message-route contracts/relayer for that environment.
+The direct Creditcoin Hub, destination route registry/ASC, destination vault,
+and destination executor are the executable foundation. Each destination still
+requires its supported Attestcoin Inbox route, a prefunded vault, a registered
+executor, and a proof-backed liquidity observation before activation.
 
 Official references: [Attestcoin dApp infrastructure](https://docs.attestcoin.org/attestcoin-protocol/dapp-builder-infrastructure),
 [ASC contracts](https://www.npmjs.com/package/%40gluwa/asc-contracts), and the
