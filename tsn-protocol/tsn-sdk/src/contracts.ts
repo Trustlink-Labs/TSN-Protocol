@@ -176,6 +176,9 @@ export type CreateIntentRequest = {
   recipientAmount?: number;
   source?: string;
   recipientTin?: string | null;
+  destinationNetwork?: string | null;
+  destinationExecutor?: string | null;
+  settlementRouteId?: string | null;
 };
 
 export type PruLifecycleMutation = {
@@ -256,6 +259,9 @@ export function buildCreateIntentRequest(params: {
   recipientRouteVersion: number;
   tokenMintAddress: string;
   amount: number;
+  destinationNetwork?: string | null;
+  destinationExecutor?: string | null;
+  settlementRouteId?: string | null;
   source?: string;
 }): CreateIntentRequest {
   return {
@@ -284,6 +290,9 @@ export function buildCreateIntentRequest(params: {
     recipientRouteVersion: params.recipientRouteVersion,
     tokenMintAddress: params.tokenMintAddress,
     amount: params.amount,
+    destinationNetwork: params.destinationNetwork ?? null,
+    destinationExecutor: params.destinationExecutor ?? null,
+    settlementRouteId: params.settlementRouteId ?? null,
     source: params.source,
   };
 }

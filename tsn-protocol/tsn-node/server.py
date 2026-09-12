@@ -1421,6 +1421,9 @@ class CreateIntentRequest(BaseModel):
         None,
         description="Off-chain encrypted recipient route. Never written to the public commitment registry.",
     )
+    destinationNetwork: Optional[str] = Field(None, description="Signed destination settlement network for cross-chain exits")
+    destinationExecutor: Optional[str] = Field(None, description="Signed destination executor contract for cross-chain exits")
+    settlementRouteId: Optional[str] = Field(None, description="Signed registered TSN settlement route")
     source:            Optional[str] = Field(None)
 
 class MempoolIntent(CreateIntentRequest):
@@ -2022,7 +2025,8 @@ async def _verify_payment_authorization_from_signed_message(req: CreateIntentReq
     mode = req.senderFundingMode or ""
     if mode not in {"", "wallet_only_v2", "epoch_treasury_v1", "sponsored_sender_cosigned"}:
         raise HTTPException(400, "ZK-PRU funding modes are retired; use epoch-treasury funding")
-    action = "Payment Intent"
+    is_cross_chain = (req.senderAuthorizationMessage or "").startswith("TSN Cross-Chain Payment Intent\n")
+    action = "Cross-Chain Payment Intent" if is_cross_chain else "Payment Intent"
     fields = _parse_canonical_message(req.senderAuthorizationMessage or "", action)
     amount_base_units = _parse_usdc_base_units(str(fields.get("Amount") or ""), "Amount")
     fee_base_units = _parse_usdc_base_units(str(fields.get("Fee") or ""), "Fee")
@@ -2058,6 +2062,34 @@ async def _verify_payment_authorization_from_signed_message(req: CreateIntentReq
         submitted_expiry = datetime.fromisoformat(req.senderAuthorizationExpiresAt.replace("Z", "+00:00"))
         if submitted_expiry != expires_at:
             raise HTTPException(400, "senderAuthorizationExpiresAt differs from the signed message")
+    cross_chain_fields: dict[str, str] = {}
+    if is_cross_chain:
+        intent_id = str(fields.get("Intent ID") or "").strip()
+        asset = str(fields.get("Asset") or "").strip()
+        destination_network = str(fields.get("Destination Network") or "").strip()
+        destination_executor = str(fields.get("Destination Executor") or "").strip().lower()
+        settlement_route_id = str(fields.get("Settlement Route ID") or "").strip().lower()
+        if not intent_id or intent_id != req.paymentId:
+            raise HTTPException(400, "Intent ID differs from the signed cross-chain intent")
+        if not asset or asset != req.tokenMintAddress:
+            raise HTTPException(400, "asset differs from the signed cross-chain intent")
+        if not destination_network or not re.fullmatch(r"[a-z0-9-]+", destination_network):
+            raise HTTPException(400, "destination network is invalid")
+        if not re.fullmatch(r"0x[0-9a-f]{40}", destination_executor):
+            raise HTTPException(400, "destination executor must be a 20-byte EVM address")
+        if not re.fullmatch(r"[0-9a-f]{64}", settlement_route_id):
+            raise HTTPException(400, "settlement route ID must be a 32-byte hexadecimal commitment")
+        if req.destinationNetwork and req.destinationNetwork != destination_network:
+            raise HTTPException(400, "destinationNetwork differs from the signed message")
+        if req.destinationExecutor and req.destinationExecutor.lower() != destination_executor:
+            raise HTTPException(400, "destinationExecutor differs from the signed message")
+        if req.settlementRouteId and req.settlementRouteId.lower().removeprefix("0x") != settlement_route_id:
+            raise HTTPException(400, "settlementRouteId differs from the signed message")
+        cross_chain_fields = {
+            "destinationNetwork": destination_network,
+            "destinationExecutor": destination_executor,
+            "settlementRouteId": f"0x{settlement_route_id}",
+        }
     sender_public_key = str(req.senderWallet or "").strip()
     _verify_ed25519_signature(
         public_key=sender_public_key,
@@ -2076,6 +2108,7 @@ async def _verify_payment_authorization_from_signed_message(req: CreateIntentReq
         "recipientRouteVersion": recipient_route_version,
         "senderAuthorizationNonce": str(fields["Nonce"]),
         "senderAuthorizationExpiresAt": expires_at.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+        **cross_chain_fields,
     }
 
 def _routing_private_key() -> PrivateKey:

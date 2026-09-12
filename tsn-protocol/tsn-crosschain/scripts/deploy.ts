@@ -69,9 +69,7 @@ async function main(): Promise<void> {
 
   const deployer = new Wallet(privateKey, provider);
   const signer = process.env.CREDITCOIN_AUTHORIZATION_SIGNER ?? deployer.address;
-  const feeRecipient = process.env.CREDITCOIN_FEE_RECIPIENT ?? deployer.address;
-  const feeBps = BigInt(process.env.CREDITCOIN_FEE_BPS ?? "10");
-  const settlementToken = required("CREDITCOIN_SETTLEMENT_TOKEN");
+  const attestToken = required("CREDITCOIN_ATTEST_TOKEN");
   const registryArtifact = await compile("DestinationLiquidityRegistry.sol", "DestinationLiquidityRegistry");
   const registry = await new ContractFactory(registryArtifact.abi, registryArtifact.bytecode, deployer).deploy(deployer.address);
   const registryDeploymentTx = registry.deploymentTransaction();
@@ -86,7 +84,7 @@ async function main(): Promise<void> {
   await (await (registry as any).setLiquidityASC(ascAddress)).wait();
 
   const hubArtifact = await compile("CreditcoinSettlementHub.sol", "CreditcoinSettlementHub");
-  const hub = await new ContractFactory(hubArtifact.abi, hubArtifact.bytecode, deployer).deploy(signer, feeRecipient, feeBps, settlementToken);
+  const hub = await new ContractFactory(hubArtifact.abi, hubArtifact.bytecode, deployer).deploy(signer, attestToken, registryAddress);
   const hubDeploymentTx = hub.deploymentTransaction();
   await hub.waitForDeployment();
   const hubAddress = await hub.getAddress();
@@ -100,18 +98,15 @@ async function main(): Promise<void> {
     destinationLiquidityASC: ascAddress,
     attestcoinSmartContract: ascAddress,
     authorizationSigner: signer,
-    feeRecipient,
-    feeBps: feeBps.toString(),
-    settlementToken,
+    attestToken,
     deploymentTxs: {
       settlementHub: hubDeploymentTx?.hash ?? null,
       destinationLiquidityRegistry: registryDeploymentTx?.hash ?? null,
       destinationLiquidityASC: ascDeploymentTx?.hash ?? null,
     },
-    liquidityAsset: "creditcoin-stablecoin",
-    enabledDestinationNetworks: ["creditcoin-testnet"],
-    supportedDestinationNetworks: ["base", "ethereum"],
-    routeStatus: "registry deployed; each destination route requires configureRoute and a verified liquidity observation",
+    enabledDestinationNetworks: [],
+    supportedDestinationNetworks: ["creditcoin-testnet", "base", "ethereum"],
+    routeStatus: "no destination is active until its executor, Inbox/Outbox route, token, and verified liquidity are registered",
     deployedAt: new Date().toISOString(),
   };
   const deploymentDir = join(root, "deployments");
