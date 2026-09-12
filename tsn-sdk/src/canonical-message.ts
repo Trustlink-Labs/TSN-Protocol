@@ -158,6 +158,72 @@ export function parsePaymentIntentMessage(message: string) {
   };
 }
 
+/**
+ * Cross-chain payment intent. This is intentionally separate from the legacy
+ * Solana-only Payment Intent format so existing Solana flows are not changed.
+ * Every destination-sensitive field is inside the user signature.
+ */
+export function buildCrossChainPaymentIntentMessage(params: {
+  intentId: string;
+  amountBaseUnits: bigint | string | number;
+  asset: string;
+  recipientTin: string;
+  recipientRouteCommitment: string;
+  recipientRouteVersion: number;
+  feeBaseUnits: bigint | string | number;
+  sender: string;
+  nonce: string;
+  expires: string | Date;
+  destinationNetwork: string;
+  destinationExecutor: string;
+  settlementRouteId: string;
+}) {
+  if (!params.intentId.trim() || !params.asset.trim() || !params.destinationNetwork.trim()) {
+    throw new CanonicalMessageError("cross-chain intent fields must not be empty");
+  }
+  if (!/^0x[0-9a-fA-F]{40}$/.test(params.destinationExecutor)) {
+    throw new CanonicalMessageError("Destination Executor must be a 20-byte EVM address");
+  }
+  return buildMessage("Cross-Chain Payment Intent", [
+    ["Intent ID", params.intentId],
+    ["Amount", formatUsdcBaseUnits(BigInt(params.amountBaseUnits))],
+    ["Asset", params.asset],
+    ["Recipient TIN", parseTin(params.recipientTin, "Recipient TIN")],
+    ["Recipient Route Commitment", parseHash32(params.recipientRouteCommitment, "Recipient Route Commitment")],
+    ["Recipient Route Version", parseRouteVersion(params.recipientRouteVersion)],
+    ["Fee", formatUsdcBaseUnits(BigInt(params.feeBaseUnits))],
+    ["Sender", params.sender],
+    ["Nonce", params.nonce],
+    ["Expires", params.expires instanceof Date ? params.expires : new Date(params.expires)],
+    ["Destination Network", params.destinationNetwork],
+    ["Destination Executor", params.destinationExecutor.toLowerCase()],
+    ["Settlement Route ID", parseHash32(params.settlementRouteId.replace(/^0x/i, ""), "Settlement Route ID")],
+  ]);
+}
+
+export function parseCrossChainPaymentIntentMessage(message: string) {
+  const fields = parseMessage(message, "Cross-Chain Payment Intent");
+  const destinationExecutor = requireField(fields, "Destination Executor").toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(destinationExecutor)) {
+    throw new CanonicalMessageError("Destination Executor must be a 20-byte EVM address");
+  }
+  return {
+    intentId: requireField(fields, "Intent ID"),
+    amountBaseUnits: parseUsdc(requireField(fields, "Amount"), "Amount"),
+    asset: requireField(fields, "Asset"),
+    recipientTin: parseTin(requireField(fields, "Recipient TIN"), "Recipient TIN"),
+    recipientRouteCommitment: parseHash32(requireField(fields, "Recipient Route Commitment"), "Recipient Route Commitment"),
+    recipientRouteVersion: parseRouteVersion(requireField(fields, "Recipient Route Version")),
+    feeBaseUnits: parseUsdc(requireField(fields, "Fee"), "Fee"),
+    sender: requireField(fields, "Sender"),
+    nonce: requireField(fields, "Nonce"),
+    expires: parseExpiry(requireField(fields, "Expires")),
+    destinationNetwork: requireField(fields, "Destination Network"),
+    destinationExecutor,
+    settlementRouteId: parseHash32(requireField(fields, "Settlement Route ID"), "Settlement Route ID"),
+  };
+}
+
 export function buildTinCreationMessage(params: {
   tin: string;
   displayName: string;

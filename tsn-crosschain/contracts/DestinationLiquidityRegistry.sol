@@ -13,6 +13,10 @@ contract DestinationLiquidityRegistry {
         address sourceEmitter;
         address payoutVault;
         address token;
+        bytes32 destinationNetwork;
+        uint256 destinationChainId;
+        address destinationExecutor;
+        address outbox;
     }
 
     struct LiquidityObservation {
@@ -49,6 +53,10 @@ contract DestinationLiquidityRegistry {
         address sourceEmitter,
         address payoutVault,
         address token,
+        bytes32 destinationNetwork,
+        uint256 destinationChainId,
+        address destinationExecutor,
+        address outbox,
         bool enabled
     );
     event LiquidityVerified(
@@ -78,8 +86,57 @@ contract DestinationLiquidityRegistry {
     ) external onlyOwner {
         if (routeId == bytes32(0) || sourceChainKey == 0 || sourceEmitter == address(0) ||
             payoutVault == address(0) || token == address(0)) revert InvalidRoute();
-        routes[routeId] = Route(enabled, sourceChainKey, sourceEmitter, payoutVault, token);
-        emit RouteConfigured(routeId, sourceChainKey, sourceEmitter, payoutVault, token, enabled);
+        routes[routeId] = Route(enabled, sourceChainKey, sourceEmitter, payoutVault, token, 0, address(0), address(0));
+        emit RouteConfigured(routeId, sourceChainKey, sourceEmitter, payoutVault, token, 0, address(0), address(0), enabled);
+    }
+
+    /// @notice Configure the complete settlement route used by Creditcoin.
+    /// @dev A route is not executable until its destination executor and Outbox
+    ///      are both registered. The proof fields remain bound to the same route.
+    function configureSettlementRoute(
+        bytes32 routeId,
+        uint64 sourceChainKey,
+        address sourceEmitter,
+        address payoutVault,
+        address token,
+        uint256 destinationChainId,
+        address destinationExecutor,
+        address outbox,
+        bool enabled
+    ) external onlyOwner {
+        if (
+            routeId == bytes32(0) ||
+            sourceChainKey == 0 ||
+            sourceEmitter == address(0) ||
+            payoutVault == address(0) ||
+            token == address(0) ||
+            destinationNetwork == bytes32(0) ||
+            destinationChainId == 0 ||
+            destinationExecutor == address(0) ||
+            outbox == address(0)
+        ) revert InvalidRoute();
+        routes[routeId] = Route(
+            enabled,
+            sourceChainKey,
+            sourceEmitter,
+            payoutVault,
+            token,
+            destinationNetwork,
+            destinationChainId,
+            destinationExecutor,
+            outbox
+        );
+        emit RouteConfigured(
+            routeId,
+            sourceChainKey,
+            sourceEmitter,
+            payoutVault,
+            token,
+            destinationChainId,
+            destinationExecutor,
+            outbox,
+            enabled
+        );
     }
 
     function setLiquidityASC(address nextASC) external onlyOwner {
@@ -129,6 +186,14 @@ contract DestinationLiquidityRegistry {
         if (!route.enabled || observation.validUntil < block.timestamp) return false;
         uint256 reserved = reservedAmount[routeId];
         return observation.availableAmount >= reserved + amount;
+    }
+
+    function isSettlementRouteActive(bytes32 routeId) external view returns (bool) {
+        Route memory route = routes[routeId];
+        return route.enabled &&
+            route.destinationChainId != 0 &&
+            route.destinationExecutor != address(0) &&
+            route.outbox != address(0);
     }
 
     function reserveLiquidity(bytes32 routeId, bytes32 settlementId, uint256 amount) external onlyHub {
