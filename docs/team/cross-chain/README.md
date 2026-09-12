@@ -28,6 +28,8 @@ out of the active route inventory.
 
 - [USDSET deployment guide](./usdset-deployment.md) â€” deploy and fund TSN's
   own CC3 settlement test asset with explicit evidence.
+- [SDK test UI guide](./sdk-ui-test.md) â€” run the same Node and Creditcoin
+  evidence checks from the test UI.
 
 ## CC3 Testnet deployment gate
 

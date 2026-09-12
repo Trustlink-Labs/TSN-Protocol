@@ -119,8 +119,8 @@ async def verify_destination_route(
     *,
     network: str,
     route_id: str,
-    executor: str,
-    token: str,
+    executor: str | None,
+    token: str | None,
     requested_amount: int,
     now_seconds: int,
 ) -> DestinationRoute:
@@ -153,9 +153,9 @@ async def verify_destination_route(
             raise ValueError("Creditcoin route executor does not match the registry mirror")
         if route.token and onchain_token != route.token:
             raise ValueError("Creditcoin route configuration does not match the signed intent")
-        if _address(executor, "destinationExecutor") != onchain_executor:
+        if executor and _address(executor, "destinationExecutor") != onchain_executor:
             raise ValueError("destination executor is not the registered executor")
-        if _address(token, "destinationToken") != onchain_token:
+        if token and _address(token, "destinationToken") != onchain_token:
             raise ValueError("destination token is not the registered route asset")
         observation_raw = await _eth_call(client, route.rpc_url, route.registry, LATEST_OBSERVATION_SELECTOR + route_arg)
         available = _word(observation_raw, 0)
@@ -190,7 +190,7 @@ async def ready_destination_networks(now_seconds: int) -> list[dict[str, Any]]:
     ready: list[dict[str, Any]] = []
     for route in load_destination_routes().values():
         try:
-            await verify_destination_route(
+            verified_route = await verify_destination_route(
                 network=route.network,
                 route_id=route.route_id,
                 executor=route.executor,
@@ -205,8 +205,8 @@ async def ready_destination_networks(now_seconds: int) -> list[dict[str, Any]]:
                 "name": route.network,
                 "routeId": route.route_id,
                 "chainId": route.destination_chain_id,
-                "executor": route.executor,
-                "supportedAssets": [route.token],
+                "executor": verified_route.executor,
+                "supportedAssets": [verified_route.token],
                 "status": "ready; live liquidity verified",
             }
         )
