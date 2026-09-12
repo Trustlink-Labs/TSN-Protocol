@@ -86,8 +86,29 @@ contract DestinationLiquidityRegistry {
     ) external onlyOwner {
         if (routeId == bytes32(0) || sourceChainKey == 0 || sourceEmitter == address(0) ||
             payoutVault == address(0) || token == address(0)) revert InvalidRoute();
-        routes[routeId] = Route(enabled, sourceChainKey, sourceEmitter, payoutVault, token, 0, address(0), address(0));
-        emit RouteConfigured(routeId, sourceChainKey, sourceEmitter, payoutVault, token, 0, address(0), address(0), enabled);
+        routes[routeId] = Route(
+            enabled,
+            sourceChainKey,
+            sourceEmitter,
+            payoutVault,
+            token,
+            bytes32(0),
+            0,
+            address(0),
+            address(0)
+        );
+        emit RouteConfigured(
+            routeId,
+            sourceChainKey,
+            sourceEmitter,
+            payoutVault,
+            token,
+            bytes32(0),
+            0,
+            address(0),
+            address(0),
+            enabled
+        );
     }
 
     /// @notice Configure the complete settlement route used by Creditcoin.
@@ -99,6 +120,7 @@ contract DestinationLiquidityRegistry {
         address sourceEmitter,
         address payoutVault,
         address token,
+        bytes32 destinationNetwork,
         uint256 destinationChainId,
         address destinationExecutor,
         address outbox,
@@ -132,6 +154,7 @@ contract DestinationLiquidityRegistry {
             sourceEmitter,
             payoutVault,
             token,
+            destinationNetwork,
             destinationChainId,
             destinationExecutor,
             outbox,

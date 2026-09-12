@@ -178,6 +178,7 @@ export type CreateIntentRequest = {
   recipientTin?: string | null;
   destinationNetwork?: string | null;
   destinationExecutor?: string | null;
+  destinationToken?: string | null;
   settlementRouteId?: string | null;
 };
 
@@ -261,6 +262,7 @@ export function buildCreateIntentRequest(params: {
   amount: number;
   destinationNetwork?: string | null;
   destinationExecutor?: string | null;
+  destinationToken?: string | null;
   settlementRouteId?: string | null;
   source?: string;
 }): CreateIntentRequest {
@@ -292,6 +294,7 @@ export function buildCreateIntentRequest(params: {
     amount: params.amount,
     destinationNetwork: params.destinationNetwork ?? null,
     destinationExecutor: params.destinationExecutor ?? null,
+    destinationToken: params.destinationToken ?? null,
     settlementRouteId: params.settlementRouteId ?? null,
     source: params.source,
   };

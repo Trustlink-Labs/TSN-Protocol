@@ -63,6 +63,7 @@ contract CreditcoinSettlementHub {
         uint256 amount,
         uint256 nonce
     );
+    event SettlementReservationReleased(bytes32 indexed routeId, bytes32 indexed settlementId, uint256 amount);
 
     struct PayoutAuthorization {
         bytes32 settlementId;
@@ -137,12 +138,22 @@ contract CreditcoinSettlementHub {
         DestinationLiquidityRegistry.Route memory route = routeRegistry.getRoute(authorization.routeId);
         if (
             !route.enabled ||
+            route.destinationNetwork != authorization.destinationNetwork ||
             route.destinationChainId == 0 ||
             route.destinationExecutor == address(0) ||
             route.outbox == address(0) ||
             route.destinationExecutor != authorization.destinationExecutor ||
             route.token != authorization.token
         ) revert RouteNotExecutable(authorization.routeId);
+
+        // Lock the proof-backed capacity before publishing the message. The
+        // state change rolls back atomically if the Attestcoin Outbox rejects
+        // the publication, so a failed handoff cannot consume liquidity.
+        routeRegistry.reserveLiquidity(
+            authorization.routeId,
+            authorization.settlementId,
+            authorization.amount
+        );
 
         processedSettlements[authorization.settlementId] = true;
         usedNonces[authorization.nonce] = true;
@@ -192,6 +203,18 @@ contract CreditcoinSettlementHub {
 
     function setPaused(bool value) external onlyOwner {
         paused = value;
+    }
+
+    /// @notice Release route capacity after the destination executor's payout
+    /// event has been independently observed. This only unlocks accounting
+    /// capacity; it cannot transfer funds or re-authorize a settlement.
+    function releaseSettlementReservation(
+        bytes32 routeId,
+        bytes32 settlementId,
+        uint256 amount
+    ) external onlyOwner {
+        routeRegistry.releaseLiquidity(routeId, settlementId, amount);
+        emit SettlementReservationReleased(routeId, settlementId, amount);
     }
 
     function withdrawAttestcoinFees(address recipient, uint256 amount) external onlyOwner {

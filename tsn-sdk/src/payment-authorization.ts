@@ -100,6 +100,7 @@ export function createCrossChainPaymentAuthorization(params: {
   recipientRouteCommitment: string;
   recipientRouteVersion: number;
   tokenMintAddress: string;
+  destinationToken: string;
   amount: number;
   senderFeeAmount: number;
   nonce?: string;
@@ -119,7 +120,7 @@ export function createCrossChainPaymentAuthorization(params: {
   const message = buildCrossChainPaymentIntentMessage({
     intentId: params.intentId,
     amountBaseUnits: BigInt(Math.round(params.amount * 1_000_000)),
-    asset: params.tokenMintAddress,
+    destinationToken: params.destinationToken,
     recipientTin,
     recipientRouteCommitment: params.recipientRouteCommitment,
     recipientRouteVersion: params.recipientRouteVersion,
@@ -160,6 +161,7 @@ export function buildPaymentAuthorizationIntentRequest(params: {
   amount: number;
   destinationNetwork?: string | null;
   destinationExecutor?: string | null;
+  destinationToken?: string | null;
   settlementRouteId?: string | null;
   recipientAmount?: number;
   source?: string;
@@ -193,6 +195,7 @@ export function buildPaymentAuthorizationIntentRequest(params: {
       amount: params.amount,
       destinationNetwork: params.destinationNetwork,
       destinationExecutor: params.destinationExecutor,
+      destinationToken: params.destinationToken,
       settlementRouteId: params.settlementRouteId,
       source: params.source,
     }),
