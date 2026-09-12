@@ -1,0 +1,302 @@
+import { sha256 } from "@noble/hashes/sha2";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
+
+export class CanonicalMessageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CanonicalMessageError";
+  }
+}
+
+export const TSN_CANONICAL_DOMAIN_HASH = bytesToHex(
+  sha256(utf8ToBytes("trustlink-pay:tsn:canonical-signing:v1")),
+);
+export const TSN_CANONICAL_DOMAIN_DISPLAY = `...${TSN_CANONICAL_DOMAIN_HASH.slice(-8)}`;
+const USDC_DECIMALS = 6n;
+
+type CanonicalValue = string | number | bigint | Date;
+
+function formatValue(value: CanonicalValue) {
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
+function buildMessage(action: string, fields: Array<[string, CanonicalValue]>) {
+  return [
+    `TSN ${action}`,
+    "---",
+    ...fields.map(([label, value]) => `${label}: ${formatValue(value)}`),
+    `Domain: ${TSN_CANONICAL_DOMAIN_DISPLAY}`,
+  ].join("\n");
+}
+
+function parseMessage(message: string, action: string) {
+  if (typeof message !== "string" || !message.startsWith("TSN ")) {
+    throw new CanonicalMessageError("canonical message must start with TSN ");
+  }
+  const lines = message.split("\n").map((line) => line.trimEnd());
+  if (lines[0] !== `TSN ${action}`) {
+    throw new CanonicalMessageError(`expected TSN ${action} message`);
+  }
+  if (lines[1] !== "---") {
+    throw new CanonicalMessageError("canonical message is missing separator line");
+  }
+  const fields = new Map<string, string>();
+  for (const line of lines.slice(2)) {
+    const separator = line.indexOf(": ");
+    if (separator <= 0) {
+      throw new CanonicalMessageError(`canonical field is malformed: ${line}`);
+    }
+    const label = line.slice(0, separator);
+    const value = line.slice(separator + 2);
+    if (fields.has(label)) {
+      throw new CanonicalMessageError(`canonical field is duplicated: ${label}`);
+    }
+    fields.set(label, value);
+  }
+  const domain = fields.get("Domain");
+  if (domain !== TSN_CANONICAL_DOMAIN_DISPLAY) {
+    throw new CanonicalMessageError("canonical domain does not match TSN");
+  }
+  return fields;
+}
+
+function requireField(fields: Map<string, string>, label: string) {
+  const value = fields.get(label);
+  if (!value) throw new CanonicalMessageError(`canonical field is missing: ${label}`);
+  return value;
+}
+
+function parseTin(value: string, label: string) {
+  if (!/^\d+$/.test(value)) {
+    throw new CanonicalMessageError(`${label} must be plain digits`);
+  }
+  return value;
+}
+
+function parseHash32(value: string, label: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(normalized)) {
+    throw new CanonicalMessageError(`${label} must be a 32-byte hexadecimal commitment`);
+  }
+  return normalized;
+}
+
+function parseRouteVersion(value: string | number) {
+  const normalized = String(value).trim();
+  if (!/^[1-9]\d*$/.test(normalized)) {
+    throw new CanonicalMessageError("Recipient Route Version must be a positive integer");
+  }
+  const routeVersion = Number(normalized);
+  if (!Number.isSafeInteger(routeVersion)) {
+    throw new CanonicalMessageError("Recipient Route Version is outside the safe integer range");
+  }
+  return routeVersion;
+}
+
+function parseExpiry(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime()) || date.toISOString() !== value) {
+    throw new CanonicalMessageError("Expires must be an ISO 8601 UTC timestamp");
+  }
+  return date;
+}
+
+function parseUsdc(value: string, label: string) {
+  const match = value.match(/^(\d+)(?:\.(\d{1,6}))? USDC$/);
+  if (!match) {
+    throw new CanonicalMessageError(`${label} must be a decimal USDC amount`);
+  }
+  const whole = BigInt(match[1]);
+  const fractional = BigInt((match[2] ?? "").padEnd(Number(USDC_DECIMALS), "0"));
+  return whole * 1_000_000n + fractional;
+}
+
+function formatUsdcBaseUnits(baseUnits: bigint) {
+  const whole = baseUnits / 1_000_000n;
+  const fraction = (baseUnits % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  return `${whole.toString()}${fraction ? `.${fraction}` : ".00"} USDC`;
+}
+
+export function isCanonicalTsnMessage(message: string) {
+  return typeof message === "string" && message.startsWith("TSN ") && message.includes("\n---\n");
+}
+
+export function buildPaymentIntentMessage(params: {
+  amountBaseUnits: bigint | string | number;
+  recipientTin: string;
+  recipientRouteCommitment: string;
+  recipientRouteVersion: number;
+  feeBaseUnits: bigint | string | number;
+  sender: string;
+  nonce: string;
+  expires: string | Date;
+}) {
+  return buildMessage("Payment Intent", [
+    ["Amount", formatUsdcBaseUnits(BigInt(params.amountBaseUnits))],
+    ["Recipient TIN", parseTin(params.recipientTin, "Recipient TIN")],
+    ["Recipient Route Commitment", parseHash32(params.recipientRouteCommitment, "Recipient Route Commitment")],
+    ["Recipient Route Version", parseRouteVersion(params.recipientRouteVersion)],
+    ["Fee", formatUsdcBaseUnits(BigInt(params.feeBaseUnits))],
+    ["Sender", params.sender],
+    ["Nonce", params.nonce],
+    ["Expires", params.expires instanceof Date ? params.expires : new Date(params.expires)],
+  ]);
+}
+
+export function parsePaymentIntentMessage(message: string) {
+  const fields = parseMessage(message, "Payment Intent");
+  return {
+    amountBaseUnits: parseUsdc(requireField(fields, "Amount"), "Amount"),
+    recipientTin: parseTin(requireField(fields, "Recipient TIN"), "Recipient TIN"),
+    recipientRouteCommitment: parseHash32(requireField(fields, "Recipient Route Commitment"), "Recipient Route Commitment"),
+    recipientRouteVersion: parseRouteVersion(requireField(fields, "Recipient Route Version")),
+    feeBaseUnits: parseUsdc(requireField(fields, "Fee"), "Fee"),
+    sender: requireField(fields, "Sender"),
+    nonce: requireField(fields, "Nonce"),
+    expires: parseExpiry(requireField(fields, "Expires")),
+  };
+}
+
+/**
+ * Cross-chain payment intent. This is intentionally separate from the legacy
+ * Solana-only Payment Intent format so existing Solana flows are not changed.
+ * Every destination-sensitive field is inside the user signature.
+ */
+export function buildCrossChainPaymentIntentMessage(params: {
+  intentId: string;
+  amountBaseUnits: bigint | string | number;
+  asset: string;
+  recipientTin: string;
+  recipientRouteCommitment: string;
+  recipientRouteVersion: number;
+  feeBaseUnits: bigint | string | number;
+  sender: string;
+  nonce: string;
+  expires: string | Date;
+  destinationNetwork: string;
+  destinationExecutor: string;
+  settlementRouteId: string;
+}) {
+  if (!params.intentId.trim() || !params.asset.trim() || !params.destinationNetwork.trim()) {
+    throw new CanonicalMessageError("cross-chain intent fields must not be empty");
+  }
+  if (!/^0x[0-9a-fA-F]{40}$/.test(params.destinationExecutor)) {
+    throw new CanonicalMessageError("Destination Executor must be a 20-byte EVM address");
+  }
+  return buildMessage("Cross-Chain Payment Intent", [
+    ["Intent ID", params.intentId],
+    ["Amount", formatUsdcBaseUnits(BigInt(params.amountBaseUnits))],
+    ["Asset", params.asset],
+    ["Recipient TIN", parseTin(params.recipientTin, "Recipient TIN")],
+    ["Recipient Route Commitment", parseHash32(params.recipientRouteCommitment, "Recipient Route Commitment")],
+    ["Recipient Route Version", parseRouteVersion(params.recipientRouteVersion)],
+    ["Fee", formatUsdcBaseUnits(BigInt(params.feeBaseUnits))],
+    ["Sender", params.sender],
+    ["Nonce", params.nonce],
+    ["Expires", params.expires instanceof Date ? params.expires : new Date(params.expires)],
+    ["Destination Network", params.destinationNetwork],
+    ["Destination Executor", params.destinationExecutor.toLowerCase()],
+    ["Settlement Route ID", parseHash32(params.settlementRouteId.replace(/^0x/i, ""), "Settlement Route ID")],
+  ]);
+}
+
+export function parseCrossChainPaymentIntentMessage(message: string) {
+  const fields = parseMessage(message, "Cross-Chain Payment Intent");
+  const destinationExecutor = requireField(fields, "Destination Executor").toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(destinationExecutor)) {
+    throw new CanonicalMessageError("Destination Executor must be a 20-byte EVM address");
+  }
+  return {
+    intentId: requireField(fields, "Intent ID"),
+    amountBaseUnits: parseUsdc(requireField(fields, "Amount"), "Amount"),
+    asset: requireField(fields, "Asset"),
+    recipientTin: parseTin(requireField(fields, "Recipient TIN"), "Recipient TIN"),
+    recipientRouteCommitment: parseHash32(requireField(fields, "Recipient Route Commitment"), "Recipient Route Commitment"),
+    recipientRouteVersion: parseRouteVersion(requireField(fields, "Recipient Route Version")),
+    feeBaseUnits: parseUsdc(requireField(fields, "Fee"), "Fee"),
+    sender: requireField(fields, "Sender"),
+    nonce: requireField(fields, "Nonce"),
+    expires: parseExpiry(requireField(fields, "Expires")),
+    destinationNetwork: requireField(fields, "Destination Network"),
+    destinationExecutor,
+    settlementRouteId: parseHash32(requireField(fields, "Settlement Route ID"), "Settlement Route ID"),
+  };
+}
+
+export function buildTinCreationMessage(params: {
+  tin: string;
+  displayName: string;
+  privacy?: string;
+  nonce: string;
+  expires: string | Date;
+}) {
+  return buildMessage("TIN Creation", [
+    ["TIN", parseTin(params.tin, "TIN")],
+    ["Display Name", params.displayName],
+    ["Privacy", params.privacy ?? "30 PRUs"],
+    ["Nonce", params.nonce],
+    ["Expires", params.expires instanceof Date ? params.expires : new Date(params.expires)],
+  ]);
+}
+
+export function buildTinWalletBindingMessage(params: {
+  tin: string;
+  walletPublicKey: string;
+  identityPublicKey: string;
+  programId: string;
+  issuedAt: string | Date;
+}) {
+  return buildMessage("TIN Wallet Binding", [
+    ["TIN", parseTin(params.tin, "TIN")],
+    ["Wallet", params.walletPublicKey],
+    ["Identity", params.identityPublicKey],
+    ["Program", params.programId],
+    ["Issued At", params.issuedAt instanceof Date ? params.issuedAt : new Date(params.issuedAt)],
+  ]);
+}
+
+export function parseTinWalletBindingMessage(message: string) {
+  const fields = parseMessage(message, "TIN Wallet Binding");
+  return {
+    tin: parseTin(requireField(fields, "TIN"), "TIN"),
+    walletPublicKey: requireField(fields, "Wallet"),
+    identityPublicKey: requireField(fields, "Identity"),
+    programId: requireField(fields, "Program"),
+    issuedAt: parseExpiry(requireField(fields, "Issued At")),
+  };
+}
+export function parseTinCreationMessage(message: string) {
+  const fields = parseMessage(message, "TIN Creation");
+  return {
+    tin: parseTin(requireField(fields, "TIN"), "TIN"),
+    displayName: requireField(fields, "Display Name"),
+    privacy: requireField(fields, "Privacy"),
+    nonce: requireField(fields, "Nonce"),
+    expires: parseExpiry(requireField(fields, "Expires")),
+  };
+}
+
+export function buildTinUpgradeMessage(params: {
+  tin: string;
+  displayName: string;
+  nonce: string;
+  expires: string | Date;
+}) {
+  return buildMessage("TIN Upgrade", [
+    ["TIN", parseTin(params.tin, "TIN")],
+    ["Display Name", params.displayName],
+    ["Nonce", params.nonce],
+    ["Expires", params.expires instanceof Date ? params.expires : new Date(params.expires)],
+  ]);
+}
+
+export function parseTinUpgradeMessage(message: string) {
+  const fields = parseMessage(message, "TIN Upgrade");
+  return {
+    tin: parseTin(requireField(fields, "TIN"), "TIN"),
+    displayName: requireField(fields, "Display Name"),
+    nonce: requireField(fields, "Nonce"),
+    expires: parseExpiry(requireField(fields, "Expires")),
+  };
+}

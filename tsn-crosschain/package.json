@@ -1,0 +1,22 @@
+{
+  "name": "@trustlink/tsn-cross-chain",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "deploy": "tsx scripts/deploy.ts",
+    "attest:liquidity": "tsx worker/destination-liquidity-attest-worker.ts"
+  },
+  "dependencies": {
+    "@gluwa/asc-contracts": "^0.2.1",
+    "@gluwa/usc-sdk": "^0.18.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "solc": "^0.8.30",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}
