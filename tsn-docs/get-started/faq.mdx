@@ -16,7 +16,7 @@ No. TrustLink Labs is the team. The Transfer Settlement Network is the protocol.
 
 ## Is TSN a bridge?
 
-No. Cross-network settlement uses a correspondent-bank model: Solana authorizes, Sepolia publishes, Attestcoin proves, Creditcoin settles. There are no wrapped tokens and no cross-chain message passing.
+No. Cross-network settlement uses a correspondent-bank model. Solana authorizes and holds the debit commitment. Creditcoin is the first live EVM settlement rail: the `CreditcoinSettlementHub` consumes the Node's EIP-712 authorization and pays the recipient from its own stablecoin liquidity. Other EVM destinations (for example Base and Ethereum) use `DestinationLiquidityRegistry` routes with proof-backed liquidity observations verified through Attestcoin. There are no wrapped tokens and no cross-chain message passing.
 
 ## Is TSN a mixer?
 
@@ -73,8 +73,7 @@ Not yet. Do not use with real funds. Devnet only.
 
 ## Where is the source?
 
-- Docs source: `bigdreamsweb3/tsn-docs`
-- Protocol source: `bigdreamsweb3/trustlink-pay`
+- Protocol and docs source: `trustlink-labs/tsn-protocol` (docs live under `tsn-docs/`)
 
 ## Related
 

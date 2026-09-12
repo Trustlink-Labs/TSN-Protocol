@@ -18,7 +18,7 @@
     },
     {
       "name": "GitHub",
-      "url": "https://github.com/bigdreamsweb3/trustlink-pay"
+      "url": "https://github.com/Trustlink-Labs/tsn-protocol"
     }
   ],
   "topbarCtaButton": {
@@ -113,8 +113,8 @@
     ]
   },
   "footerSocials": {
-    "x": "https://x.com/0xbigdream",
-    "github": "https://github.com/bigdreamsweb3/trustlink-pay"
+    "x": "https://x.com/TrustLinkLabs",
+    "github": "https://github.com/Trustlink-Labs/tsn-protocol"
   },
   "footer": {
     "socials": {
