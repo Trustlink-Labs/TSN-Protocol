@@ -17,6 +17,6 @@
     "types": ["node"]
   },
   "references": [{ "path": "../tsn-sdk" }],
-  "include": ["scripts/**/*", "../../utils/**/*.ts"],
+  "include": ["scripts/**/*", "../../utils/**/*.ts", "../tsn-crosschain/src/**/*.ts", "../tsn-sdk/legacy/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -401,6 +401,9 @@ export function createOwnerIntentSignatureInstruction(params: {
 export function serializeTinCreationRegistryParams(params: {
   ownerPubkey: PublicKey;
   displayName: string;
+  tin?: bigint | number | string;
+  lookupSecret?: Uint8Array | string;
+  encryptedIdentityEnvelope?: Buffer | Uint8Array;
   encryptedMasterSeed?: Buffer | Uint8Array;
   encryptedMetadataHash?: Buffer | Uint8Array;
   pruConfigurationHash?: Buffer | Uint8Array;
@@ -415,7 +418,67 @@ export function serializeTinCreationRegistryParams(params: {
   intentHash: Buffer | Uint8Array;
   expiryTs: bigint | number;
 }) {
+  if (params.tin != null || params.lookupSecret || params.encryptedIdentityEnvelope) {
+    if (params.tin == null || !params.lookupSecret || !params.encryptedIdentityEnvelope) {
+      throw new Error("Private TIN creation requires tin, lookupSecret, and encryptedIdentityEnvelope");
+    }
+    return serializePrivateTinCreationParams({
+      ...params,
+      tin: params.tin,
+      lookupSecret: params.lookupSecret,
+      encryptedIdentityEnvelope: params.encryptedIdentityEnvelope,
+    });
+  }
   return serializeTinRegistryMutationParams(12, params);
+}
+
+function serializePrivateTinCreationParams(params: {
+  ownerPubkey: PublicKey;
+  tin: bigint | number | string;
+  lookupSecret: Uint8Array | string;
+  encryptedIdentityEnvelope: Buffer | Uint8Array;
+  encryptedMasterSeed?: Buffer | Uint8Array;
+  encryptedMetadataHash?: Buffer | Uint8Array;
+  pruConfigurationHash?: Buffer | Uint8Array;
+  encryptedPublicRouteEnvelope?: Buffer | Uint8Array;
+  routeVersion?: bigint | number;
+  routeNonce?: Buffer | Uint8Array;
+  tcapRouteVersion?: number;
+  tcapRelationshipCommitment?: Buffer | Uint8Array;
+  tcapRelationshipReference?: Buffer | Uint8Array;
+  tcapPolicyCommitment?: Buffer | Uint8Array;
+  intentHash: Buffer | Uint8Array;
+  expiryTs: bigint | number;
+}) {
+  const secret = typeof params.lookupSecret === "string" ? Buffer.from(params.lookupSecret, "utf8") : Buffer.from(params.lookupSecret);
+  if (secret.length < 16) throw new Error("lookupSecret must contain at least 16 bytes");
+  const encryptedMasterSeed = resolveEncryptedMasterSeed(params);
+  const lookupCommitment = Buffer.from(sha256(Buffer.concat([
+    Buffer.from("TSN_TIN_V1_LOOKUP", "utf8"), secret, Buffer.from(String(params.tin), "utf8"),
+  ])));
+  const routeVersion = Buffer.alloc(8);
+  routeVersion.writeBigUInt64LE(BigInt(params.routeVersion ?? 0));
+  if (routeVersion.equals(Buffer.alloc(8))) throw new Error("routeVersion must be positive");
+  const routeNonce = requireHash32(params.routeNonce, "routeNonce");
+  const tcapRouteVersion = params.tcapRouteVersion ?? 0;
+  const relationshipCommitment = normalizeHash32(params.tcapRelationshipCommitment, "tcapRelationshipCommitment");
+  const relationshipReference = normalizeHash32(params.tcapRelationshipReference, "tcapRelationshipReference");
+  const policyCommitment = normalizeHash32(params.tcapPolicyCommitment, "tcapPolicyCommitment");
+  const routeEnvelope = params.encryptedPublicRouteEnvelope ?? (() => { throw new Error("encryptedPublicRouteEnvelope is required"); })();
+  const body: Buffer[] = [
+    params.ownerPubkey.toBuffer(), lookupCommitment,
+  ];
+  appendBytes(body, params.encryptedIdentityEnvelope);
+  appendBytes(body, encryptedMasterSeed);
+  body.push(normalizeHash32(params.encryptedMetadataHash, "encryptedMetadataHash"));
+  body.push(normalizeHash32(params.pruConfigurationHash, "pruConfigurationHash"));
+  appendBytes(body, routeEnvelope);
+  body.push(routeVersion, routeNonce, Buffer.from([tcapRouteVersion]), relationshipCommitment, relationshipReference, policyCommitment);
+  const expiry = Buffer.alloc(8);
+  expiry.writeBigInt64LE(BigInt(params.expiryTs));
+  const expectedIntentHash = Buffer.from(sha256(Buffer.concat([Buffer.from("TSN_TIN_V1_CREATE", "utf8"), ...body, expiry])));
+  if (!expectedIntentHash.equals(requireHash32(params.intentHash, "intentHash"))) throw new Error("intentHash does not match private TIN creation payload");
+  return encodeInstruction(17, [...body, expectedIntentHash, expiry]);
 }
 
 export function serializeTinUpdateParams(params: {
@@ -1134,12 +1197,108 @@ export async function decryptTinSensitiveField(params: {
   return TEXT_DECODER.decode(plaintext);
 }
 
+async function resolvePrivateTinRecord(params: {
+  tin: bigint | number | string;
+  connection: Connection;
+  programId?: PublicKey | string | null;
+  lookupSecret: Uint8Array | string;
+}): Promise<TinResolvedIdentity> {
+  const programId = getTinsProgramPublicKey(params.programId);
+  const secret = typeof params.lookupSecret === "string"
+    ? Buffer.from(params.lookupSecret, "utf8")
+    : Buffer.from(params.lookupSecret);
+  if (secret.length < 16) throw new Error("lookupSecret must contain at least 16 bytes");
+  const lookupCommitment = Buffer.from(sha256(Buffer.concat([
+    Buffer.from("TSN_TIN_V1_LOOKUP", "utf8"),
+    secret,
+    Buffer.from(String(params.tin), "utf8"),
+  ])));
+  const registry = PublicKey.findProgramAddressSync(
+    [Buffer.from("tin-v1", "utf8"), lookupCommitment],
+    programId,
+  )[0];
+  const account = await params.connection.getAccountInfo(registry);
+  if (!account || !account.owner.equals(programId)) throw new Error(`TIN ${String(params.tin)} was not found in the private registry`);
+
+  const buffer = Buffer.from(account.data);
+  let offset = 0;
+  const readU8 = () => buffer.readUInt8(offset++);
+  const readU32 = () => { const value = buffer.readUInt32LE(offset); offset += 4; return value; };
+  const readBytes = () => { const length = readU32(); const value = buffer.subarray(offset, offset + length); offset += length; return value; };
+  const readFixed = (length: number) => { const value = buffer.subarray(offset, offset + length); offset += length; return value; };
+  const version = readU8();
+  const bump = readU8();
+  const status = readU8();
+  readFixed(5);
+  const storedLookup = readFixed(32);
+  const ownerCommitment = readFixed(32);
+  const encryptedIdentityEnvelope = readBytes();
+  readBytes();
+  const createdAt = buffer.readBigInt64LE(offset); offset += 8;
+  const encryptedMetadataHash = readFixed(32);
+  const pruConfigurationHash = readFixed(32);
+  const encryptedPublicRouteEnvelope = readBytes();
+  const routeVersion = buffer.readBigUInt64LE(offset); offset += 8;
+  const routeNonce = readFixed(32);
+  const tcapRouteVersion = readU8();
+  const tcapRelationshipCommitment = readFixed(32);
+  const tcapRelationshipReference = readFixed(32);
+  const tcapPolicyCommitment = readFixed(32);
+  if (version !== 1 || status !== 1 || !Buffer.from(storedLookup).equals(lookupCommitment) || offset !== buffer.length) {
+    throw new Error("unsupported private TIN account schema");
+  }
+  if (encryptedIdentityEnvelope.length < 13) throw new Error("private TIN identity envelope is invalid");
+  const identityKey = await importAesKey(sha256(Buffer.concat([
+    Buffer.from("TSN_TIN_V1_IDENTITY", "utf8"),
+    secret,
+    Buffer.from(String(params.tin), "utf8"),
+  ])));
+  const identityPlaintext = await getWebCrypto().subtle.decrypt(
+    { name: "AES-GCM", iv: encryptedIdentityEnvelope.subarray(0, 12) as any },
+    identityKey,
+    encryptedIdentityEnvelope.subarray(12) as any,
+  );
+  const identity = JSON.parse(TEXT_DECODER.decode(identityPlaintext)) as { name?: string; tin?: string };
+  if (identity.tin !== String(params.tin) || typeof identity.name !== "string") throw new Error("private TIN identity disclosure is invalid");
+  return {
+    tin: String(params.tin),
+    name: identity.name,
+    authority: registry,
+    ownerPubkeyHash: bytesToHex(ownerCommitment),
+    registry,
+    accountKind: "registry",
+    upgradeRequired: false,
+    upgradeReason: null,
+    settlementAuthorityVerified: true,
+    status,
+    createdAt: createdAt.toString(),
+    socialIdentities: [],
+    sensitiveFields: [],
+    encryptedSensitiveFields: [],
+    pruConfigurationHash: bytesToHex(pruConfigurationHash),
+    routeVersion: Number(routeVersion),
+    tcapRouteVersion,
+    tcapRelationshipCommitment: bytesToHex(tcapRelationshipCommitment),
+    tcapRelationshipReference: bytesToHex(tcapRelationshipReference),
+    tcapPolicyCommitment: bytesToHex(tcapPolicyCommitment),
+  };
+}
+
 export async function resolveTIN(params: {
   tin: bigint | number | string;
   connection: Connection;
   programId?: PublicKey | string | null;
+  lookupSecret?: Uint8Array | string;
   sensitiveAuthorizations?: Record<string, Uint8Array | string>;
 }): Promise<TinResolvedIdentity> {
+  if (params.lookupSecret) {
+    return resolvePrivateTinRecord({
+      tin: params.tin,
+      connection: params.connection,
+      programId: params.programId,
+      lookupSecret: params.lookupSecret,
+    });
+  }
   const programId = getTinsProgramPublicKey(params.programId);
   const registryPda = getTinsRegistryPda({ tin: params.tin, programId });
   const account = await params.connection.getAccountInfo(registryPda);
