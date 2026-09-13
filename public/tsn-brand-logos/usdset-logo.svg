@@ -1,0 +1,64 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>USDSET — TSN Dollar Settlement</title>
+  <desc>Gold sunrise over a green settlement horizon with a subtle gold-and-green star field.</desc>
+  <defs>
+    <linearGradient id="usdsetGold" x1="128" y1="116" x2="384" y2="310" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2D27A"/>
+      <stop offset="1" stop-color="#C99632"/>
+    </linearGradient>
+    <linearGradient id="usdsetGreen" x1="118" y1="356" x2="394" y2="356" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F5132"/>
+      <stop offset="1" stop-color="#22A06B"/>
+    </linearGradient>
+    <filter id="usdsetGlow" x="76" y="60" width="360" height="300" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="usdsetCoinClip">
+      <circle cx="256" cy="238" r="178"/>
+    </clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="96" fill="#0A0A0A"/>
+  <circle cx="256" cy="238" r="178" fill="#10251B" stroke="#26372C" stroke-width="8"/>
+
+  <!-- Star field: a subtle TSN-gold and emerald reference to the star field,
+       without reproducing flag colors or national symbols. -->
+  <g fill="#D6A84B">
+    <path d="M156 122l4 10 10 4-10 4-4 10-4-10-10-4 10-4 4-10Z"/>
+    <path d="M210 96l3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8Z"/>
+    <path d="M274 108l4 10 10 4-10 4-4 10-4-10-10-4 10-4 4-10Z"/>
+    <path d="M338 94l3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8Z"/>
+    <path d="M370 148l4 10 10 4-10 4-4 10-4-10-10-4 10-4 4-10Z"/>
+  </g>
+  <g fill="#22A06B">
+    <circle cx="130" cy="178" r="4"/>
+    <circle cx="186" cy="150" r="4"/>
+    <circle cx="238" cy="132" r="4"/>
+    <circle cx="306" cy="142" r="4"/>
+    <circle cx="354" cy="184" r="4"/>
+  </g>
+
+  <!-- Sunrise and settlement horizon. -->
+  <g filter="url(#usdsetGlow)">
+    <circle cx="256" cy="286" r="76" fill="url(#usdsetGold)"/>
+  </g>
+
+  <!-- Small palm silhouette on the horizon. -->
+  <g fill="#0A0A0A" transform="translate(-240 0)">
+    <path d="M348 306C351 289 353 273 354 260L359 260C357 276 356 292 356 307L348 306Z"/>
+    <path d="M356 263C344 258 338 252 335 245C345 248 352 251 357 257C360 250 366 245 375 242C372 251 365 258 358 263C367 259 376 260 384 264C374 268 365 268 358 266C364 273 367 280 367 286C361 279 357 272 356 266Z"/>
+  </g>
+
+  <g clip-path="url(#usdsetCoinClip)">
+    <path d="M54 320C126 274 188 292 256 314C324 336 386 354 458 304V430H54V320Z" fill="url(#usdsetGreen)"/>
+    <path d="M54 320C126 274 188 292 256 314C324 336 386 354 458 304" stroke="#D6A84B" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- Single rising bird: rendered above the sun so the silhouette remains visible. -->
+  <path d="M244 282C249 277 253 277 256 281C259 277 263 277 268 282C263 280 259 282 256 286C253 282 249 280 244 282Z" fill="#0A0A0A"/>
+
+</svg>

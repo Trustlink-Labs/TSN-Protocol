@@ -284,3 +284,53 @@ export function deriveExitCommitment(fields: ExitCommitmentFields): Uint8Array {
     ),
   );
 }
+
+export type DecodedExitDebitEvidence = {
+  permitNonce: `0x${string}`;
+  exitCommitment: `0x${string}`;
+  mint: string;
+  amountBaseUnits: bigint;
+  sequence: bigint;
+  sealed: `0x${string}`;
+  sealCommitment: `0x${string}`;
+  sourceDebitSignature: `0x${string}`;
+};
+
+function hex(bytes: Uint8Array): `0x${string}` {
+  return `0x${Buffer.from(bytes).toString("hex")}` as `0x${string}`;
+}
+
+function readU64LE(bytes: Uint8Array, offset: number): bigint {
+  return new DataView(bytes.buffer, bytes.byteOffset + offset, 8).getBigUint64(0, true);
+}
+
+/**
+ * Decode the exact TSN debit instruction emitted by
+ * `tsn_register_tcap_exit_debit_v1`.
+ *
+ * This is a pure decoder. It does not decrypt the sealed TIP, derive a TIN,
+ * or authorize a payout. The Node must combine this evidence with its
+ * authenticated sealed-head and TIN commitment readers before creating any
+ * cross-chain authorization.
+ */
+export function decodeExitDebitInstructionData(
+  value: Uint8Array | string,
+): DecodedExitDebitEvidence {
+  const bytes = typeof value === "string"
+    ? Uint8Array.from(Buffer.from(value.replace(/^0x/i, ""), "hex"))
+    : value;
+  const expected = discriminator("tsn_register_tcap_exit_debit_v1");
+  if (bytes.length !== 264 || !Buffer.from(bytes.subarray(0, 8)).equals(expected)) {
+    throw new Error("not a valid tsn_register_tcap_exit_debit_v1 instruction");
+  }
+  return {
+    permitNonce: hex(bytes.subarray(8, 40)),
+    exitCommitment: hex(bytes.subarray(40, 72)),
+    mint: new PublicKey(bytes.subarray(72, 104)).toBase58(),
+    amountBaseUnits: readU64LE(bytes, 104),
+    sequence: readU64LE(bytes, 112),
+    sealed: hex(bytes.subarray(120, 168)),
+    sealCommitment: hex(bytes.subarray(168, 200)),
+    sourceDebitSignature: hex(bytes.subarray(200, 264)),
+  };
+}

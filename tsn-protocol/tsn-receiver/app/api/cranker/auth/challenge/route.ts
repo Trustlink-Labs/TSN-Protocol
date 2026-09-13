@@ -10,6 +10,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(await issueCrankerChallenge(publicKey));
   } catch (error) {
     const message = error instanceof Error ? error.message : "ERROR";
-    return NextResponse.json({ error: message }, { status: message.includes("UNKNOWN") || message.includes("REVOKED") ? 403 : 400 });
+    return NextResponse.json({ error: message }, { status: message.startsWith("CRANKER_") ? 403 : 400 });
   }
 }

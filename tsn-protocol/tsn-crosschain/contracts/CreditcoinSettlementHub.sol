@@ -1,35 +1,41 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {DestinationLiquidityRegistry} from "./DestinationLiquidityRegistry.sol";
+
+interface IAttestcoinOutbox {
+    function publishMessage(bool canAck, bytes calldata payload) external returns (bytes32 messageId);
+}
 
 /// @title CreditcoinSettlementHub
-/// @notice Creditcoin-first stablecoin reserve and payout receipt for TSN exits.
-/// @dev Native CTC is used by the Cranker for gas. Settlement value is the
-///      configured ERC-20 stablecoin held by this contract.
+/// @notice Creditcoin settlement layer for TSN's authenticated Attestcoin
+///         destination payout messages.
+/// @dev This contract does not custody or directly pay destination stablecoins.
+///      It verifies the Node authorization, binds the registered route and
+///      destination executor, then publishes the exact payload through the
+///      official Attestcoin Outbox. The destination Inbox delivers the message
+///      to that network's TSNSettlementExecutor and local liquidity vault.
 contract CreditcoinSettlementHub {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
-    bytes32 public constant CREDITCOIN_NETWORK = keccak256("creditcoin-testnet");
     bytes32 public constant SOLANA_NETWORK = keccak256("solana-devnet");
     bytes32 private constant DOMAIN_TYPEHASH = keccak256(
         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
     );
     bytes32 private constant AUTHORIZATION_TYPEHASH = keccak256(
-        "PayoutAuthorization(bytes32 settlementId,bytes32 sourceNetwork,bytes32 sealedTipHeadHash,bytes32 tinHash,bytes32 exitCommitment,bytes32 destinationNetwork,address token,address recipient,uint256 amount,uint256 feeAmount,uint256 nonce,uint256 deadline,bool merchantOverride)"
+        "PayoutAuthorization(bytes32 settlementId,bytes32 sourceNetwork,bytes32 sealedTipHeadHash,bytes32 tinHash,bytes32 exitCommitment,bytes32 routeId,bytes32 destinationNetwork,address destinationExecutor,address token,address recipient,uint256 amount,uint256 feeAmount,uint256 nonce,uint256 deadline,bool merchantOverride)"
     );
     bytes32 private constant NAME_HASH = keccak256("TSN Creditcoin Settlement Hub");
     bytes32 private constant VERSION_HASH = keccak256("1");
-    uint256 public constant BPS_DENOMINATOR = 10_000;
 
     address public owner;
     address public authorizationSigner;
-    address payable public feeRecipient;
-    IERC20 public immutable settlementToken;
-    uint256 public feeBps;
+    IERC20 public immutable attestToken;
+    DestinationLiquidityRegistry public immutable routeRegistry;
     bool public paused;
 
     mapping(bytes32 => bool) public processedSettlements;
@@ -40,28 +46,24 @@ contract CreditcoinSettlementHub {
     error InvalidAuthorization();
     error AuthorizationExpired();
     error Replay(bytes32 settlementId, uint256 nonce);
-    error InsufficientLiquidity(uint256 requested, uint256 available);
-    error InvalidFeeConfiguration();
+    error RouteNotExecutable(bytes32 routeId);
+    error InvalidAttestToken();
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event AuthorizationSignerUpdated(address indexed previousSigner, address indexed newSigner);
-    event LiquidityFunded(address indexed funder, address indexed token, uint256 amount, uint256 newBalance);
-    event LiquidityWithdrawn(address indexed recipient, address indexed token, uint256 amount, uint256 newBalance);
-    event FeeConfigurationUpdated(address indexed feeRecipient, uint256 feeBps);
-    event SolanaDebitCommitmentConsumed(bytes32 indexed settlementId, bytes32 indexed exitCommitment);
-    event PayoutExecuted(
+    event AttestcoinFeesFunded(address indexed funder, uint256 amount, uint256 newBalance);
+    event AttestcoinApprovalUpdated(address indexed outbox, uint256 amount);
+    event SettlementMessagePublished(
         bytes32 indexed settlementId,
-        bytes32 indexed sealedTipHeadHash,
-        bytes32 indexed exitCommitment,
-        bytes32 tinHash,
-        bytes32 destinationNetwork,
+        bytes32 indexed routeId,
+        bytes32 indexed messageId,
+        address destinationExecutor,
         address token,
         address recipient,
         uint256 amount,
-        uint256 feeAmount,
-        uint256 nonce,
-        bool merchantOverride
+        uint256 nonce
     );
+    event SettlementReservationReleased(bytes32 indexed routeId, bytes32 indexed settlementId, uint256 amount);
 
     struct PayoutAuthorization {
         bytes32 settlementId;
@@ -69,7 +71,9 @@ contract CreditcoinSettlementHub {
         bytes32 sealedTipHeadHash;
         bytes32 tinHash;
         bytes32 exitCommitment;
+        bytes32 routeId;
         bytes32 destinationNetwork;
+        address destinationExecutor;
         address token;
         address recipient;
         uint256 amount;
@@ -79,79 +83,108 @@ contract CreditcoinSettlementHub {
         bool merchantOverride;
     }
 
-    constructor(address signer, address payable feeRecipient_, uint256 feeBps_, address token_) {
-        if (signer == address(0) || token_ == address(0)) revert InvalidAuthorization();
-        if (feeRecipient_ == address(0) || feeBps_ > BPS_DENOMINATOR) revert InvalidFeeConfiguration();
+    constructor(
+        address signer,
+        address attestToken_,
+        address registry_
+    ) {
+        if (signer == address(0) || attestToken_ == address(0) || registry_ == address(0)) {
+            revert InvalidAuthorization();
+        }
         owner = msg.sender;
         authorizationSigner = signer;
-        feeRecipient = feeRecipient_;
-        feeBps = feeBps_;
-        settlementToken = IERC20(token_);
+        attestToken = IERC20(attestToken_);
+        routeRegistry = DestinationLiquidityRegistry(registry_);
         emit OwnershipTransferred(address(0), msg.sender);
     }
 
-    function fundLiquidity(uint256 amount) external {
-        if (amount == 0) revert InvalidAuthorization();
-        settlementToken.safeTransferFrom(msg.sender, address(this), amount);
-        emit LiquidityFunded(msg.sender, address(settlementToken), amount, settlementToken.balanceOf(address(this)));
+    function fundAttestcoinFees(uint256 amount) external {
+        if (amount == 0) revert InvalidAttestToken();
+        attestToken.safeTransferFrom(msg.sender, address(this), amount);
+        emit AttestcoinFeesFunded(msg.sender, amount, attestToken.balanceOf(address(this)));
     }
 
-    function executeCreditcoinExit(
+    function approveOutbox(address outbox, uint256 amount) external onlyOwner {
+        if (outbox == address(0)) revert InvalidAttestToken();
+        attestToken.forceApprove(outbox, amount);
+        emit AttestcoinApprovalUpdated(outbox, amount);
+    }
+
+    function executeSettlement(
         PayoutAuthorization calldata authorization,
         bytes calldata signature
-    ) public returns (bytes32 settlementId) {
+    ) external returns (bytes32 messageId) {
         if (paused) revert Paused();
         if (block.timestamp > authorization.deadline) revert AuthorizationExpired();
         if (authorization.sourceNetwork != SOLANA_NETWORK) revert InvalidAuthorization();
-        if (authorization.destinationNetwork != CREDITCOIN_NETWORK) revert InvalidAuthorization();
-        if (authorization.token != address(settlementToken)) revert InvalidAuthorization();
-        if (authorization.settlementId == bytes32(0)) revert InvalidAuthorization();
-        if (authorization.sealedTipHeadHash == bytes32(0)) revert InvalidAuthorization();
-        if (authorization.tinHash == bytes32(0)) revert InvalidAuthorization();
-        if (authorization.exitCommitment == bytes32(0)) revert InvalidAuthorization();
-        if (authorization.recipient == address(0) || authorization.amount == 0) revert InvalidAuthorization();
+        if (authorization.settlementId == bytes32(0) || authorization.routeId == bytes32(0)) {
+            revert InvalidAuthorization();
+        }
+        if (
+            authorization.sealedTipHeadHash == bytes32(0) ||
+            authorization.tinHash == bytes32(0) ||
+            authorization.exitCommitment == bytes32(0) ||
+            authorization.destinationNetwork == bytes32(0) ||
+            authorization.destinationExecutor == address(0) ||
+            authorization.token == address(0) ||
+            authorization.recipient == address(0) ||
+            authorization.amount == 0
+        ) revert InvalidAuthorization();
         if (processedSettlements[authorization.settlementId] || usedNonces[authorization.nonce]) {
             revert Replay(authorization.settlementId, authorization.nonce);
         }
-
-        uint256 expectedFee = quoteFee(authorization.amount);
-        if (authorization.feeAmount != expectedFee) revert InvalidFeeConfiguration();
-        uint256 totalRequired = authorization.amount + authorization.feeAmount;
-        uint256 available = settlementToken.balanceOf(address(this));
-        if (available < totalRequired) revert InsufficientLiquidity(totalRequired, available);
         if (_hashTypedData(authorization).recover(signature) != authorizationSigner) revert Unauthorized();
+
+        DestinationLiquidityRegistry.Route memory route = routeRegistry.getRoute(authorization.routeId);
+        if (
+            !route.enabled ||
+            route.destinationNetwork != authorization.destinationNetwork ||
+            route.destinationChainId == 0 ||
+            route.destinationExecutor == address(0) ||
+            route.outbox == address(0) ||
+            route.destinationExecutor != authorization.destinationExecutor ||
+            route.token != authorization.token
+        ) revert RouteNotExecutable(authorization.routeId);
+
+        // Lock the proof-backed capacity before publishing the message. The
+        // state change rolls back atomically if the Attestcoin Outbox rejects
+        // the publication, so a failed handoff cannot consume liquidity.
+        routeRegistry.reserveLiquidity(
+            authorization.routeId,
+            authorization.settlementId,
+            authorization.amount
+        );
 
         processedSettlements[authorization.settlementId] = true;
         usedNonces[authorization.nonce] = true;
-        emit SolanaDebitCommitmentConsumed(authorization.settlementId, authorization.exitCommitment);
 
-        settlementToken.safeTransfer(authorization.recipient, authorization.amount);
-        if (authorization.feeAmount > 0) {
-            settlementToken.safeTransfer(feeRecipient, authorization.feeAmount);
-        }
-
-        emit PayoutExecuted(
+        bytes memory payload = abi.encode(
             authorization.settlementId,
+            authorization.sourceNetwork,
             authorization.sealedTipHeadHash,
-            authorization.exitCommitment,
             authorization.tinHash,
+            authorization.exitCommitment,
             authorization.destinationNetwork,
+            authorization.destinationExecutor,
             authorization.token,
             authorization.recipient,
             authorization.amount,
             authorization.feeAmount,
             authorization.nonce,
+            authorization.deadline,
             authorization.merchantOverride
         );
-        return authorization.settlementId;
-    }
-
-    /// @dev Compatibility alias for callers that still use the earlier name.
-    function executeCreditcoinPayout(
-        PayoutAuthorization calldata authorization,
-        bytes calldata signature
-    ) external returns (bytes32) {
-        return executeCreditcoinExit(authorization, signature);
+        messageId = IAttestcoinOutbox(route.outbox).publishMessage(false, payload);
+        emit SettlementMessagePublished(
+            authorization.settlementId,
+            authorization.routeId,
+            messageId,
+            authorization.destinationExecutor,
+            authorization.token,
+            authorization.recipient,
+            authorization.amount,
+            authorization.nonce
+        );
     }
 
     function authorizationDigest(PayoutAuthorization calldata authorization) external view returns (bytes32) {
@@ -160,10 +193,6 @@ contract CreditcoinSettlementHub {
 
     function domainSeparator() public view returns (bytes32) {
         return keccak256(abi.encode(DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, block.chainid, address(this)));
-    }
-
-    function quoteFee(uint256 amount) public view returns (uint256) {
-        return (amount * feeBps) / BPS_DENOMINATOR;
     }
 
     function setAuthorizationSigner(address signer) external onlyOwner {
@@ -176,18 +205,21 @@ contract CreditcoinSettlementHub {
         paused = value;
     }
 
-    function setFeeConfiguration(address payable recipient, uint256 bps) external onlyOwner {
-        if (recipient == address(0) || bps > BPS_DENOMINATOR) revert InvalidFeeConfiguration();
-        feeRecipient = recipient;
-        feeBps = bps;
-        emit FeeConfigurationUpdated(recipient, bps);
+    /// @notice Release route capacity after the destination executor's payout
+    /// event has been independently observed. This only unlocks accounting
+    /// capacity; it cannot transfer funds or re-authorize a settlement.
+    function releaseSettlementReservation(
+        bytes32 routeId,
+        bytes32 settlementId,
+        uint256 amount
+    ) external onlyOwner {
+        routeRegistry.releaseLiquidity(routeId, settlementId, amount);
+        emit SettlementReservationReleased(routeId, settlementId, amount);
     }
 
-    function withdrawLiquidity(address recipient, uint256 amount) external onlyOwner {
-        uint256 available = settlementToken.balanceOf(address(this));
-        if (recipient == address(0) || amount > available) revert InsufficientLiquidity(amount, available);
-        settlementToken.safeTransfer(recipient, amount);
-        emit LiquidityWithdrawn(recipient, address(settlementToken), amount, settlementToken.balanceOf(address(this)));
+    function withdrawAttestcoinFees(address recipient, uint256 amount) external onlyOwner {
+        if (recipient == address(0) || amount > attestToken.balanceOf(address(this))) revert InvalidAttestToken();
+        attestToken.safeTransfer(recipient, amount);
     }
 
     function transferOwnership(address newOwner) external onlyOwner {
@@ -210,7 +242,9 @@ contract CreditcoinSettlementHub {
                 authorization.sealedTipHeadHash,
                 authorization.tinHash,
                 authorization.exitCommitment,
+                authorization.routeId,
                 authorization.destinationNetwork,
+                authorization.destinationExecutor,
                 authorization.token,
                 authorization.recipient,
                 authorization.amount,

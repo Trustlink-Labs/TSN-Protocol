@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
-CreditcoinNetwork = Literal["creditcoin-testnet"]
+CreditcoinNetwork = Literal["creditcoin-testnet", "base", "ethereum"]
 
 
 def _bytes32(value: str, field: str) -> str:
@@ -37,10 +37,12 @@ def _evm_address(value: str) -> str:
 @dataclass(frozen=True)
 class CreditcoinPayoutAuthorization:
     settlement_id: str
+    route_id: str
     sealed_tip_head_hash: str
     tin_hash: str
     exit_commitment: str
     token: str
+    destination_executor: str
     recipient: str
     amount_base_units: int
     fee_amount_base_units: int
@@ -56,8 +58,10 @@ class CreditcoinPayoutAuthorization:
         object.__setattr__(self, "exit_commitment", _bytes32(self.exit_commitment, "exit_commitment"))
         object.__setattr__(self, "recipient", _evm_address(self.recipient))
         object.__setattr__(self, "token", _evm_address(self.token))
-        if self.destination_network != "creditcoin-testnet":
-            raise ValueError("only the Creditcoin settlement rail is enabled")
+        if self.destination_network not in {"creditcoin-testnet", "base", "ethereum"}:
+            raise ValueError("destination network is not supported")
+        object.__setattr__(self, "route_id", _bytes32(self.route_id, "route_id"))
+        object.__setattr__(self, "destination_executor", _evm_address(self.destination_executor))
         if self.amount_base_units <= 0 or self.fee_amount_base_units < 0 or self.nonce < 0 or self.deadline <= 0:
             raise ValueError("invalid Creditcoin payout numeric field")
 
@@ -68,11 +72,13 @@ class CreditcoinPayoutAuthorization:
             "destinationNetwork": self.destination_network,
             "authorization": {
                 "settlementId": self.settlement_id,
+                "routeId": self.route_id,
                 "sourceNetwork": "solana-devnet",
                 "sealedTipHeadHash": self.sealed_tip_head_hash,
                 "tinHash": self.tin_hash,
                 "exitCommitment": self.exit_commitment,
                 "destinationNetwork": self.destination_network,
+                "destinationExecutor": self.destination_executor,
                 "token": self.token,
                 "recipient": self.recipient,
                 "amount": str(self.amount_base_units),

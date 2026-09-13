@@ -1,5 +1,9 @@
 # TrustLink documentation
 
+For internal team runbooks, start with the categorized [team guide index](./team/README.md).
+The public Mintlify documentation for developers, judges, and users is maintained
+separately under `tsn-protocol/tsn-docs/`.
+
 Read these documents in order:
 
 1. [Current architecture](./CURRENT-ARCHITECTURE.md) — canonical TIN, privacy-receiving root, GPRU, TSN Epoch Treasury, Mother, TCAP (Transfer Confidential Asset Protocol) and encrypted snapshots.
@@ -54,3 +58,43 @@ transaction evidence, or production-readiness evidence. A checked-in helper or
 successful simulation is not proof of an on-chain deployment. For any program
 change, record the Devnet program ID, upgrade authority, deployment slot,
 transaction signature and relevant account state before calling the path live.
+
+## Evidence-first guide standard
+
+Every team guide for a build, deployment, chain adapter, liquidity route, or
+production operation must document the experience of running the procedure,
+not only the procedure itself. Each guide must separate the expected result
+from the observed result and explain the actual difference when they diverge.
+
+## Public production-document rule
+
+Public product, hackathon, whitepaper, Mintlify, and marketing documents must
+be production-facing explanations, not implementation discussions. Lead with
+the capability available to the reader, the value it provides, the verified
+architecture, and the evidence supporting the claim. Keep task lists, rollout
+debates, pending gates, placeholder configuration, unresolved implementation
+notes, and internal governance mechanics in team runbooks. If a capability is
+not live, state the limitation briefly and precisely; do not turn the public
+narrative into a build diary. Every public claim remains evidence-backed.
+
+Each run entry should include:
+
+1. **Intent** — the architectural or operational question being tested.
+2. **Environment** — network, chain ID, RPC, tool versions, and relevant
+   feature flags, without secrets or private filesystem paths.
+3. **Command or action** — the exact safe command or console action used.
+4. **Expected behavior** — what the architecture predicts should happen.
+5. **Observed result** — the real terminal output, explorer state, event, or
+   failure that occurred.
+6. **Actual difference** — what differed from expectation and what that means.
+7. **Evidence** — transaction hashes, explorer links, logs, or account state;
+   never replace missing evidence with a placeholder.
+8. **Next action** — the smallest corrective or follow-up step.
+
+For other chains, also record the address model, gas asset, stablecoin or
+liquidity asset, finality behavior, explorer pair, supported Attestcoin role,
+route configuration, executor boundary, and the chain-specific failure modes.
+This keeps TSN documentation grounded in settlement routing and
+privacy-aware settlement coordination while preserving the distinction that
+**DeFi decentralizes financial services; DESP decentralizes settlement
+infrastructure.**

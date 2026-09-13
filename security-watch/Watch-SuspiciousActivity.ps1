@@ -3,6 +3,9 @@ param(
   [switch]$Enforce,
   [switch]$Audit,
   [switch]$NoNetworkIsolation,
+  [string]$ProtectWorkspacePath,
+  [switch]$BlockSuspiciousWorkspaceAccess,
+  [string[]]$AllowApplicationPath = @(),
   [int]$IntervalSeconds = 2,
   [int]$FilesystemScanSeconds = 30,
   [string[]]$ScanRoot = @(
@@ -20,6 +23,11 @@ if ($Enforce -and $Audit) {
 }
 $enforcementEnabled = -not $Audit
 $networkIsolationEnabled = $enforcementEnabled -and -not $NoNetworkIsolation
+
+if ($ProtectWorkspacePath -and -not (Test-Path -LiteralPath $ProtectWorkspacePath -PathType Container)) {
+  throw "Protected workspace path does not exist: $ProtectWorkspacePath"
+}
+$resolvedWorkspacePath = if ($ProtectWorkspacePath) { (Resolve-Path -LiteralPath $ProtectWorkspacePath).Path.TrimEnd('\') } else { $null }
 
 $stateRoot = Join-Path $env:LOCALAPPDATA "TrustLinkSecurityWatch"
 $quarantineRoot = Join-Path $stateRoot "quarantine"
@@ -105,6 +113,92 @@ function Ensure-FirewallBlocks {
       }
     } catch {
       Write-WatchLog "FIREWALL_BLOCK_FAILED REMOTE=$remoteAddress : $($_.Exception.Message)"
+    }
+  }
+}
+
+function Enable-WorkspaceProtection {
+  if (-not $ProtectWorkspacePath -or -not $enforcementEnabled) { return }
+  $resolvedPath = (Resolve-Path -LiteralPath $ProtectWorkspacePath).Path
+  try {
+    Set-MpPreference -EnableControlledFolderAccess Enabled -ErrorAction Stop
+    Add-MpPreference -ControlledFolderAccessProtectedFolders $resolvedPath -ErrorAction Stop
+    Write-WatchLog "CONTROLLED_FOLDER_ACCESS_ENABLED PATH=$resolvedPath"
+    foreach ($applicationPath in $AllowApplicationPath) {
+      if (-not (Test-Path -LiteralPath $applicationPath -PathType Leaf)) {
+        Write-WatchLog "CONTROLLED_FOLDER_ACCESS_ALLOW_SKIPPED PATH=$applicationPath"
+        continue
+      }
+      Add-MpPreference -ControlledFolderAccessAllowedApplications $applicationPath -ErrorAction Stop
+      Write-WatchLog "CONTROLLED_FOLDER_ACCESS_APPLICATION_ALLOWED PATH=$applicationPath"
+    }
+  } catch {
+    Write-WatchLog "CONTROLLED_FOLDER_ACCESS_FAILED PATH=$resolvedPath : $($_.Exception.Message)"
+    throw
+  }
+}
+
+function Enable-WorkspaceAccessGuard {
+  if (-not $BlockSuspiciousWorkspaceAccess -or -not $resolvedWorkspacePath -or -not $enforcementEnabled) { return }
+  try {
+    & auditpol.exe /set /subcategory:"File System" /success:enable /failure:enable | Out-Null
+    $acl = Get-Acl -LiteralPath $resolvedWorkspacePath
+    $rights = [System.Security.AccessControl.FileSystemRights]::ReadData -bor
+      [System.Security.AccessControl.FileSystemRights]::WriteData -bor
+      [System.Security.AccessControl.FileSystemRights]::AppendData -bor
+      [System.Security.AccessControl.FileSystemRights]::Delete
+    $inheritance = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+      [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
+    $auditRule = [System.Security.AccessControl.FileSystemAuditRule]::new(
+      "Everyone", $rights, $inheritance,
+      [System.Security.AccessControl.PropagationFlags]::None,
+      [System.Security.AccessControl.AuditFlags]::Success)
+    $acl.AddAuditRule($auditRule)
+    Set-Acl -LiteralPath $resolvedWorkspacePath -AclObject $acl
+    Write-WatchLog "WORKSPACE_ACCESS_GUARD_ENABLED PATH=$resolvedWorkspacePath"
+  } catch {
+    Write-WatchLog "WORKSPACE_ACCESS_GUARD_FAILED PATH=$resolvedWorkspacePath : $($_.Exception.Message)"
+    throw
+  }
+}
+
+function Inspect-WorkspaceAccess {
+  if (-not $BlockSuspiciousWorkspaceAccess -or -not $resolvedWorkspacePath -or -not $enforcementEnabled) { return }
+  $events = @(Get-WinEvent -FilterHashtable @{ LogName = "Security"; Id = 4663; StartTime = $script:lastWorkspaceAuditScan } -ErrorAction SilentlyContinue)
+  $script:lastWorkspaceAuditScan = Get-Date
+  $scriptHostNames = @("node.exe", "nodejs.exe", "python.exe", "pythonw.exe", "powershell.exe", "pwsh.exe", "cmd.exe", "bash.exe", "sh.exe", "wscript.exe", "cscript.exe", "mshta.exe")
+  foreach ($event in $events) {
+    try {
+      $eventXml = [xml]$event.ToXml()
+      $data = @{}
+      foreach ($item in $eventXml.Event.EventData.Data) { $data[$item.Name] = [string]$item.'#text' }
+      $objectPath = [string]$data.ObjectName
+      if (-not $objectPath -or -not $objectPath.StartsWith($resolvedWorkspacePath, [StringComparison]::OrdinalIgnoreCase)) { continue }
+      $processIdText = [string]$data.ProcessId
+      $processId = if ($processIdText -match '^0x') { [Convert]::ToInt32($processIdText.Substring(2), 16) } else { [int]$processIdText }
+      if ($processId -eq $PID) { continue }
+      $process = Get-CimInstance Win32_Process -Filter "ProcessId=$processId" -ErrorAction SilentlyContinue
+      if (-not $process -or $process.Name -notin $scriptHostNames) { continue }
+      $processPath = [string]$process.ExecutablePath
+      if ($processPath -and $processPath.StartsWith($resolvedWorkspacePath, [StringComparison]::OrdinalIgnoreCase)) { continue }
+      $isAllowedApplication = @($AllowApplicationPath | Where-Object {
+        Test-Path -LiteralPath $_ -PathType Leaf -and
+          [IO.Path]::GetFullPath($_) -ieq [IO.Path]::GetFullPath($processPath)
+      }).Count -gt 0
+      if ($isAllowedApplication) {
+        Write-WatchLog "WORKSPACE_ACCESS_ALLOWED PID=$processId NAME=$($process.Name) PROCESS=$processPath"
+        continue
+      }
+      Write-WatchLog "DETECTED WORKSPACE_ACCESS PID=$processId NAME=$($process.Name) PROCESS=$processPath OBJECT=$objectPath"
+      try {
+        Stop-Process -Id $processId -Force -ErrorAction Stop
+        Write-WatchLog "TERMINATED WORKSPACE_ACCESS PID=$processId"
+        Alert-User "TrustLink Security Watch blocked suspicious code access to the workspace from $($process.Name)."
+      } catch {
+        Write-WatchLog "WORKSPACE_ACCESS_TERMINATE_FAILED PID=$processId : $($_.Exception.Message)"
+      }
+    } catch {
+      Write-WatchLog "WORKSPACE_ACCESS_EVENT_PARSE_FAILED : $($_.Exception.Message)"
     }
   }
 }
@@ -245,8 +339,11 @@ function Inspect-TempPayloads {
 Write-WatchLog "STARTED mode=$(if($enforcementEnabled){'enforce'}else{'audit'}) interval=${IntervalSeconds}s"
 $seen = @{}
 if ($enforcementEnabled) { Ensure-FirewallBlocks }
+Enable-WorkspaceProtection
+Enable-WorkspaceAccessGuard
 $seenConnections = @{}
 $seenFiles = @{}
+$lastWorkspaceAuditScan = Get-Date
 $lastFilesystemScan = [datetime]::MinValue
 while ($true) {
   $processes = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -in @("node.exe", "nodejs.exe", "python.exe", "pythonw.exe", "cmd.exe", "powershell.exe", "pwsh.exe", "bash.exe", "sh.exe", "wscript.exe", "cscript.exe", "mshta.exe", "curl.exe", "wget.exe") })
@@ -262,6 +359,7 @@ while ($true) {
     if (-not (Get-Process -Id $processId -ErrorAction SilentlyContinue)) { [void]$seen.Remove($processId) }
   }
   Inspect-Network
+  Inspect-WorkspaceAccess
   Inspect-TempPayloads
   if (((Get-Date) - $lastFilesystemScan).TotalSeconds -ge [Math]::Max(10, $FilesystemScanSeconds)) {
     Inspect-GitAndEditorWeaponization

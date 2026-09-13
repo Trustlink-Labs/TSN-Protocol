@@ -4,7 +4,8 @@ import nacl from "tweetnacl";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { getTsnSettlementDnaPda, tsnExecutePrivatePayoutOnChain } from "../../tsn-sdk/src/worker/private-settlement";
+import { CreditcoinCranker } from "../../tsn-crosschain/src/creditcoin-cranker.js";
+import { getTsnSettlementDnaPda, tsnExecutePrivatePayoutOnChain } from "../../tsn-sdk/legacy/private-settlement";
 import { tsnSubmitEpochFundingTransaction, tsnFetchMotherEscrowOnChain, getTsnCrankerPda } from "../../tsn-sdk/src/blockchain/solana-tsn";
 import { resolveSolanaRpcUrl } from "../../tsn-sdk/src/rpc";
 
@@ -12,6 +13,26 @@ type Work = {
   id: string; kind: "AUTHORIZED_FUNDING" | "SETTLEMENT"; stateVersion: number; status: string;
   verification?: { verifiedPayload?: Record<string, unknown> } | null;
   authorization?: Record<string, unknown> | null;
+};
+
+const creditcoinCranker = () => {
+  const keypairFile = process.env.CREDITCOIN_CRANKER_KEYPAIR_FILE?.trim();
+  const privateKey = keypairFile
+    ? (JSON.parse(readFileSync(resolve(keypairFile), "utf8")) as { privateKey?: string }).privateKey?.trim()
+    : undefined;
+  const rpcUrl = process.env.CREDITCOIN_RPC_URL?.trim();
+  const hub = process.env.CREDITCOIN_SETTLEMENT_HUB?.trim();
+  const registry = process.env.CREDITCOIN_LIQUIDITY_REGISTRY?.trim();
+  const routeId = process.env.CREDITCOIN_ROUTE_ID?.trim();
+  if (!privateKey || !rpcUrl || !hub || !registry || !routeId) {
+    throw new Error("Creditcoin Cranker requires CREDITCOIN_RPC_URL, CREDITCOIN_CRANKER_KEYPAIR_FILE, CREDITCOIN_SETTLEMENT_HUB, CREDITCOIN_LIQUIDITY_REGISTRY, and CREDITCOIN_ROUTE_ID");
+  }
+  return new CreditcoinCranker({
+    rpcUrl,
+    hub: hub as `0x${string}`,
+    signerPrivateKey: privateKey,
+    route: { rpcUrl, registry: registry as `0x${string}`, routeId: routeId as `0x${string}` },
+  });
 };
 
 const receiver = () => (process.env.TSN_RECEIVER_URL || "https://tsn-receiver-kappa.vercel.app").replace(/\/$/, "");
@@ -25,8 +46,16 @@ const hex32 = (value: unknown, field: string) => { const bytes = Buffer.from(Str
 async function receiverRequest<T>(signer: Keypair, method: "POST" | "PATCH", body: Record<string, unknown>): Promise<T> {
   const bodyText = JSON.stringify(body);
   const publicKey = signer.publicKey.toBase58();
-  const challenge = await fetch(`${receiver()}/api/cranker/auth/challenge`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ publicKey }) });
-  if (!challenge.ok) throw new Error(`Receiver challenge failed (${challenge.status})`);
+  let challenge: Response;
+  try {
+    challenge = await fetch(`${receiver()}/api/cranker/auth/challenge`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ publicKey }) });
+  } catch (error) {
+    throw new Error(`Receiver challenge request failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!challenge.ok) {
+    const detail = (await challenge.text()).slice(0, 300);
+    throw new Error(`Receiver challenge failed (${challenge.status}): ${detail}`);
+  }
   const data = await challenge.json() as { nonce?: string };
   if (!data.nonce) throw new Error("Receiver challenge is malformed");
   const timestamp = String(Math.floor(Date.now() / 1000));
@@ -57,6 +86,20 @@ async function processAuthorizedFunding(signer: Keypair, work: Work, rpcUrl: str
 
 async function processSettlement(signer: Keypair, work: Work, rpcUrl: string) {
   const auth = work.authorization;
+  if (auth?.kind === "TSN_CREDITCOIN_PAYOUT_AUTHORIZATION") {
+    const authorization = auth.authorization;
+    const signature = auth.signature ?? auth.authorizationSignature;
+    if (!authorization || typeof authorization !== "object" || typeof signature !== "string") {
+      throw new Error("Creditcoin settlement work is missing authorization or signature");
+    }
+    const result = await creditcoinCranker().submit(authorization as never, signature);
+    await report(signer, work, "CONFIRMED", {
+      stage: "CREDITCOIN_SETTLEMENT_SUBMITTED",
+      creditcoinTxHash: result.transactionHash,
+      attestcoinMessageId: result.messageId,
+    });
+    return;
+  }
   if (!auth || auth.kind !== "TSN_PAYOUT_AUTHORIZATION") throw new Error("Settlement has no Node payout authorization");
   const expiresAtTs = BigInt(String(auth.expiresAtTs));
   if (expiresAtTs <= BigInt(Math.floor(Date.now() / 1000))) throw new Error("Payout authorization expired");

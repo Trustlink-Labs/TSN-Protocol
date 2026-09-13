@@ -261,6 +261,41 @@ pub struct TinAccount {
     pub tcap_policy_commitment: [u8; 32],
 }
 
+/// Canonical TIN V1 record. Identity plaintext is never stored on-chain.
+/// The lookup commitment is keyed before it reaches this account; the identity
+/// envelope is encrypted and can only be opened by an authorized resolver.
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+pub struct TinV1Account {
+    pub version: u8,
+    pub bump: u8,
+    pub status: u8,
+    pub reserved: [u8; 5],
+    pub lookup_commitment: [u8; 32],
+    pub owner_commitment: [u8; 32],
+    pub encrypted_identity_envelope: Vec<u8>,
+    pub encrypted_master_seed: Vec<u8>,
+    pub created_at: i64,
+    pub encrypted_metadata_hash: [u8; 32],
+    pub pru_configuration_hash: [u8; 32],
+    pub encrypted_public_route_envelope: Vec<u8>,
+    pub route_version: u64,
+    pub route_nonce: [u8; 32],
+    pub tcap_route_version: u8,
+    pub tcap_relationship_commitment: [u8; 32],
+    pub tcap_relationship_reference: [u8; 32],
+    pub tcap_policy_commitment: [u8; 32],
+}
+
+impl TinV1Account {
+    pub const VERSION: u8 = 1;
+    pub const STATUS_ACTIVE: u8 = 1;
+
+    pub fn space(identity_len: usize, seed_len: usize, route_len: usize) -> usize {
+        1 + 1 + 1 + 5 + 32 + 32 + 4 + identity_len + 4 + seed_len + 8 + 32 + 32
+            + 4 + route_len + 8 + 32 + 1 + 32 + 32 + 32
+    }
+}
+
 impl TinAccount {
     pub fn space(
         display_name: &str,

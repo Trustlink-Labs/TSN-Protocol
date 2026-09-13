@@ -3,9 +3,9 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddres
 import { sha256 } from "@noble/hashes/sha2";
 import { utf8ToBytes } from "@noble/hashes/utils";
 import { Buffer } from "buffer";
-import { VERIFIED_TSN_PROGRAM_ID } from "./program.js";
-import { resolveSolanaRpcUrl } from "./rpc.js";
-import { getTsnCrankerPda, getTsnCrankerVaultAuthorityPda, getTsnCrankerVaultPda, getTsnCrankerVaultTokenPda, getTsnMotherEscrowPda, getTsnVerifierPda } from "./blockchain/solana-tsn.js";
+import { VERIFIED_TSN_PROGRAM_ID } from "../src/program.js";
+import { resolveSolanaRpcUrl } from "../src/rpc.js";
+import { getTsnCrankerPda, getTsnCrankerVaultAuthorityPda, getTsnCrankerVaultPda, getTsnCrankerVaultTokenPda, getTsnMotherEscrowPda, getTsnVerifierPda } from "../src/blockchain/solana-tsn.js";
 
 const PROGRAM_ID = new PublicKey(VERIFIED_TSN_PROGRAM_ID); const CONFIG = utf8ToBytes("tsn_private_config"); const SLOT = utf8ToBytes("tsn_epoch_claim_slot"); const DNA = utf8ToBytes("tsn_settlement_dna"); const TREASURY_AUTHORITY = utf8ToBytes("tsn_epoch_treasury_authority"); const DOMAIN = utf8ToBytes("TSN_PRIVATE_SLOT_SETTLEMENT_V1");
 const cat = (v: Uint8Array[]) => { const out = new Uint8Array(v.reduce((n,x)=>n+x.length,0)); let o=0; for(const x of v){out.set(x,o);o+=x.length;} return out; };

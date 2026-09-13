@@ -5,6 +5,7 @@ import {
 } from "./contracts.js";
 import {
   buildPaymentIntentMessage,
+  buildCrossChainPaymentIntentMessage,
 } from "./canonical-message.js";
 import { TsnHttpClient } from "./client.js";
 
@@ -91,6 +92,49 @@ export function createPaymentAuthorization(params: {
   };
 }
 
+export function createCrossChainPaymentAuthorization(params: {
+  intentId: string;
+  senderWallet: string;
+  senderIdentity: string;
+  receiverIdentity: string;
+  recipientRouteCommitment: string;
+  recipientRouteVersion: number;
+  tokenMintAddress: string;
+  destinationToken: string;
+  amount: number;
+  senderFeeAmount: number;
+  nonce?: string;
+  issuedAt?: string;
+  expiresAt?: string;
+  destinationNetwork: string;
+  destinationExecutor: string;
+  settlementRouteId: string;
+}) {
+  const nonce = params.nonce ?? createPaymentAuthorizationNonce();
+  const issuedAt = params.issuedAt ?? new Date().toISOString();
+  const expiresAt = params.expiresAt ?? createPaymentAuthorizationExpiry();
+  const recipientTin =
+    params.receiverIdentity.match(/(?:^|\|)tin:(\d+)/)?.[1] ??
+    params.receiverIdentity.match(/^tin:(\d+)/)?.[1];
+  if (!recipientTin) throw new Error("recipient TIN is required for canonical TSN payment authorization");
+  const message = buildCrossChainPaymentIntentMessage({
+    intentId: params.intentId,
+    amountBaseUnits: BigInt(Math.round(params.amount * 1_000_000)),
+    destinationToken: params.destinationToken,
+    recipientTin,
+    recipientRouteCommitment: params.recipientRouteCommitment,
+    recipientRouteVersion: params.recipientRouteVersion,
+    feeBaseUnits: BigInt(Math.round(params.senderFeeAmount * 1_000_000)),
+    sender: "Main Wallet",
+    nonce,
+    expires: expiresAt,
+    destinationNetwork: params.destinationNetwork,
+    destinationExecutor: params.destinationExecutor,
+    settlementRouteId: params.settlementRouteId,
+  });
+  return { message, nonce, issuedAt, expiresAt };
+}
+
 export function buildPaymentAuthorizationIntentRequest(params: {
   paymentId: string;
   recipientHash: string;
@@ -115,6 +159,10 @@ export function buildPaymentAuthorizationIntentRequest(params: {
   settlementEpoch?: number | null;
   encryptedSettlementToken?: CreateIntentRequest["encryptedSettlementToken"];
   amount: number;
+  destinationNetwork?: string | null;
+  destinationExecutor?: string | null;
+  destinationToken?: string | null;
+  settlementRouteId?: string | null;
   recipientAmount?: number;
   source?: string;
 }): CreateIntentRequest {
@@ -145,6 +193,10 @@ export function buildPaymentAuthorizationIntentRequest(params: {
       recipientRouteVersion: params.recipientRouteVersion,
       tokenMintAddress: params.tokenMintAddress,
       amount: params.amount,
+      destinationNetwork: params.destinationNetwork,
+      destinationExecutor: params.destinationExecutor,
+      destinationToken: params.destinationToken,
+      settlementRouteId: params.settlementRouteId,
       source: params.source,
     }),
     ...(params.recipientAmount == null
@@ -179,6 +231,9 @@ export async function submitPaymentAuthorizationToMempool(params: {
   settlementEpoch?: number | null;
   encryptedSettlementToken?: CreateIntentRequest["encryptedSettlementToken"];
   amount: number;
+  destinationNetwork?: string | null;
+  destinationExecutor?: string | null;
+  settlementRouteId?: string | null;
   recipientAmount?: number;
   destinationWallet?: string | null;
   source?: string;

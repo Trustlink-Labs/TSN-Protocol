@@ -1,0 +1,18 @@
+name: Trigger docs update
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Mintlify automation
+        run: |
+          curl -fsS -X POST \
+            "https://api.mintlify.com/v1/workflow/$PROJECT_ID/$WORKFLOW_ID/trigger" \
+            -H "Authorization: Bearer ${{ secrets.MINTLIFY_API_KEY }}"
+        env:
+          PROJECT_ID: ${{ vars.MINTLIFY_PROJECT_ID }}
+          WORKFLOW_ID: ${{ vars.MINTLIFY_WORKFLOW_ID }}
