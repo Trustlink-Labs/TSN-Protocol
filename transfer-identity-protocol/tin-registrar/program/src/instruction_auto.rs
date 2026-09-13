@@ -25,6 +25,8 @@ pub enum ProgramInstruction {
     TinMutationStage = 14,
     TinMutationChunk = 15,
     TinUpdateStaged = 16,
+    CreateTinV1 = 17,
+    ResolveTinV1 = 18,
 }
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
@@ -118,6 +120,32 @@ pub struct FinalizeTinUpdateParams {
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct ResolveTinParams {
     pub wallet_pubkey: Pubkey,
+    pub challenge_nonce: [u8; 32],
+}
+
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
+pub struct CreateTinV1Params {
+    pub owner_pubkey: Pubkey,
+    pub lookup_commitment: [u8; 32],
+    pub encrypted_identity_envelope: Vec<u8>,
+    pub encrypted_master_seed: Vec<u8>,
+    pub encrypted_metadata_hash: [u8; 32],
+    pub pru_configuration_hash: [u8; 32],
+    pub encrypted_public_route_envelope: Vec<u8>,
+    pub route_version: u64,
+    pub route_nonce: [u8; 32],
+    pub tcap_route_version: u8,
+    pub tcap_relationship_commitment: [u8; 32],
+    pub tcap_relationship_reference: [u8; 32],
+    pub tcap_policy_commitment: [u8; 32],
+    pub intent_hash: [u8; 32],
+    pub expiry_ts: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
+pub struct ResolveTinV1Params {
+    pub owner_pubkey: Pubkey,
+    pub lookup_commitment: [u8; 32],
     pub challenge_nonce: [u8; 32],
 }
 
@@ -282,6 +310,43 @@ pub fn resolve_tin(
             AccountMeta::new_readonly(instructions_sysvar, false),
         ],
         data: encode(ProgramInstruction::ResolveTin, &params),
+    }
+}
+
+pub fn create_tin_v1(
+    program_id: Pubkey,
+    payer: Pubkey,
+    global_state: Pubkey,
+    registry: Pubkey,
+    instructions_sysvar: Pubkey,
+    params: CreateTinV1Params,
+) -> Instruction {
+    Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(global_state, false),
+            AccountMeta::new(registry, false),
+            AccountMeta::new_readonly(instructions_sysvar, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: encode(ProgramInstruction::CreateTinV1, &params),
+    }
+}
+
+pub fn resolve_tin_v1(
+    program_id: Pubkey,
+    registry: Pubkey,
+    instructions_sysvar: Pubkey,
+    params: ResolveTinV1Params,
+) -> Instruction {
+    Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new_readonly(registry, false),
+            AccountMeta::new_readonly(instructions_sysvar, false),
+        ],
+        data: encode(ProgramInstruction::ResolveTinV1, &params),
     }
 }
 

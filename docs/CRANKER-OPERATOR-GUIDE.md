@@ -324,9 +324,10 @@ TSN Node decision, program logs, and token balances together.
 ## Troubleshooting
 
 **Receiver returns 401.** Check that `TSN_RECEIVER_URL` is
-`https://tsn-receiver-kappa.vercel.app`, the operator public key is registered
-in `TSN_RECEIVER_CRANKER_OPERATORS`, and the daemon can read its keypair.
-Remove accidental surrounding quotes from environment values and restart.
+`https://tsn-receiver-kappa.vercel.app`, the operator keypair is readable, and
+the operator has registered its Cranker PDA on Solana Devnet. Receiver admission
+uses the on-chain Mother DNA; there is no per-operator allowlist or Cranker API
+key. Remove accidental surrounding quotes from environment values and restart.
 
 **Mother Escrow or Cranker PDA is not initialized.** Verify program ID, cluster,
 operator keypair, and seed recipe. Ask the deployment owner to run authorized

@@ -20,6 +20,19 @@ export type AttestationStatus =
 
 export const CREDITCOIN_SETTLEMENT_NETWORK = "creditcoin-testnet" as const;
 
+export type CrossChainRecipient =
+  | { kind: "tin"; tinHash: `0x${string}` }
+  | { kind: "wallet"; address: `0x${string}` };
+
+export function validateCrossChainRecipient(recipient: CrossChainRecipient): CrossChainRecipient {
+  if (recipient.kind === "tin") {
+    assertBytes32(recipient.tinHash, "tinHash");
+    return recipient;
+  }
+  assertEvmAddress(recipient.address, "destination wallet");
+  return recipient;
+}
+
 export interface CreditcoinPayoutAuthorization {
   settlementId: string;
   sealedTipHeadHash: string;

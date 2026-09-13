@@ -104,6 +104,19 @@ The current TSN cross-chain environment is organized into these categories:
 | Registry and route data | Destination network, executor, Outbox, token, and capacity | Added after destination deployment; never guessed |
 | Destination stablecoin | Asset held by the destination liquidity vault | Supplied to `deploy:destination` and funded on the payout network |
 
+### Observed authorization-signer check
+
+A read-only CC3 RPC check was run against the deployed
+`CreditcoinSettlementHub` at `0x29151Ff9266b8Fb15D86D22d73f084F59293438c`. The
+Hub reports the same public authorization-signer address as the operator's
+CC3 Testnet key stored outside the repository, and its route registry reports
+`0x764Ac587b1fC0feBEE86012cF7A2489b575EE5D1`.
+
+This confirms signer alignment for the EIP-712 boundary. It does not prove a
+settlement: a real Solana debit evidence record, Node-issued authorization,
+successful Creditcoin transaction, and `SettlementMessagePublished` event are
+still required.
+
 The official Attestcoin bridge example currently lists
 `0x914Cf96BF28b7b4921db27b264ecEd71aC91134E` as `BridgeTestToken`. A live
 Blockscout lookup confirms that it is a verified contract named

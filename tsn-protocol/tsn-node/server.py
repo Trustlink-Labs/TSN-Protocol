@@ -104,6 +104,7 @@ FIREBASE_COLLECTION = os.environ.get("FIREBASE_COLLECTION", "tsn_mempool").strip
 TSN_PROGRAM_ID  = os.environ.get("TSN_PROGRAM_ID") or os.environ.get("PROGRAM_ID") or "TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V"
 TINS_PROGRAM_ID = os.environ.get("TINS_PROGRAM_ID", "TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT")
 TINS_PROGRAM_SALT = b"TINS_SALT_2026"
+TINS_LOOKUP_SECRET = clean_env(os.environ.get("TINS_LOOKUP_SECRET"))
 MEMPOOL_API_KEY  = os.environ.get("MEMPOOL_API_KEY", "").strip()
 TSN_ROUTE_DECRYPTION_PRIVATE_KEY = os.environ.get(
     "TSN_ROUTE_DECRYPTION_PRIVATE_KEY",
@@ -929,6 +930,66 @@ async def solana_rpc(method: str, params: list[Any], timeout: float = 12) -> dic
 def get_tins_program_pubkey() -> Pubkey:
     return Pubkey.from_string(TINS_PROGRAM_ID)
 
+def get_private_tin_pda(tin: str) -> Pubkey:
+    if len(TINS_LOOKUP_SECRET.encode("utf-8")) < 16:
+        raise ValueError("TINS_LOOKUP_SECRET must contain at least 16 bytes")
+    lookup_commitment = hashlib.sha256(
+        b"TSN_TIN_V1_LOOKUP" + TINS_LOOKUP_SECRET.encode("utf-8") + str(tin).encode("utf-8")
+    ).digest()
+    return Pubkey.find_program_address([b"tin-v1", lookup_commitment], get_tins_program_pubkey())[0]
+
+def decode_private_tin_route_material(data: bytes) -> dict[str, Any]:
+    buffer = bytes(data)
+    offset = 0
+
+    def take(length: int, label: str) -> bytes:
+        nonlocal offset
+        if length < 0 or offset + length > len(buffer):
+            raise ValueError(f"private TIN account {label} is truncated")
+        value = buffer[offset:offset + length]
+        offset += length
+        return value
+
+    def take_u32(label: str) -> int:
+        return int.from_bytes(take(4, label), "little")
+
+    version = take(1, "version")[0]
+    bump = take(1, "bump")[0]
+    status = take(1, "status")[0]
+    take(5, "reserved")
+    lookup_commitment = take(32, "lookup commitment")
+    owner_commitment = take(32, "owner commitment")
+    identity_len = take_u32("identity envelope length")
+    take(identity_len, "identity envelope")
+    seed_len = take_u32("seed envelope length")
+    take(seed_len, "seed envelope")
+    take(8, "created at")
+    take(32, "metadata hash")
+    pru_configuration_hash = take(32, "PRU configuration hash")
+    route_len = take_u32("route envelope length")
+    route_envelope = take(route_len, "route envelope")
+    route_version = int.from_bytes(take(8, "route version"), "little")
+    route_nonce = take(32, "route nonce")
+    tcap_route_version = take(1, "TCap route version")[0]
+    tcap_relationship_commitment = take(32, "TCap relationship commitment")
+    tcap_relationship_reference = take(32, "TCap relationship reference")
+    tcap_policy_commitment = take(32, "TCap policy commitment")
+    if version != 1 or status != 1 or offset != len(buffer):
+        raise ValueError("unsupported private TIN account schema")
+    if lookup_commitment == bytes(32) or route_version < 1:
+        raise ValueError("private TIN account commitments are incomplete")
+    return {
+        "ownerPubkeyHash": owner_commitment.hex(),
+        "pruConfigurationHash": pru_configuration_hash.hex(),
+        "encryptedPublicRouteEnvelope": base64.b64encode(route_envelope).decode("ascii"),
+        "routeVersion": route_version,
+        "routeNonce": route_nonce.hex(),
+        "tcapRouteVersion": tcap_route_version,
+        "tcapRelationshipCommitment": tcap_relationship_commitment.hex(),
+        "tcapRelationshipReference": tcap_relationship_reference.hex(),
+        "tcapPolicyCommitment": tcap_policy_commitment.hex(),
+    }
+
 def get_tins_identity_pda(owner_pubkey: str) -> Pubkey:
     owner_bytes = decode_base58(owner_pubkey)
     identity_seed = hashlib.sha256(owner_bytes + TINS_PROGRAM_SALT).digest()
@@ -1056,6 +1117,14 @@ async def read_tins_account_data(pubkey: Pubkey) -> Optional[bytes]:
         return None
 
 async def find_tins_owner_hash_by_tin(tin: str) -> Optional[str]:
+    if TINS_LOOKUP_SECRET:
+        try:
+            data = await read_tins_account_data(get_private_tin_pda(tin))
+            if data:
+                return decode_private_tin_route_material(data)["ownerPubkeyHash"]
+        except (ValueError, TypeError):
+            return None
+        return None
     rpc_response = await solana_rpc(
         "getProgramAccounts",
         [
@@ -1085,6 +1154,43 @@ async def read_onchain_tin_pru_route(tin: str) -> Optional[dict[str, Any]]:
     envelope is opened here; the device master-seed envelope is never read or
     decrypted by the Node.
     """
+    if TINS_LOOKUP_SECRET:
+        try:
+            identity = get_private_tin_pda(tin)
+            data = await read_tins_account_data(identity)
+            if not data:
+                return None
+            material = decode_private_tin_route_material(data)
+            if material["tcapRouteVersion"] == 1:
+                raise ValueError("Active TCap TIN has no PRU route; use the ConfidentialSettlement relationship path")
+            snapshot = _decrypt_public_route_envelope(
+                encrypted_envelope_base64=material["encryptedPublicRouteEnvelope"],
+                expected_tin=str(tin),
+                expected_configuration_hash=material["pruConfigurationHash"],
+                expected_route_version=int(material["routeVersion"]),
+                expected_route_nonce=material["routeNonce"],
+            )
+            return {
+                "tin": str(tin),
+                "intentId": f"onchain:{identity}:{material['routeVersion']}",
+                "ownerPubkeyHash": material["ownerPubkeyHash"],
+                "pruConfigurationHash": str(snapshot["pruConfigurationHash"]),
+                "routeVersion": int(snapshot["routeVersion"]),
+                "routeNonce": str(snapshot["routeNonce"]),
+                "prus": snapshot["prus"],
+                "status": "finalized",
+                "source": "onchain_private_tin_account",
+                "updatedAt": datetime.now(timezone.utc).isoformat(),
+            }
+        except HTTPException as exc:
+            if exc.status_code >= 500:
+                raise
+            logger.warning("Private on-chain TIN route recovery rejected: tin=%s reason=%s", tin, exc)
+            return None
+        except (ValueError, TypeError, binascii.Error) as exc:
+            logger.warning("Private on-chain TIN route recovery rejected: tin=%s reason=%s", tin, exc)
+            return None
+
     tin_bytes = int(tin).to_bytes(8, "little", signed=False)
     rpc_response = await solana_rpc(
         "getProgramAccounts",
@@ -1151,6 +1257,26 @@ async def read_onchain_tin_tcap_relationship(tin: str) -> Optional[dict[str, Any
     route. The returned commitments are bindings for GPRU/TSN authorization;
     the privacy-receiving root and snapshot key remain device-only.
     """
+    if TINS_LOOKUP_SECRET:
+        try:
+            identity = get_private_tin_pda(tin)
+            data = await read_tins_account_data(identity)
+            if not data:
+                return None
+            material = decode_private_tin_route_material(data)
+            if int(material.get("tcapRouteVersion") or 0) != 1:
+                return None
+            return {
+                "tin": str(tin),
+                "ownerPubkeyHash": material["ownerPubkeyHash"],
+                "tcapRouteVersion": 1,
+                "tcapRelationshipCommitment": material["tcapRelationshipCommitment"],
+                "tcapRelationshipReference": material["tcapRelationshipReference"],
+                "tcapPolicyCommitment": material["tcapPolicyCommitment"],
+            }
+        except (ValueError, TypeError, binascii.Error):
+            return None
+
     tin_bytes = int(tin).to_bytes(8, "little", signed=False)
     rpc_response = await solana_rpc(
         "getProgramAccounts",

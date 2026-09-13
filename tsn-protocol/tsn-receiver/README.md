@@ -61,7 +61,6 @@ FIREBASE_DATABASE_URL
 FIREBASE_WEB_API_KEY
 TSN_RECEIVER_NODE_API_KEY
 TSN_RECEIVER_NODE_PAYLOAD_KEY
-TSN_RECEIVER_CRANKER_OPERATORS
 ```
 
 All three Firebase variables are mandatory in the hosted Receiver. The service
@@ -77,17 +76,15 @@ TSN_RECEIVER_STATE_COLLECTION=tsn_receiver_state
 TSN_NODE_URL=https://<your-tsn-node-domain>
 ```
 
-Cranker lease APIs use per-operator Ed25519 challenge-response authentication.
-Set `TSN_RECEIVER_CRANKER_OPERATORS` to a JSON object keyed by the operator's
-base58 public key, for example:
-
-```json
-{"9xOperatorPublicKey":{"active":true,"label":"production-1"}}
-```
-
-An operator signs a short-lived challenge before each lease/report request.
-Set `active` to `false` or add `revokedAt` to revoke one operator; add a new
-public key before removing the old one to rotate without downtime. Legacy
+Cranker lease APIs use Ed25519 challenge-response authentication. The Receiver
+does not maintain a per-Cranker allowlist and does not accept a Cranker API key.
+For each challenge, it derives the Mother Escrow and operator Cranker PDAs on
+Solana Devnet, reads both accounts, and verifies the Cranker account's operator,
+Mother Escrow, and `sha256("tsn_dna" || mother || operator || protocol_seed)`
+against the on-chain `dna_hash`. Any operator may join by registering its own
+Cranker PDA through the TSN protocol; no Receiver redeployment is required for
+operator onboarding or rotation. The EVM wallet is a separate gas signer and
+is not the Receiver admission identity. Legacy
 Cranker API-key authentication is disabled and is not part of the deployment
 configuration.
 

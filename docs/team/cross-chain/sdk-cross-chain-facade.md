@@ -45,6 +45,24 @@ The SDK reads the executor and USDSET token from the registry. The values in
 the example identify the deployed CC3 Testnet route; they are not substitutes
 for a fresh registry read.
 
+## Solana debit evidence decoding
+
+After the Solana debit transaction is confirmed, the SDK can decode the exact
+`tsn_register_tcap_exit_debit_v1` instruction:
+
+```ts
+import { decodeExitDebitInstructionData } from "@trustlink/tsn-sdk";
+
+const evidence = decodeExitDebitInstructionData(instructionData);
+console.log(evidence.exitCommitment, evidence.amountBaseUnits);
+```
+
+The decoder returns the permit nonce, destination commitment, mint, amount,
+sequence, sealed 48-byte payload, seal commitment, and source debit signature.
+It does not decrypt the sealed payload, derive a TIN, or authorize a payout.
+The Node must combine this result with its authenticated sealed-TIP and TIN
+commitment readers before signing a Creditcoin authorization.
+
 ## Debit handoff
 
 After the user signs the existing Solana debit intent, the app submits the
