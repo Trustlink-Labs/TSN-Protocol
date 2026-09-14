@@ -1,10 +1,15 @@
-import "dotenv/config";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Interface, JsonRpcProvider, getAddress } from "ethers";
+import { Interface, JsonRpcProvider, getAddress } from "../../tsn-protocol/tsn-crosschain/node_modules/ethers";
 
 const packageRoot = fileURLToPath(new URL(".", import.meta.url));
+const crossChainEnvPath = join(packageRoot, "../../tsn-protocol/tsn-crosschain/.env");
+try {
+  process.loadEnvFile?.(crossChainEnvPath);
+} catch {
+  // Environment variables may be supplied by the shell or CI instead.
+}
 const creditcoinRpc = process.env.CREDITCOIN_RPC_URL?.trim() || "https://rpc.cc3-testnet.creditcoin.network";
 const solanaRpc = process.env.SOLANA_RPC_URL?.trim() || "https://api.devnet.solana.com";
 const nodeUrl = (process.env.TSN_NODE_URL?.trim() || "http://127.0.0.1:8000").replace(/\/$/, "");
@@ -46,7 +51,7 @@ async function main(): Promise<void> {
   console.log("=== TSN Real Cross-Chain Evidence Verification ===");
   console.log("Node decides; Cranker submits; this harness only verifies completed transactions");
 
-  const deploymentPath = process.env.TSN_CREDITCOIN_DEPLOYMENT_FILE?.trim() || join(packageRoot, "deployments", "creditcoin-latest.json");
+  const deploymentPath = process.env.TSN_CREDITCOIN_DEPLOYMENT_FILE?.trim() || join(packageRoot, "../../tsn-protocol/tsn-crosschain/deployments/creditcoin-latest.json");
   const deployment = JSON.parse(await readFile(deploymentPath, "utf8")) as { chainId: number; contracts?: { creditcoinSettlementHub?: string } };
   if (deployment.chainId !== Number(cc3ChainId)) throw new Error(`Deployment evidence is not CC3 Testnet: ${deployment.chainId}`);
   const hubAddress = getAddress(deployment.contracts?.creditcoinSettlementHub || "");
