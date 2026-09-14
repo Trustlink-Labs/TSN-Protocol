@@ -119,6 +119,8 @@ export type TsnTinOperationRecord = {
   failureReason?: string | null;
   onchainSignatures?: string[];
   displayName?: string | null;
+  lookupCommitment?: string | null;
+  encryptedIdentityEnvelope?: string | null;
   encryptedMasterSeed?: string | null;
   encryptedMetadataHash: string;
   pruConfigurationHash: string;

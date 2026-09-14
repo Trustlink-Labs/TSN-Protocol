@@ -3,14 +3,15 @@ import { createHash } from "node:crypto";
 import nacl from "tweetnacl";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Connection, Ed25519Program, Keypair, PublicKey, SYSVAR_INSTRUCTIONS_PUBKEY, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { CreditcoinCranker } from "../../tsn-crosschain/src/creditcoin-cranker.js";
 import { getTsnSettlementDnaPda, tsnExecutePrivatePayoutOnChain } from "../../tsn-sdk/legacy/private-settlement";
 import { tsnSubmitEpochFundingTransaction, tsnFetchMotherEscrowOnChain, getTsnCrankerPda } from "../../tsn-sdk/src/blockchain/solana-tsn";
 import { resolveSolanaRpcUrl } from "../../tsn-sdk/src/rpc";
+import { getTinsGlobalStatePda, serializeTinV1CreationParams } from "../../tsn-sdk/src/tins";
 
 type Work = {
-  id: string; kind: "AUTHORIZED_FUNDING" | "SETTLEMENT"; stateVersion: number; status: string;
+  id: string; kind: "AUTHORIZED_FUNDING" | "SETTLEMENT" | "TIN_OPERATION"; stateVersion: number; status: string;
   verification?: { verifiedPayload?: Record<string, unknown> } | null;
   authorization?: Record<string, unknown> | null;
 };
@@ -68,7 +69,7 @@ async function receiverRequest<T>(signer: Keypair, method: "POST" | "PATCH", bod
 }
 
 async function lease(signer: Keypair): Promise<Work | null> {
-  const response = await receiverRequest<{ work: Work | null }>(signer, "POST", { supportedKinds: ["AUTHORIZED_FUNDING", "SETTLEMENT"] });
+  const response = await receiverRequest<{ work: Work | null }>(signer, "POST", { supportedKinds: ["AUTHORIZED_FUNDING", "SETTLEMENT", "TIN_OPERATION"] });
   return response.work;
 }
 
@@ -121,6 +122,61 @@ async function processSettlement(signer: Keypair, work: Work, rpcUrl: string) {
   await report(signer, work, "CONFIRMED", { signature: result.signature, stage: "SETTLEMENT_SETTLED", claimSlot: String(auth.claimSlot) });
 }
 
+function base64Bytes(value: unknown, field: string) {
+  if (typeof value !== "string" || !value) throw new Error(`TIN operation is missing ${field}`);
+  return Buffer.from(value, "base64");
+}
+
+async function processTinOperation(signer: Keypair, work: Work, rpcUrl: string) {
+  const payload = work.verification?.verifiedPayload;
+  if (!payload || payload.intentType !== "tin_creation") {
+    throw new Error("Only verified tin_creation operations are executable by the Cranker");
+  }
+  const programId = new PublicKey(process.env.TINS_PROGRAM_ID || "TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT");
+  const owner = new PublicKey(String(payload.ownerPubkey));
+  const lookupCommitment = hex32(payload.lookupCommitment, "lookupCommitment");
+  const registry = PublicKey.findProgramAddressSync([Buffer.from("tin-v1"), Buffer.from(lookupCommitment)], programId)[0];
+  const instructionData = serializeTinV1CreationParams({
+    ownerPubkey: owner,
+    lookupCommitment,
+    encryptedIdentityEnvelope: base64Bytes(payload.encryptedIdentityEnvelope, "encryptedIdentityEnvelope"),
+    encryptedMasterSeed: base64Bytes(payload.encryptedMasterSeed, "encryptedMasterSeed"),
+    encryptedMetadataHash: hex32(payload.encryptedMetadataHash, "encryptedMetadataHash"),
+    pruConfigurationHash: hex32(payload.pruConfigurationHash, "pruConfigurationHash"),
+    encryptedPublicRouteEnvelope: base64Bytes(payload.encryptedPublicRouteEnvelope, "encryptedPublicRouteEnvelope"),
+    routeVersion: BigInt(String(payload.routeVersion)),
+    routeNonce: hex32(payload.routeNonce, "routeNonce"),
+    tcapRouteVersion: 0,
+    tcapRelationshipCommitment: new Uint8Array(32),
+    tcapRelationshipReference: new Uint8Array(32),
+    tcapPolicyCommitment: new Uint8Array(32),
+    intentHash: hex32(payload.ownerIntentHash, "ownerIntentHash"),
+    expiryTs: BigInt(String(payload.expiry)),
+  });
+  const connection = new Connection(rpcUrl, "confirmed");
+  const ownerSignature = base64Bytes(payload.ownerSignature, "ownerSignature");
+  const ownerProof = Ed25519Program.createInstructionWithPublicKey({
+    publicKey: owner.toBytes(),
+    message: Buffer.from(hex32(payload.ownerIntentHash, "ownerIntentHash")),
+    signature: ownerSignature,
+  });
+  const tinInstruction = new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: signer.publicKey, isSigner: true, isWritable: true },
+      { pubkey: getTinsGlobalStatePda(programId), isSigner: false, isWritable: true },
+      { pubkey: registry, isSigner: false, isWritable: true },
+      { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(instructionData),
+  });
+  const tx = new Transaction().add(ownerProof, tinInstruction);
+  const signature = await connection.sendTransaction(tx, [signer], { skipPreflight: false });
+  await connection.confirmTransaction(signature, "confirmed");
+  await report(signer, work, "CONFIRMED", { stage: "TIN_V1_REGISTRY_SUBMITTED", signature, registry: registry.toBase58() });
+}
+
 async function main() {
   const signer = operator();
   const rpcUrl = resolveSolanaRpcUrl({ frontendSafe: false });
@@ -132,7 +188,11 @@ async function main() {
     try {
       const work = await lease(signer);
       if (!work) { await new Promise((resolve) => setTimeout(resolve, Number(process.env.TSN_CRANKER_POLL_MS ?? 2000))); continue; }
-      try { if (work.kind === "AUTHORIZED_FUNDING") await processAuthorizedFunding(signer, work, rpcUrl); else await processSettlement(signer, work, rpcUrl); }
+      try {
+        if (work.kind === "AUTHORIZED_FUNDING") await processAuthorizedFunding(signer, work, rpcUrl);
+        else if (work.kind === "TIN_OPERATION") await processTinOperation(signer, work, rpcUrl);
+        else await processSettlement(signer, work, rpcUrl);
+      }
       catch (error) { await report(signer, work, "FAILED", { reason: error instanceof Error ? error.message : String(error) }).catch(() => undefined); console.error(error); }
     } catch (error) { console.error(`[tsn-cranker] poll failed: ${error instanceof Error ? error.message : String(error)}`); await new Promise((resolve) => setTimeout(resolve, 3000)); }
   }
