@@ -27,6 +27,14 @@ function crankerWorkView(work: Awaited<ReturnType<typeof leaseForCranker>>) {
     ? Object.fromEntries(Object.entries(work.verification.verifiedPayload as Record<string, unknown>)
       .filter(([key]) => ["senderSignedFundingTransaction", "senderSignedFundingFeePayer", "senderFundingMode"].includes(key)))
     : undefined;
+  const tinPayload = work.kind === "TIN_OPERATION" && work.verification?.verifiedPayload && typeof work.verification.verifiedPayload === "object"
+    ? Object.fromEntries(Object.entries(work.verification.verifiedPayload as Record<string, unknown>)
+      .filter(([key]) => [
+        "intentId", "intentType", "ownerPubkey", "ownerSignature", "ownerIntentHash", "expiry",
+        "lookupCommitment", "encryptedIdentityEnvelope", "encryptedMasterSeed", "encryptedMetadataHash",
+        "pruConfigurationHash", "encryptedPublicRouteEnvelope", "routeVersion", "routeNonce",
+      ].includes(key)))
+    : undefined;
   return {
     id: work.id, kind: work.kind, status: work.status, stateVersion: work.stateVersion,
     payload: {},
@@ -34,6 +42,7 @@ function crankerWorkView(work: Awaited<ReturnType<typeof leaseForCranker>>) {
     verification: work.verification ? {
       verificationType: work.verification.verificationType ?? null,
       ...(fundingPayload && Object.keys(fundingPayload).length ? { verifiedPayload: fundingPayload } : {}),
+      ...(tinPayload && Object.keys(tinPayload).length ? { verifiedPayload: tinPayload } : {}),
     } : null,
     authorization: work.authorization ?? null,
     result: work.result ?? null,
