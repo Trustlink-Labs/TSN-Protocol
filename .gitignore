@@ -8,6 +8,7 @@ Thumbs.db
 .logs/
 .codex-target/
 .git/
+.codex/
 
 .commandcode/
 
