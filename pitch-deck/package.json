@@ -1,0 +1,7 @@
+{
+  "name": "tsn-pitch-deck",
+  "private": true,
+  "scripts": {
+    "push": "git add . && git commit -m \"Update pitch deck\" && git push origin main"
+  }
+}

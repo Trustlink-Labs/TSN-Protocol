@@ -196,6 +196,32 @@ The operational rule is: **Node mirror for preflight; Creditcoin registry and
 Hub for final enforcement.** An unsupported route cannot settle on Creditcoin
 even when the Node has produced an otherwise valid authorization.
 
+### Refreshing the current Creditcoin liquidity observation
+
+The current `creditcoin-testnet` prototype lane is a direct Creditcoin lane.
+Its local registry refresh is different from the proof-backed refresh used for
+an onward EVM destination. First fund the configured payout vault with the
+registered settlement token. Then the registry owner submits
+`observeLocalLiquidity(routeId, validUntil, nonce)`. The contract reads the
+actual ERC-20 balance of that vault, records the amount and expiry on-chain,
+and emits `LiquidityObserved`. The next nonce must be greater than the prior
+observation nonce.
+
+This direct refresh does not mint liquidity and does not use CTC as payout
+value; CTC pays gas while the registered stablecoin funds the vault. After the
+transaction is mined, restart the Node only if its process needs to reload
+configuration, then query `/settlement-networks`. The Node should expose the
+route only while the recorded `validUntil` is current and the balance covers
+the requested amount.
+
+For a future Base or other supported EVM destination, use the proof-backed
+path instead: the destination vault emits `LiquidityAvailable`, the
+Attestcoin SDK waits for source-block attestation and obtains the proof, and
+`DestinationLiquidityASC.execute(...)` verifies the proof and records the
+observation in `DestinationLiquidityRegistry`. Do not call the proof-backed
+registry's restricted `recordVerifiedLiquidity` directly from an operator
+wallet.
+
 ### Configure the operational route
 
 After the destination vault and executor are deployed and funded, configure the
@@ -378,3 +404,45 @@ Next action:
 
 Never write “deployed successfully” without the contract address, successful
 transaction hash, explorer link, and the post-deployment configuration state.
+
+## Route-gate expiry: Node restart versus liquidity refresh
+
+The Node loads `TSN_DESTINATION_ROUTES_JSON` and
+`TSN_CREDITCOIN_RPC_URL` from `tsn-protocol/tsn-node/.env` at startup. A
+configured route is not automatically a ready route: the Node also reads the
+route's current `latestObservation` from the Creditcoin
+`DestinationLiquidityRegistry`. If `validUntil` is earlier than the current
+time, `/settlement-networks` intentionally returns an empty list even when the
+registry, executor, token, chain ID, and RPC values are correct.
+
+When this happens, restart the Node so it reloads the local configuration:
+
+```powershell
+# Stop the running Node with Ctrl+C, then run from the repository root.
+cd C:\Users\codepara\Desktop\trust-link
+python tsn-protocol/tsn-node/server.py --test-crosschain --receipt --network creditcoin-testnet --verbose
+```
+
+Check the route from a separate terminal:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/settlement-networks |
+  ConvertTo-Json -Depth 8
+```
+
+The restart only reloads configuration; it does not renew the on-chain
+observation. If the response still has `Count: 0`, inspect the registry's
+`latestObservation(routeId)` values and record a new proof-backed liquidity
+observation through `DestinationLiquidityASC.execute(...)`. Do not extend
+`validUntil` in the Node, add a route manually at runtime, or bypass the
+registry. The route may proceed only after the Creditcoin registry contains a
+current observation with sufficient available liquidity.
+
+### Observed CC3 expiry diagnostic
+
+On the `creditcoin-testnet` route, the Node configuration and on-chain route
+metadata matched: the route was enabled, chain ID `102031`, executor, and
+settlement token were correct. The live registry returned available liquidity
+of `1,000,000,000,000`, but its `validUntil` timestamp was earlier than the
+current timestamp. The Node therefore returned `Count: 0`; this was an
+expired-liquidity safety gate, not a missing route or RPC failure.

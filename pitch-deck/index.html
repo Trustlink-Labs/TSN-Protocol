@@ -39,7 +39,7 @@
     html,
     body {
       height: 100%
-    }corner 
+    }
 
     body {
       background: var(--ink);
@@ -1423,8 +1423,18 @@
 
 <body>
   <div class="deck-top">
-    <div class="brand"><svg viewBox="0 0 120 120" aria-hidden="true">
-        <polygon points="60,10 103,35 103,85 60,110 17,85 17,35" fill="none" stroke="currentColor" stroke-width="2" />
+    <div class="brand"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+        <polygon points="60,10 103,35 103,85 60,110 17,85 17,35" fill="none" stroke="currentColor" stroke-width="2.5" />
+        <line x1="60" y1="10" x2="60" y2="110" stroke="currentColor" stroke-width="1.5" />
+        <line x1="17" y1="35" x2="103" y2="85" stroke="currentColor" stroke-width="1" opacity=".45" />
+        <line x1="17" y1="85" x2="103" y2="35" stroke="currentColor" stroke-width="1" opacity=".45" />
+        <circle cx="60" cy="10" r="4" fill="currentColor" />
+        <circle cx="103" cy="35" r="4" fill="currentColor" />
+        <circle cx="103" cy="85" r="4" fill="currentColor" />
+        <circle cx="60" cy="110" r="4" fill="currentColor" />
+        <circle cx="17" cy="85" r="4" fill="currentColor" />
+        <circle cx="17" cy="35" r="4" fill="currentColor" />
+        <circle cx="60" cy="60" r="7" fill="#0A0E0C" stroke="currentColor" stroke-width="1.5" />
       </svg><span>TSN</span></div>
     <div class="bull" id="bull">BULLETIN</div>
   </div>
