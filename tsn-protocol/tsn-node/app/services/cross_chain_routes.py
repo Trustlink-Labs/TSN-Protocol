@@ -18,7 +18,6 @@ import httpx
 
 GET_ROUTE_SELECTOR = "0xe9207600"
 LATEST_OBSERVATION_SELECTOR = "0xa2fb18c1"
-ACTIVE_ROUTE_SELECTOR = "0x655d0aa8"
 
 
 def _address(value: str, field: str) -> str:
@@ -139,9 +138,6 @@ async def verify_destination_route(
 
     route_arg = route.route_id[2:]
     async with httpx.AsyncClient(timeout=15) as client:
-        active_raw = await _eth_call(client, route.rpc_url, route.registry, ACTIVE_ROUTE_SELECTOR + route_arg)
-        if _word(active_raw, 0) != 1:
-            raise ValueError("destination route is not active on Creditcoin")
         route_raw = await _eth_call(client, route.rpc_url, route.registry, GET_ROUTE_SELECTOR + route_arg)
         if _word(route_raw, 0) != 1:
             raise ValueError("destination route is disabled on Creditcoin")

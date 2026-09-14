@@ -1726,6 +1726,8 @@ class TinOperationRecord(BaseModel):
     failureReason: Optional[str] = None
     onchainSignatures: list[str] = Field(default_factory=list)
     displayName: Optional[str] = None
+    lookupCommitment: Optional[str] = None
+    encryptedIdentityEnvelope: Optional[str] = None
     encryptedMasterSeed: Optional[str] = None
     encryptedMetadataHash: str
     pruConfigurationHash: str
@@ -2002,6 +2004,9 @@ def _sha256_hex_utf8(*parts: Any) -> str:
 
 def _encode_signed_i64_le(value: int) -> bytes:
     return int(value).to_bytes(8, "little", signed=True)
+
+def _encode_u32_le(value: int) -> bytes:
+    return int(value).to_bytes(4, "little", signed=False)
 
 def _require_phone_number(payload: dict[str, Any], intent_type: str) -> str:
     phone_number = _require_string(
@@ -2373,6 +2378,8 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
     if encrypted_master_seed is None:
         encrypted_master_seed = _field(payload, "new_encrypted_master_seed", "newEncryptedMasterSeed")
     encrypted_master_seed = str(encrypted_master_seed or "").strip()
+    lookup_commitment = str(_field(payload, "lookup_commitment", "lookupCommitment", default="") or "").strip()
+    encrypted_identity_envelope = str(_field(payload, "encrypted_identity_envelope", "encryptedIdentityEnvelope", default="") or "").strip()
     encrypted_metadata_hash = str(
         _field(
             payload,
@@ -2445,6 +2452,8 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
         encrypted_master_seed,
         "encrypted_master_seed",
     )
+    lookup_commitment_bytes = _decode_hash32(lookup_commitment, "lookup_commitment") if intent_type == "tin_creation" else bytes(32)
+    encrypted_identity_envelope_bytes = _decode_base64_blob(encrypted_identity_envelope, "encrypted_identity_envelope") if intent_type == "tin_creation" else b""
     metadata_hash_bytes = _decode_hash32(
         encrypted_metadata_hash,
         "encrypted_metadata_hash",
@@ -2469,23 +2478,22 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
         if intent_type == "tin_creation"
         else TIN_OWNER_INTENT_UPDATE_DOMAIN_V1
     )
-    expected_hash = hashlib.sha256(
-        b"".join(
-            [
-                domain.encode("utf-8"),
-                owner_bytes,
-                display_name.encode("utf-8"),
-                encrypted_master_seed_bytes,
-                metadata_hash_bytes,
-                configuration_hash_bytes,
-                encrypted_public_route_envelope_bytes,
-                route_version.to_bytes(8, "little", signed=False),
-                route_nonce_bytes,
-                nonce_bytes,
-                _encode_signed_i64_le(expiry),
-            ]
-        )
-    ).digest()
+    if intent_type == "tin_creation":
+        expected_hash = hashlib.sha256(b"".join([
+            b"TSN_TIN_V1_CREATE", owner_bytes, lookup_commitment_bytes,
+            _encode_u32_le(len(encrypted_identity_envelope_bytes)), encrypted_identity_envelope_bytes,
+            _encode_u32_le(len(encrypted_master_seed_bytes)), encrypted_master_seed_bytes,
+            metadata_hash_bytes, configuration_hash_bytes,
+            _encode_u32_le(len(encrypted_public_route_envelope_bytes)), encrypted_public_route_envelope_bytes,
+            route_version.to_bytes(8, "little", signed=False), route_nonce_bytes, b"\x00",
+            bytes(32), bytes(32), bytes(32), _encode_signed_i64_le(expiry),
+        ])).digest()
+    else:
+        expected_hash = hashlib.sha256(b"".join([
+            domain.encode("utf-8"), owner_bytes, display_name.encode("utf-8"), encrypted_master_seed_bytes,
+            metadata_hash_bytes, configuration_hash_bytes, encrypted_public_route_envelope_bytes,
+            route_version.to_bytes(8, "little", signed=False), route_nonce_bytes, nonce_bytes, _encode_signed_i64_le(expiry),
+        ])).digest()
     pru_route = _decrypt_public_route_envelope(
         encrypted_envelope_base64=encrypted_public_route_envelope,
         expected_tin=tin,
@@ -2543,6 +2551,8 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
         "failureReason": None,
         "onchainSignatures": [],
         "displayName": display_name if intent_type == "tin_creation" else None,
+        "lookupCommitment": lookup_commitment.lower() if intent_type == "tin_creation" else None,
+        "encryptedIdentityEnvelope": encrypted_identity_envelope if intent_type == "tin_creation" else None,
         "encryptedMasterSeed": encrypted_master_seed if intent_type == "tin_creation" else None,
         "encryptedMetadataHash": encrypted_metadata_hash.lower(),
         "pruConfigurationHash": pru_configuration_hash.lower(),
@@ -2569,6 +2579,8 @@ def public_tin_operation(record: TinOperationRecord | dict[str, Any]) -> PublicT
     tin = str(data.pop("tin", ""))
     data["tinHash"] = _sha256_hex_utf8("TSN_PUBLIC_TIN_OPERATION_ID", tin) if tin else ""
     data.pop("encryptedMasterSeed", None)
+    data.pop("lookupCommitment", None)
+    data.pop("encryptedIdentityEnvelope", None)
     data.pop("newEncryptedMasterSeed", None)
     data.pop("encryptedPublicRouteEnvelope", None)
     data.pop("newEncryptedPublicRouteEnvelope", None)
