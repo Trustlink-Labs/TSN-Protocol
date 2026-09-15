@@ -39,27 +39,14 @@
             "group": "Get Started",
             "pages": [
               "overview/introduction",
-              "developers/getting-started",
-              "developers/private-tin-issuance",
-              "developers/network-status",
+              "how-it-works/how-a-payment-feels",
+              "how-it-works/architecture",
               "get-started/faq"
             ]
           },
           {
-            "group": "How It Works",
-            "pages": [
-              "how-it-works/how-a-payment-feels",
-              "how-it-works/architecture"
-            ]
-          },
-
-          {
             "group": "Protocol Layers",
             "pages": ["layers/tsn", "layers/tin", "layers/gpru", "layers/tcap"]
-          },
-          {
-            "group": "Operators",
-            "pages": ["operators/tsn-node", "operators/tsn-cranker"]
           },
           {
             "group": "Concepts",
@@ -72,16 +59,6 @@
               "architecture/node-receiver-cranker",
               "architecture/epoch-treasury",
               "architecture/tcap"
-            ]
-          },
-          {
-            "group": "Guides",
-            "pages": [
-              "developers/payment-intent-lifecycle",
-              "developers/funding-and-accepted-intent",
-              "developers/confidential-settlement",
-              "developers/tcap-tip-credits",
-              "developers/replay-and-retries"
             ]
           },
           {
@@ -98,10 +75,28 @@
         ]
       },
       {
-        "tab": "API Reference",
+        "tab": "Developers",
         "groups": [
           {
-            "group": "API Reference Overview",
+            "group": "Get Started",
+            "pages": [
+              "developers/getting-started",
+              "developers/private-tin-issuance",
+              "developers/network-status"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "developers/payment-intent-lifecycle",
+              "developers/funding-and-accepted-intent",
+              "developers/confidential-settlement",
+              "developers/tcap-tip-credits",
+              "developers/replay-and-retries"
+            ]
+          },
+          {
+            "group": "API Reference",
             "pages": [
               "api-reference/index",
               "api-reference/authentication",
@@ -109,7 +104,7 @@
             ]
           },
           {
-            "group": "RPC Methods",
+            "group": "RPC",
             "pages": [
               "api-reference/rpc/node",
               "api-reference/rpc/solana-rpc-gateway"
@@ -119,16 +114,50 @@
             "group": "SDK",
             "pages": [
               "api-reference/sdk/tsn-sdk",
-              "api-reference/sdk/tsn-cranker-sdk"
+              "api-reference/sdk/tsn-cranker-sdk",
+              {
+                "group": "TINs",
+                "pages": [
+                  "api-reference/sdk/tins/resolveTIN",
+                  "api-reference/sdk/tins/resolveTinRoute",
+                  "api-reference/sdk/tins/createTinV1IdentityEnvelope",
+                  "api-reference/sdk/tins/buildCreateTinInstruction",
+                  "api-reference/sdk/tins/buildLinkSocialIdentityInstruction",
+                  "api-reference/sdk/tins/buildLinkVerifiedSocialIdentityInstructions",
+                  "api-reference/sdk/tins/buildLinkSensitiveFieldInstruction",
+                  "api-reference/sdk/tins/encryptTinSocialIdentity",
+                  "api-reference/sdk/tins/decryptTinSocialIdentity",
+                  "api-reference/sdk/tins/encryptTinSensitiveField",
+                  "api-reference/sdk/tins/decryptTinSensitiveField",
+                  "api-reference/sdk/tins/decodeTinAccount",
+                  "api-reference/sdk/tins/decodeTinsIdentityRegistry"
+                ]
+              }
             ]
           },
           {
             "group": "CLI",
-            "pages": ["api-reference/cli/tsn-cranker"]
+            "pages": [
+              "api-reference/cli/tsn-cranker"
+            ]
           },
           {
             "group": "On-chain Programs",
-            "pages": ["api-reference/on-chain/solana-entrypoints"]
+            "pages": [
+              "api-reference/on-chain/solana-entrypoints"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Operators",
+        "groups": [
+          {
+            "group": "Run a Node",
+            "pages": [
+              "operators/tsn-node",
+              "operators/tsn-cranker"
+            ]
           }
         ]
       },
