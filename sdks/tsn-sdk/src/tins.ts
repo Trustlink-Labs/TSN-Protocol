@@ -422,7 +422,6 @@ export function serializeTinCreationRegistryParams(params: {
   ownerPubkey: PublicKey;
   displayName: string;
   tin?: bigint | number | string;
-  lookupSecret?: Uint8Array | string;
   encryptedIdentityEnvelope?: Buffer | Uint8Array;
   encryptedMasterSeed?: Buffer | Uint8Array;
   encryptedMetadataHash?: Buffer | Uint8Array;
@@ -438,14 +437,13 @@ export function serializeTinCreationRegistryParams(params: {
   intentHash: Buffer | Uint8Array;
   expiryTs: bigint | number;
 }) {
-  if (params.tin != null || params.lookupSecret || params.encryptedIdentityEnvelope) {
-    if (params.tin == null || !params.lookupSecret || !params.encryptedIdentityEnvelope) {
-      throw new Error("Private TIN creation requires tin, lookupSecret, and encryptedIdentityEnvelope");
+  if (params.tin != null || params.encryptedIdentityEnvelope) {
+    if (params.tin == null || !params.encryptedIdentityEnvelope) {
+      throw new Error("Private TIN creation requires tin and encryptedIdentityEnvelope");
     }
     return serializePrivateTinCreationParams({
       ...params,
       tin: params.tin,
-      lookupSecret: params.lookupSecret,
       encryptedIdentityEnvelope: params.encryptedIdentityEnvelope,
     });
   }
@@ -455,7 +453,6 @@ export function serializeTinCreationRegistryParams(params: {
 function serializePrivateTinCreationParams(params: {
   ownerPubkey: PublicKey;
   tin: bigint | number | string;
-  lookupSecret: Uint8Array | string;
   encryptedIdentityEnvelope: Buffer | Uint8Array;
   encryptedMasterSeed?: Buffer | Uint8Array;
   encryptedMetadataHash?: Buffer | Uint8Array;
@@ -470,8 +467,7 @@ function serializePrivateTinCreationParams(params: {
   intentHash: Buffer | Uint8Array;
   expiryTs: bigint | number;
 }) {
-  const secret = typeof params.lookupSecret === "string" ? Buffer.from(params.lookupSecret, "utf8") : Buffer.from(params.lookupSecret);
-  if (secret.length < 16) throw new Error("lookupSecret must contain at least 16 bytes");
+  const secret = Buffer.from(String(params.tin), "utf8");
   const encryptedMasterSeed = resolveEncryptedMasterSeed(params);
   const lookupCommitment = Buffer.from(sha256(Buffer.concat([
     Buffer.from("TSN_TIN_V1_LOOKUP", "utf8"), secret, Buffer.from(String(params.tin), "utf8"),
@@ -1167,15 +1163,13 @@ async function importAesKey(keyMaterial: Uint8Array) {
   return getWebCrypto().subtle.importKey("raw", keyMaterial as any, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-/** Build the encrypted identity fields required by CreateTinV1. The lookup
- * secret is consumed locally and only its commitment is returned. */
+/** Build the encrypted identity fields required by CreateTinV1. The TIN is
+ * the private lookup material; only its commitment is returned. */
 export async function createTinV1IdentityEnvelope(params: {
   tin: bigint | number | string;
   displayName: string;
-  lookupSecret: Uint8Array | string;
 }) {
-  const secret = typeof params.lookupSecret === "string" ? Buffer.from(params.lookupSecret, "utf8") : Buffer.from(params.lookupSecret);
-  if (secret.length < 16) throw new Error("lookupSecret must contain at least 16 bytes");
+  const secret = Buffer.from(String(params.tin), "utf8");
   const tin = Buffer.from(String(params.tin), "utf8");
   const lookupCommitment = sha256(Buffer.concat([Buffer.from("TSN_TIN_V1_LOOKUP", "utf8"), secret, tin]));
   const identityKey = await importAesKey(sha256(Buffer.concat([Buffer.from("TSN_TIN_V1_IDENTITY", "utf8"), secret, tin])));
@@ -1283,13 +1277,13 @@ async function resolvePrivateTinRecord(params: {
   tin: bigint | number | string;
   connection: Connection;
   programId?: PublicKey | string | null;
-  lookupSecret: Uint8Array | string;
+  /** @deprecated Private resolution derives the lookup material from the TIN. */
+  lookupSecret?: Uint8Array | string;
 }): Promise<TinResolvedIdentity> {
   const programId = getTinsProgramPublicKey(params.programId);
-  const secret = typeof params.lookupSecret === "string"
-    ? Buffer.from(params.lookupSecret, "utf8")
-    : Buffer.from(params.lookupSecret);
-  if (secret.length < 16) throw new Error("lookupSecret must contain at least 16 bytes");
+  const secret = params.lookupSecret
+    ? typeof params.lookupSecret === "string" ? Buffer.from(params.lookupSecret, "utf8") : Buffer.from(params.lookupSecret)
+    : Buffer.from(String(params.tin), "utf8");
   const lookupCommitment = Buffer.from(sha256(Buffer.concat([
     Buffer.from("TSN_TIN_V1_LOOKUP", "utf8"),
     secret,
@@ -1370,6 +1364,7 @@ export async function resolveTIN(params: {
   tin: bigint | number | string;
   connection: Connection;
   programId?: PublicKey | string | null;
+  /** @deprecated The private TIN model uses the TIN as lookup material. */
   lookupSecret?: Uint8Array | string;
   sensitiveAuthorizations?: Record<string, Uint8Array | string>;
 }): Promise<TinResolvedIdentity> {
