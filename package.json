@@ -165,7 +165,7 @@
     "git:hygiene:fix": "node scripts/git-hygiene-check.mjs --fix",
     "git:pull:all": "git pull tsn-protocol main",
     "git:push:current": "git branch -M main && git push -u tsn-protocol main",
-    "git:commit:push:all": "git add -A && git commit -m \"Something just got updated!\" && npm run git:push:current",
+    "git:commit:push:all": "git add -A && git commit -m \"Something just got updated!\" && npm run git:push:current --force",
     "tcap:one-time:deposit-credit:devnet": "node protocol-tests/scenarios/tcap-one-time-deposit-credit.mjs"
   },
   "dependencies": {
