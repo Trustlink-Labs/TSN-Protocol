@@ -145,6 +145,10 @@
     "./cross-chain": {
       "import": "./dist/cross-chain.js",
       "types": "./dist/cross-chain.d.ts"
+    },
+    "./wallet-transfer": {
+      "import": "./dist/wallet-transfer.js",
+      "types": "./dist/wallet-transfer.d.ts"
     }
   },
   "scripts": {

@@ -173,28 +173,19 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/tsn/sdk/prepare-wallet-transfer") {
     const body = await readJson(req);
     if (!session.wallet?.publicKey) return json(res, 409, { error: "TEST_WALLET_NOT_LOADED" });
-    let recipientWallet;
-    let mint;
     try {
-      recipientWallet = new PublicKey(String(body.recipientWallet ?? ""));
-      mint = new PublicKey(String(body.tokenMintAddress ?? ""));
-    } catch {
-      return json(res, 422, { error: "INVALID_WALLET_OR_MINT" });
+      const transfer = await tsnSdk.buildTsnSplTokenTransferTransaction({
+        senderWallet: session.wallet.publicKey,
+        recipientWallet: String(body.recipientWallet ?? ""),
+        tokenMintAddress: String(body.tokenMintAddress ?? ""),
+        amountUi: String(body.amountUi ?? ""),
+        tokenDecimals: Number(body.tokenDecimals ?? 6),
+        rpcUrl: rpc,
+      });
+      return json(res, 200, { status: "WALLET_TRANSFER_READY", ...transfer, liveSubmission: true, integration: "@trustlink/tsn-sdk" });
+    } catch (error) {
+      return json(res, 422, { error: "INVALID_WALLET_TRANSFER", message: error instanceof Error ? error.message : "Invalid wallet transfer" });
     }
-    const decimals = Number(body.tokenDecimals ?? 6);
-    const amountUi = String(body.amountUi ?? "").trim();
-    const [whole, fraction = ""] = amountUi.split(".");
-    if (!/^\d+$/.test(whole) || !/^\d*$/.test(fraction) || fraction.length > decimals || decimals < 0 || decimals > 18) return json(res, 422, { error: "INVALID_TOKEN_AMOUNT" });
-    const amount = BigInt(whole) * 10n ** BigInt(decimals) + BigInt((fraction + "0".repeat(decimals)).slice(0, decimals) || "0");
-    if (amount <= 0n) return json(res, 422, { error: "AMOUNT_MUST_BE_POSITIVE" });
-    const sender = new PublicKey(session.wallet.publicKey);
-    const senderAta = splToken.getAssociatedTokenAddressSync(mint, sender);
-    const recipientAta = splToken.getAssociatedTokenAddressSync(mint, recipientWallet);
-    const latest = await connection.getLatestBlockhash("confirmed");
-    const transaction = new Transaction({ feePayer: sender, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight });
-    transaction.add(splToken.createAssociatedTokenAccountIdempotentInstruction(sender, recipientAta, recipientWallet, mint));
-    transaction.add(splToken.createTransferCheckedInstruction(senderAta, mint, recipientAta, sender, amount, decimals));
-    return json(res, 200, { status: "WALLET_TRANSFER_READY", senderWallet: sender.toBase58(), recipientWallet: recipientWallet.toBase58(), tokenMintAddress: mint.toBase58(), amountUi, tokenDecimals: decimals, transactionBase64: transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString("base64"), liveSubmission: true });
   }
   if (req.method === "POST" && url.pathname === "/api/tsn/sdk/submit-payment") {
     const body = await readJson(req);
