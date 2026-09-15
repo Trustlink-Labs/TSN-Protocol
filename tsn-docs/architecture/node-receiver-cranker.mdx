@@ -1,7 +1,7 @@
 ---
 title: "Receiver, Node, and Cranker: Separation of Transport"
 sidebarTitle: "Node, Receiver, Cranker"
-description: "Learn how the Receiver, Node, and Cranker divide durable ingress, stateless verification, and exact transaction submission without sharing secrets or altering plans."
+description: "How TSN splits durable ingress (Receiver), stateless verification (Node), and exact transaction submission (Cranker) without sharing secrets or altering plans."
 ---
 
 TSN splits transport into three non-overlapping roles: the Receiver accepts and stores work, the Node verifies it, and the Cranker submits the exact authorized transaction. None of them holds a user private key, and none can alter the payment plan after it is signed.

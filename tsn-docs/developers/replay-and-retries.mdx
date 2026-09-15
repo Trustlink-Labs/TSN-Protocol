@@ -1,7 +1,7 @@
 ---
 title: "Replay Protection and Safe Retry Patterns in TSN"
 sidebarTitle: "Replay & Retries"
-description: "Understand how TSN prevents double spending using replay nonces, nullifiers, slot windows, and sequence monotonicity. Learn safe retry patterns for settlement failures."
+description: "How TSN prevents double spending with replay nonces, nullifiers, slot windows, and sequence monotonicity, plus safe retry patterns for settlement failures."
 ---
 
 This page explains the replay protection mechanisms in TSN and how to retry safely when a settlement transaction fails. TSN uses multiple overlapping defenses: a replay nonce in the authorization receipt, a one-time nullifier, a Solana slot validity window, and strict sequence monotonicity per TIN tip. Any single defense defeats replay; together they provide defense in depth.

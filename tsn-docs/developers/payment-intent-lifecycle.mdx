@@ -1,7 +1,7 @@
 ---
-title: "Payment Intent Lifecycle from Signature to On-Chain Settlement"
+title: "Payment Intent Lifecycle: Signature to Settlement"
 sidebarTitle: "Intent Lifecycle"
-description: "Follow a TSN payment intent through every state from signed canonical message to Solana confirmation. Understand redaction, verification checks, and what each role sees."
+description: "Follow a TSN payment intent through every state from signed canonical message to Solana confirmation, with redaction and verification checks explained."
 ---
 
 A payment intent in TSN is a sender-signed authorization that binds amount, token mint, fee limits, expiry, one-time nonce, sender authorization, funding evidence, recipient route commitment, and route version. The Node submits the resulting authorized funding work to the Receiver's authenticated `/intents` endpoint. This page traces the work item from local signing through every state transition to final Solana confirmation. Understanding the lifecycle helps you build reliable integrations, debug rejections, and handle retries safely.
