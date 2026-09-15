@@ -16,6 +16,7 @@ export * from "./payment-jobs.js";
 export * from "./sponsored-settlement.js";
 export * from "./tsn-exit.js";
 export * from "./cross-chain.js";
+export * from "./wallet-transfer.js";
 
 export * from "./tins.js";
 export * from "./blockchain/solana-core.js";
