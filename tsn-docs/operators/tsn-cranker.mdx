@@ -10,7 +10,9 @@ description: "The TSN Cranker is an operator process that leases Node-verified w
 
 <Note>
   **Status: Live on Devnet.** Anyone can run a Cranker against the deployed TSN
-  program.
+  program. Admission is permissionless: the Receiver checks the operator's
+  on-chain Cranker PDA against the pinned TSN program's Mother DNA account. There
+  is no per-operator allowlist and no Receiver-issued API key.
 </Note>
 
 A Cranker may:
@@ -56,15 +58,19 @@ After the Cranker pays the recipient from its CrankerVault, TSN reimburses that 
 
 ## Prerequisites for running a Cranker
 
-Before starting, the deployment owner must provide:
+Cranker admission is permissionless. The operator does not request access from the deployment owner. Instead, the operator registers its own Cranker PDA on Solana Devnet, and the Receiver admits any operator whose Cranker PDA is anchored to the pinned TSN program's Mother DNA account.
 
-1. A deployed TSN program ID and matching build / IDL
-2. A reachable TSN Receiver with Cranker work endpoints
-3. A running or reachable TSN Node that verifies and publishes work
-4. The current Receiver Cranker API credential
-5. Direct Solana Devnet RPC and WebSocket access
+Before starting, the operator needs:
+
+1. The pinned TSN program ID and matching build / IDL published by the deployment owner
+2. The Receiver URL that exposes Cranker work endpoints
+3. A reachable TSN Node that verifies and publishes work (operated by the deployment; not something the Cranker runs)
+4. A registered on-chain Cranker PDA derived from the Mother Escrow and the operator public key on the pinned TSN program
+5. Direct Solana Devnet RPC access for reads and submissions
 6. A funded operator keypair (dedicated, never an upgrade authority or user wallet)
 7. A supported token mint and enough Devnet SOL for fees; a funded CrankerVault if policy requires
+
+The Receiver authenticates each Cranker request with a signed challenge from the operator keypair and then confirms the Cranker PDA on-chain. If the PDA is missing or does not resolve to the pinned Mother DNA, the Receiver returns `401` and no work is leased. There is no separate Cranker API key to rotate.
 
 The Cranker submits to Solana directly. The TSN RPC Gateway is used by browsers and application services, not as a substitute for the operator's submission RPC.
 
