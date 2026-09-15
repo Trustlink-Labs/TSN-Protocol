@@ -8,7 +8,7 @@ Mother Escrow is the TSN authority boundary for epoch coordination and Confident
 
 ## Off-chain binding and opaque slots
 
-The Node/Mother stores the full payment binding as an encrypted off-chain record. This includes the payment identifier, funding lineage, sender refund destination, recipient route binding, amount, mint, and epoch. The encryption key never leaves Node/Mother.
+The Mother Node stores the full payment binding as an encrypted off-chain record. `tsn-node` is the current implementation of this role. The record includes the payment identifier, funding lineage, sender refund destination, recipient route binding, amount, mint, and epoch. The encryption key never leaves the Mother Node.
 
 For a confirmed intent, the Node derives an opaque deterministic slot with HMAC-SHA256 over the payment binding using `TSN_NODE_CLAIM_SLOT_HMAC_SECRET`. This value is a secret handled by Node/Mother, not a public template. The slot is deliberately absent from the funding transaction.
 

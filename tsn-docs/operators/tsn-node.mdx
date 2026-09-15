@@ -1,10 +1,10 @@
 ---
-title: "TSN Node: Verification and Mother Authorization Boundary"
-sidebarTitle: "TSN Node"
+title: "Mother Node: Verification and Authorization Boundary"
+sidebarTitle: "Mother Node"
 description: "The TSN Node verifies signed intents, coordinates the epoch treasury, holds encrypted payment bindings, and signs Mother-rooted DNA permits."
 ---
 
-**In plain English:** The TSN Node is the verification and authorization brain. It checks that a signed intent is valid, holds the encrypted payment binding, coordinates the epoch treasury, and signs the short-lived Mother-rooted DNA permits that authorize crankers to settle. It is the only party that sees plaintext bindings.
+**In plain English:** The Mother Node is TSN’s coordination and verification role. The current implementation is `tsn-node`: it checks that a signed intent is valid, holds the encrypted payment binding, coordinates the epoch treasury, and signs the short-lived Mother-rooted DNA permits that authorize Cranker Nodes to settle. It is the only party that sees plaintext bindings.
 
 ## Node role
 
@@ -12,7 +12,7 @@ description: "The TSN Node verifies signed intents, coordinates the epoch treasu
   **Status: Live on Devnet.** Hosted at `https://tsn-node.wasmer.app`.
 </Note>
 
-The Node:
+The Mother Node:
 
 - verifies canonical signatures, expiry, nonce and replay rules
 - verifies amounts, commitments, and the recipient route commitment and version
@@ -20,7 +20,7 @@ The Node:
 - **redacts recipient identity** from that record
 - stores the encrypted payment binding off-chain
 - derives the opaque keyed slot with HMAC-SHA256
-- signs Mother-rooted DNA permits for crankers
+- signs Mother-rooted DNA permits for Cranker Nodes
 - authorizes refunds when an intent expires
 
 ## What the Node sees (and what it does not expose)
@@ -76,8 +76,8 @@ If an intent expires without settlement, the Node signs a refund permit against 
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="TSN Cranker" icon="gears" href="/operators/tsn-cranker">
-    The operator process that submits Node-authorized work.
+  <Card title="Cranker Node" icon="gears" href="/operators/tsn-cranker">
+    An independent operator process that submits Mother-Node-authorized work.
   </Card>
 
 <Card title="TSN Layer" icon="network-wired" href="/layers/tsn">

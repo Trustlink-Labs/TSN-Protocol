@@ -3,6 +3,8 @@ export type TsnServiceState = "online" | "degraded" | "offline" | "unknown";
 
 export type TsnServiceStatus = {
   service: "node" | "receiver" | "rpc" | "cranker";
+  /** Public architecture role; machine service names remain stable for compatibility. */
+  role: "mother-node" | "receiver" | "rpc-gateway" | "cranker-node";
   state: TsnServiceState;
   source: TsnServiceSource;
   url: string | null;
@@ -57,8 +59,15 @@ async function probeHttp(url: string, options: { method?: "GET" | "POST"; body?:
 }
 
 function status(service: TsnServiceStatus["service"], source: TsnServiceSource, url: string | null, result: Awaited<ReturnType<typeof probeHttp>>, detail?: string): TsnServiceStatus {
+  const roleByService: Record<TsnServiceStatus["service"], TsnServiceStatus["role"]> = {
+    node: "mother-node",
+    receiver: "receiver",
+    rpc: "rpc-gateway",
+    cranker: "cranker-node",
+  };
   return {
     service,
+    role: roleByService[service],
     source,
     url,
     latencyMs: result.latencyMs,
@@ -122,7 +131,7 @@ export async function getTsnNetworkStatus(params: TsnNetworkStatusOptions = {}):
       }
     }
     if (!chosen || chosen.state !== "online") {
-      if (!chosen) services.push({ service, source: "none", url: null, latencyMs: null, state: "unknown", detail: "No endpoint configured" });
+      if (!chosen) services.push({ service, role: service === "node" ? "mother-node" : service === "rpc" ? "rpc-gateway" : "receiver", source: "none", url: null, latencyMs: null, state: "unknown", detail: "No endpoint configured" });
       else selected[service] = { source: "none", url: null };
     }
   }
@@ -133,7 +142,7 @@ export async function getTsnNetworkStatus(params: TsnNetworkStatusOptions = {}):
     : typeof nodeBody?.online_crankers_last_epoch === "number" ? nodeBody.online_crankers_last_epoch : null;
   const nodeSelected = selected.node;
   const crankerState: TsnServiceState = onlineCrankers === null ? "unknown" : onlineCrankers > 0 ? "online" : "offline";
-  services.push({ service: "cranker", source: nodeSelected?.source ?? "none", url: nodeSelected?.url ?? null, latencyMs: null, state: crankerState, detail: onlineCrankers === null ? "Cranker heartbeat count was not returned by the Node" : `${onlineCrankers} online Cranker(s) reported by the Node` });
+  services.push({ service: "cranker", role: "cranker-node", source: nodeSelected?.source ?? "none", url: nodeSelected?.url ?? null, latencyMs: null, state: crankerState, detail: onlineCrankers === null ? "Cranker Node discovery is observed when a Mother-DNA-authorized worker claims work" : `${onlineCrankers} Cranker Node(s) reported by the Node` });
   selected.cranker = { source: nodeSelected?.source ?? "none", url: nodeSelected?.url ?? null };
 
   // A Cranker is permissioned by Mother-DNA and becomes observable when it
