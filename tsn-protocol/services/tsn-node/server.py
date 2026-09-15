@@ -1699,6 +1699,7 @@ class TinOperationRecord(BaseModel):
     intentId: str
     intentType: Literal["tin_creation", "tin_update"]
     tin: str
+    programAssigned: bool = False
     ownerPubkey: str
     ownerSignature: str
     ownerIntentHash: str
@@ -1734,6 +1735,10 @@ class TinOperationRecord(BaseModel):
     encryptedPublicRouteEnvelope: Optional[str] = None
     routeVersion: Optional[int] = None
     routeNonce: Optional[str] = None
+    tcapRouteVersion: Optional[int] = None
+    tcapRelationshipCommitment: Optional[str] = None
+    tcapRelationshipReference: Optional[str] = None
+    tcapPolicyCommitment: Optional[str] = None
     creationFeeAmount: Optional[str] = None
     creationFeeMint: Optional[str] = None
     newDisplayName: Optional[str] = None
@@ -2373,7 +2378,10 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
     if not intent_id:
         raise HTTPException(422, "intent_id must not be empty")
 
-    tin = _require_string(payload, "tin")
+    program_assigned = bool(_field(payload, "program_assigned", "programAssigned", default=False))
+    tin = str(_field(payload, "tin", default="") or "").strip()
+    if intent_type == "tin_update" and not tin:
+        raise HTTPException(422, "tin is required for TIN updates")
     encrypted_master_seed = _field(payload, "encrypted_master_seed", "encryptedMasterSeed")
     if encrypted_master_seed is None:
         encrypted_master_seed = _field(payload, "new_encrypted_master_seed", "newEncryptedMasterSeed")
@@ -2452,8 +2460,8 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
         encrypted_master_seed,
         "encrypted_master_seed",
     )
-    lookup_commitment_bytes = _decode_hash32(lookup_commitment, "lookup_commitment") if intent_type == "tin_creation" else bytes(32)
-    encrypted_identity_envelope_bytes = _decode_base64_blob(encrypted_identity_envelope, "encrypted_identity_envelope") if intent_type == "tin_creation" else b""
+    lookup_commitment_bytes = _decode_hash32(lookup_commitment, "lookup_commitment") if intent_type == "tin_creation" and not program_assigned else bytes(32)
+    encrypted_identity_envelope_bytes = _decode_base64_blob(encrypted_identity_envelope, "encrypted_identity_envelope") if intent_type == "tin_creation" and not program_assigned else b""
     metadata_hash_bytes = _decode_hash32(
         encrypted_metadata_hash,
         "encrypted_metadata_hash",
@@ -2465,7 +2473,7 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
     encrypted_public_route_envelope_bytes = _decode_base64_blob(
         encrypted_public_route_envelope,
         "encrypted_public_route_envelope",
-    )
+    ) if not program_assigned else b""
     try:
         route_version = int(route_version_raw)
     except (TypeError, ValueError) as exc:
@@ -2478,7 +2486,19 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
         if intent_type == "tin_creation"
         else TIN_OWNER_INTENT_UPDATE_DOMAIN_V1
     )
-    if intent_type == "tin_creation":
+    tcap_route_version = int(_field(payload, "tcap_route_version", "tcapRouteVersion", default=1 if program_assigned else 0))
+    tcap_relationship_commitment = _decode_hash32(_field(payload, "tcap_relationship_commitment", "tcapRelationshipCommitment", default="00" * 32), "tcap_relationship_commitment")
+    tcap_relationship_reference = _decode_hash32(_field(payload, "tcap_relationship_reference", "tcapRelationshipReference", default="00" * 32), "tcap_relationship_reference")
+    tcap_policy_commitment = _decode_hash32(_field(payload, "tcap_policy_commitment", "tcapPolicyCommitment", default="00" * 32), "tcap_policy_commitment")
+    if intent_type == "tin_creation" and program_assigned:
+        expected_hash = hashlib.sha256(b"".join([
+            b"TINS_CREATE_INTENT_V1", owner_bytes, display_name.encode(), encrypted_master_seed_bytes,
+            metadata_hash_bytes, configuration_hash_bytes, encrypted_public_route_envelope_bytes,
+            route_version.to_bytes(8, "little", signed=False), route_nonce_bytes, bytes([tcap_route_version]),
+            tcap_relationship_commitment, tcap_relationship_reference, tcap_policy_commitment,
+            nonce_bytes, _encode_signed_i64_le(expiry),
+        ])).digest()
+    elif intent_type == "tin_creation":
         expected_hash = hashlib.sha256(b"".join([
             b"TSN_TIN_V1_CREATE", owner_bytes, lookup_commitment_bytes,
             _encode_u32_le(len(encrypted_identity_envelope_bytes)), encrypted_identity_envelope_bytes,
@@ -2494,13 +2514,15 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
             metadata_hash_bytes, configuration_hash_bytes, encrypted_public_route_envelope_bytes,
             route_version.to_bytes(8, "little", signed=False), route_nonce_bytes, nonce_bytes, _encode_signed_i64_le(expiry),
         ])).digest()
-    pru_route = _decrypt_public_route_envelope(
-        encrypted_envelope_base64=encrypted_public_route_envelope,
-        expected_tin=tin,
-        expected_configuration_hash=configuration_hash_bytes.hex(),
-        expected_route_version=route_version,
-        expected_route_nonce=route_nonce,
-    )
+    pru_route = None
+    if not program_assigned:
+        pru_route = _decrypt_public_route_envelope(
+            encrypted_envelope_base64=encrypted_public_route_envelope,
+            expected_tin=tin,
+            expected_configuration_hash=configuration_hash_bytes.hex(),
+            expected_route_version=route_version,
+            expected_route_nonce=route_nonce,
+        )
     if not secrets.compare_digest(expected_hash, intent_hash_bytes):
         raise HTTPException(422, "owner_intent_hash does not match the submitted TIN operation payload")
     # Browser wallets commonly reject arbitrary binary payloads for
@@ -2536,6 +2558,7 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
         "intentId": intent_id,
         "intentType": intent_type,
         "tin": tin,
+        "programAssigned": program_assigned,
         "ownerPubkey": owner_pubkey,
         "ownerSignature": owner_signature,
         "ownerIntentHash": owner_intent_hash.lower(),
@@ -2559,6 +2582,10 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
         "encryptedPublicRouteEnvelope": encrypted_public_route_envelope if intent_type == "tin_creation" else None,
         "routeVersion": route_version if intent_type == "tin_creation" else None,
         "routeNonce": route_nonce.lower() if intent_type == "tin_creation" else None,
+        "tcapRouteVersion": tcap_route_version if intent_type == "tin_creation" else None,
+        "tcapRelationshipCommitment": tcap_relationship_commitment.hex() if intent_type == "tin_creation" else None,
+        "tcapRelationshipReference": tcap_relationship_reference.hex() if intent_type == "tin_creation" else None,
+        "tcapPolicyCommitment": tcap_policy_commitment.hex() if intent_type == "tin_creation" else None,
         "creationFeeAmount": str(fee_amount) if intent_type == "tin_creation" else None,
         "creationFeeMint": fee_mint if intent_type == "tin_creation" else None,
         "newDisplayName": display_name if intent_type == "tin_update" else None,
@@ -3153,8 +3180,8 @@ def select_pru_for_payment(route: dict[str, Any], intent: dict[str, Any], token_
     return ranked[0]
 
 async def assert_tin_operation_can_enter(operation: dict[str, Any]) -> None:
-    existing_owner = await read_shadow_tin_owner(str(operation["tin"]))
-    if operation["intentType"] == "tin_creation" and existing_owner:
+    existing_owner = await read_shadow_tin_owner(str(operation["tin"])) if operation.get("tin") else None
+    if operation["intentType"] == "tin_creation" and operation.get("tin") and existing_owner:
         raise HTTPException(409, "TIN already exists in mempool registry shadow")
     if operation["intentType"] == "tin_update":
         if not existing_owner:
@@ -3185,6 +3212,7 @@ async def assert_tin_operation_can_enter(operation: dict[str, Any]) -> None:
             raise HTTPException(409, "nonce has already been used by this owner_pubkey")
         if (
             operation["intentType"] == "tin_creation"
+            and operation.get("tin")
             and existing.get("tin") == operation["tin"]
             and existing.get("status") not in TIN_OPERATION_TERMINAL_STATUSES
         ):

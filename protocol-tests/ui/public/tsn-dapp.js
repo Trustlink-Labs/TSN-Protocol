@@ -119,6 +119,12 @@
     return btoa(String.fromCharCode(...signed.signature));
   }
 
+  async function signBytes(bytes) {
+    if (!activeWallet?.signMessage) throw new Error("The connected wallet must support signMessage.");
+    const signed = await activeWallet.signMessage(bytes, "utf8");
+    return btoa(String.fromCharCode(...signed.signature));
+  }
+
   function requireWallet() {
     if (!session || !activeWallet) throw new Error("Connect Solflare or another browser wallet first.");
   }
@@ -141,7 +147,12 @@
       if (!activeWallet) throw new Error("Connect a browser wallet first.");
       if (!displayName) throw new Error("Enter a display name.");
       log("TIN CREATION INPUTS VALID", `Wallet ${activeWallet.publicKey.toBase58()} / display name ${displayName}`);
-      log("TIN CREATION NOT SUBMITTED", "The on-chain program assigns the TIN, but the active Node/SDK private creation payload still requires a TIN before it can be submitted. No intent or transaction was created.");
+      const prepared = await api("/api/tsn/sdk/prepare-tin", { method: "POST", body: JSON.stringify({ displayName }) });
+      const intentBytes = Uint8Array.from(prepared.ownerIntentHash.match(/.{2}/g), (pair) => parseInt(pair, 16));
+      const ownerSignature = await signBytes(intentBytes);
+      const submitted = await api("/api/tsn/sdk/submit-tin", { method: "POST", body: JSON.stringify({ ...prepared, ownerSignature }) });
+      log("SDK createTin", submitted.intentId ?? "TIN creation intent submitted");
+      log("TIN CREATION SUBMITTED", "The Node accepted the owner-authorized creation intent. The Cranker will submit CreateTin and the program will assign the TIN on Solana.");
     } catch (error) { log("TIN IDENTITY BLOCKED", error.message); }
   }
 

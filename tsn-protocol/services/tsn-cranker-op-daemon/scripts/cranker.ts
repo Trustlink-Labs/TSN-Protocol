@@ -25,7 +25,10 @@ import {
 } from "../../../sdks/tsn-sdk/src/blockchain/solana-tsn";
 import { resolveSolanaRpcUrl } from "../../../sdks/tsn-sdk/src/rpc";
 import {
+  getTinsIdentityPda,
   getTinsGlobalStatePda,
+  decodeTinAccount,
+  serializeTinCreationRegistryParams,
   serializeTinV1CreationParams,
 } from "../../../sdks/tsn-sdk/src/tins";
 
@@ -281,12 +284,30 @@ async function processTinOperation(
       "TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT",
   );
   const owner = new PublicKey(String(payload.ownerPubkey));
-  const lookupCommitment = hex32(payload.lookupCommitment, "lookupCommitment");
-  const registry = PublicKey.findProgramAddressSync(
-    [Buffer.from("tin-v1"), Buffer.from(lookupCommitment)],
-    programId,
-  )[0];
-  const instructionData = serializeTinV1CreationParams({
+  const programAssigned = Boolean(payload.programAssigned);
+  const lookupCommitment = programAssigned ? Buffer.alloc(32) : hex32(payload.lookupCommitment, "lookupCommitment");
+  const registry = programAssigned
+    ? getTinsIdentityPda({ walletPubkey: owner, programId })
+    : PublicKey.findProgramAddressSync([Buffer.from("tin-v1"), lookupCommitment], programId)[0];
+  const instructionData = programAssigned
+    ? serializeTinCreationRegistryParams({
+      ownerPubkey: owner,
+      displayName: String(payload.displayName),
+      encryptedMasterSeed: base64Bytes(payload.encryptedMasterSeed, "encryptedMasterSeed"),
+      encryptedMetadataHash: hex32(payload.encryptedMetadataHash, "encryptedMetadataHash"),
+      pruConfigurationHash: new Uint8Array(32),
+      encryptedPublicRouteEnvelope: new Uint8Array(0),
+      routeVersion: BigInt(String(payload.routeVersion)),
+      routeNonce: hex32(payload.routeNonce, "routeNonce"),
+      tcapRouteVersion: 1,
+      tcapRelationshipCommitment: hex32(payload.tcapRelationshipCommitment, "tcapRelationshipCommitment"),
+      tcapRelationshipReference: hex32(payload.tcapRelationshipReference, "tcapRelationshipReference"),
+      tcapPolicyCommitment: hex32(payload.tcapPolicyCommitment, "tcapPolicyCommitment"),
+      nonce: hex32(payload.nonce, "nonce"),
+      intentHash: hex32(payload.ownerIntentHash, "ownerIntentHash"),
+      expiryTs: BigInt(String(payload.expiry)),
+    })
+    : serializeTinV1CreationParams({
     ownerPubkey: owner,
     lookupCommitment,
     encryptedIdentityEnvelope: base64Bytes(
@@ -311,13 +332,13 @@ async function processTinOperation(
     ),
     routeVersion: BigInt(String(payload.routeVersion)),
     routeNonce: hex32(payload.routeNonce, "routeNonce"),
-    tcapRouteVersion: 0,
-    tcapRelationshipCommitment: new Uint8Array(32),
-    tcapRelationshipReference: new Uint8Array(32),
-    tcapPolicyCommitment: new Uint8Array(32),
+    tcapRouteVersion: Number(payload.tcapRouteVersion ?? (programAssigned ? 1 : 0)),
+    tcapRelationshipCommitment: programAssigned ? hex32(payload.tcapRelationshipCommitment, "tcapRelationshipCommitment") : new Uint8Array(32),
+    tcapRelationshipReference: programAssigned ? hex32(payload.tcapRelationshipReference, "tcapRelationshipReference") : new Uint8Array(32),
+    tcapPolicyCommitment: programAssigned ? hex32(payload.tcapPolicyCommitment, "tcapPolicyCommitment") : new Uint8Array(32),
     intentHash: hex32(payload.ownerIntentHash, "ownerIntentHash"),
     expiryTs: BigInt(String(payload.expiry)),
-  });
+    });
   const connection = new Connection(rpcUrl, "confirmed");
   const ownerSignature = base64Bytes(payload.ownerSignature, "ownerSignature");
   const ownerProof = Ed25519Program.createInstructionWithPublicKey({
@@ -349,10 +370,17 @@ async function processTinOperation(
     skipPreflight: false,
   });
   await connection.confirmTransaction(signature, "confirmed");
+  let createdTin: string | undefined;
+  if (programAssigned) {
+    const createdAccount = await connection.getAccountInfo(registry, "confirmed");
+    if (!createdAccount) throw new Error("CreateTin confirmed but the identity account was not found");
+    createdTin = decodeTinAccount(createdAccount.data).tin.toString();
+  }
   await report(signer, work, "CONFIRMED", {
-    stage: "TIN_V1_REGISTRY_SUBMITTED",
+    stage: programAssigned ? "TIN_CREATED" : "TIN_V1_REGISTRY_SUBMITTED",
     signature,
     registry: registry.toBase58(),
+    ...(programAssigned && createdTin ? { tin: createdTin } : {}),
   });
 }
 

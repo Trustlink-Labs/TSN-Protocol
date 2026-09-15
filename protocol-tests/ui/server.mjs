@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
+import { PublicKey } from "@solana/web3.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const tsnSdk = await import(pathToFileURL(path.join(root, "tsn-protocol/sdks/tsn-sdk/dist/index.js")).href);
@@ -38,7 +39,7 @@ async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/session") {
     const id = randomBytes(24).toString("hex");
     const csrfToken = randomBytes(24).toString("hex");
-    sessions.set(id, { id, csrfToken, wallet: null, touchedAt: Date.now() });
+    sessions.set(id, { id, csrfToken, wallet: null, preparedTin: null, touchedAt: Date.now() });
     return json(res, 201, { sessionId: id, csrfToken, network: "devnet", sdk: "@trustlink/tsn-sdk" });
   }
   const session = getSession(req);
@@ -71,6 +72,56 @@ async function handleApi(req, res, url) {
   }
   if (req.method === "GET" && url.pathname === "/api/session") return json(res, 200, { wallet: session.wallet, network: "devnet", sdk: "@trustlink/tsn-sdk" });
   if (!session.wallet) return json(res, 409, { error: "BROWSER_WALLET_REQUIRED" });
+
+  if (req.method === "POST" && url.pathname === "/api/tsn/sdk/prepare-tin") {
+    const body = await readJson(req);
+    const displayName = String(body.displayName ?? "").trim();
+    if (!displayName) return json(res, 422, { error: "DISPLAY_NAME_REQUIRED" });
+    const built = tsnSdk.buildProgramAssignedTinCreation({
+      ownerPubkey: new PublicKey(session.wallet),
+      displayName,
+    });
+    session.preparedTin = { built, displayName };
+    const b64 = (value) => Buffer.from(value).toString("base64");
+    const hex = (value) => Buffer.from(value).toString("hex");
+    return json(res, 200, {
+      intentType: "tin_creation",
+      programAssigned: true,
+      ownerPubkey: session.wallet,
+      displayName,
+      ownerIntentHash: hex(built.intentHash),
+      nonce: hex(built.nonce),
+      expiry: Number(built.expiryTs),
+      encryptedMasterSeed: b64(built.encryptedMasterSeed),
+      encryptedMetadataHash: hex(built.encryptedMetadataHash),
+      pruConfigurationHash: hex(built.pruConfigurationHash),
+      encryptedPublicRouteEnvelope: "",
+      routeVersion: Number(built.routeVersion),
+      routeNonce: hex(built.routeNonce),
+      tcapRouteVersion: built.tcapRouteVersion,
+      tcapRelationshipCommitment: hex(built.tcapRelationshipCommitment),
+      tcapRelationshipReference: hex(built.tcapRelationshipReference),
+      tcapPolicyCommitment: hex(built.tcapPolicyCommitment),
+      sdk: "@trustlink/tsn-sdk.buildProgramAssignedTinCreation",
+    });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/tsn/sdk/submit-tin") {
+    const body = await readJson(req);
+    const signature = String(body.ownerSignature ?? "").trim();
+    if (!signature) return json(res, 422, { error: "OWNER_SIGNATURE_REQUIRED" });
+    if (!session.preparedTin) return json(res, 409, { error: "TIN_CREATION_MUST_BE_PREPARED_FIRST" });
+    const nodeUrl = process.env.TSN_LOCAL_NODE_URL ?? process.env.TSN_NODE_URL ?? "http://127.0.0.1:8000";
+    const result = await tsnSdk.submitProgramAssignedTinCreation({
+      nodeUrl,
+      prepared: session.preparedTin.built,
+      ownerPubkey: session.wallet,
+      ownerSignature: signature,
+      displayName: session.preparedTin.displayName,
+    });
+    session.preparedTin = null;
+    return json(res, 200, { ...result, sdk: "@trustlink/tsn-sdk.submitProgramAssignedTinCreation" });
+  }
 
   if (req.method === "POST" && url.pathname === "/api/tsn/sdk/resolve-tin") {
     const body = await readJson(req);
