@@ -98,6 +98,41 @@
         ]
       },
       {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "API Reference Overview",
+            "pages": [
+              "api-reference/index",
+              "api-reference/authentication",
+              "api-reference/errors"
+            ]
+          },
+          {
+            "group": "RPC Methods",
+            "pages": [
+              "api-reference/rpc/node",
+              "api-reference/rpc/solana-rpc-gateway"
+            ]
+          },
+          {
+            "group": "SDK",
+            "pages": [
+              "api-reference/sdk/tsn-sdk",
+              "api-reference/sdk/tsn-cranker-sdk"
+            ]
+          },
+          {
+            "group": "CLI",
+            "pages": ["api-reference/cli/tsn-cranker"]
+          },
+          {
+            "group": "On-chain Programs",
+            "pages": ["api-reference/on-chain/solana-entrypoints"]
+          }
+        ]
+      },
+      {
         "tab": "About",
         "groups": [
           {

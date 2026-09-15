@@ -24,8 +24,8 @@ const status = await getTsnNetworkStatus({
   },
 });
 
-if (!status.readyForTransactions) {
-  throw new Error("TSN settlement services are not ready");
+if (!status.readyForNativeTransactions) {
+  throw new Error("Native TSN services are not ready");
 }
 
 console.log(status.selected);
@@ -39,7 +39,19 @@ probe fails, so status checks and transaction preparation use the same source.
 The result reports the selected source for each service, route count, and the
 number of online Crankers reported by the Node. A Cranker is a worker rather
 than a public HTTP service, so the SDK reads its liveness from the Node's
-heartbeat-backed status response.
+heartbeat-backed status response. Cranker liveness is operational information,
+not a client-side authorization gate: a signed intent can be accepted before a
+Cranker claims it, and a Cranker becomes observable when it accepts or
+processes authorized work. If the Node has no recent worker observation, the
+SDK returns `onlineCrankers: null`; applications should display this as
+"discovery on demand," not as "offline" or "not reported." Crankers are not
+located by IP address, and their public network address is not part of the
+application status model.
+
+`readyForNativeTransactions` requires the Node, Receiver, and RPC. It is used
+for private TIN issuance, native TIN payments, and wallet transfers.
+`readyForCrossChainTransactions` additionally requires a registered destination
+route. A missing cross-chain route must not block a native TSN action.
 
 Applications should refresh this status before preparing a payment and again
 before requesting a wallet signature. Status checks do not create a payment,

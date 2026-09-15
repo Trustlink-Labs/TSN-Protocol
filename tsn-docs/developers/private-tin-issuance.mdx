@@ -4,11 +4,16 @@ sidebarTitle: "Private TINs"
 description: "Build a privacy-aware payment experience with the TSN SDK without exposing TIN secrets to application servers or settlement operators."
 ---
 
-TSN applications use private-by-default TINs. The application keeps the
-lookup secret and sensitive identity material under the user's control, while
-the TSN SDK produces the commitments and encrypted envelopes needed for
+TSN applications use private-by-default TINs. The owner supplies a phone
+number as private lookup material, but the phone number is not published as a
+TIN field on chain. A real phone-ownership verification step must complete
+before the creation authorization is signed. The Solana program assigns the
+10-digit TIN during the creation transaction, so an application must not ask a
+creator to type an assigned TIN before creation.
+
+The TSN SDK produces the commitment and encrypted envelope needed for
 settlement coordination. The Node, Receiver, and generic Cranker receive
-authenticated protocol data, not the lookup secret or a plaintext identity.
+authenticated protocol data, not a plaintext phone number, TIN, or identity.
 
 ## Application boundary
 
@@ -21,19 +26,33 @@ TCAP or TIN program clients directly, derive settlement PDAs, or assemble raw
 settlement instructions. Those responsibilities remain behind the SDK and
 service boundaries.
 
-## Prepare private identity material locally
+## Creation sequence
+
+The owner-facing flow is:
+
+1. Normalize and verify ownership of the phone number with the configured verification provider.
+2. Prepare the encrypted identity and signed creation authorization locally.
+3. Submit the creation operation through the TSN service boundary.
+4. Let the Solana program assign the TIN during finalization.
+5. Show the assigned TIN to the owner only after the finalized on-chain record is read.
+
+The phone number is a lookup secret, not the display name. Do not log it or
+send it to a Cranker. The current prototype UI intentionally blocks the create
+button until a real verification provider is connected; it does not simulate
+OTP ownership.
+
+## Prepare private identity material locally after issuance
 
 The SDK creates an encrypted identity envelope and its lookup commitment in
-the owner-controlled application boundary. The lookup secret is never
-serialized into a request to the Node.
+the owner-controlled application boundary. The finalized TIN is never sent to
+the Node as a plaintext lookup secret.
 
 ```ts
 import { createTinV1IdentityEnvelope } from "@trustlink/tsn-sdk/tins";
 
 const identity = await createTinV1IdentityEnvelope({
-  tin: userTin,
+  tin: issuedTin,
   displayName: userDisplayName,
-  lookupSecret: userLookupSecret,
 });
 
 const creationData = {
@@ -43,9 +62,9 @@ const creationData = {
 };
 ```
 
-Keep `userLookupSecret` in the owner-controlled application boundary. Do not
-log it, send it to the Node, place it in a Cranker payload, or include it in
-analytics events.
+Keep the phone lookup secret and assigned TIN under the owner's control. Do
+not log either value, place either value in a Cranker payload, or include
+either value in analytics events.
 
 The application submits an owner-authorized creation request through the TSN
 service boundary and displays the returned operation status. It does not call
