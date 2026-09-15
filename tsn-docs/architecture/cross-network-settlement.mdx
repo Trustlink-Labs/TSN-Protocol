@@ -1,7 +1,7 @@
 ---
 title: "Cross-Network Settlement: The Correspondent-Bank Model"
 sidebarTitle: "Cross-Network Settlement"
-description: "How TSN keeps Solana as the accounting chain while paying recipients on Creditcoin and other EVM networks through the Settlement Hub, destination executors, and Attestcoin-verified liquidity."
+description: "How Solana authorizes the debit, Creditcoin's Settlement Hub pays out, and Attestcoin-verified liquidity extends TSN payouts to other EVM networks."
 ---
 
 TSN never moves value across networks by wrapping tokens or by passing arbitrary messages. Solana always authorizes the debit. Payout happens from stablecoin liquidity that already lives on the destination network. Creditcoin acts as the settlement source that turns a signed Solana commitment into an authenticated instruction other EVM networks can execute. This is a correspondent-bank model: each network holds its own funds, and the protocol only exchanges authenticated evidence between them.
@@ -57,7 +57,7 @@ USDSET is the ERC-20 test stablecoin TSN uses on Creditcoin testnet and destinat
 
 ## Attestcoin, and what a proof does
 
-Attestcoin is the readability layer that lets Creditcoin trust an event that happened on a different EVM chain. TSN uses one specific event: a destination liquidity contract emits `LiquidityAvailable`. An off-chain proof worker uses the official Attestcoin USC flow to fetch Merkle and continuity proofs, submits them to `DestinationLiquidityASC` on Creditcoin, and that contract verifies them through the native Block Prover precompile at `0x0FD2`. On success, the ASC writes the observation into the registry.
+Attestcoin is the readability layer that lets Creditcoin trust an event that happened on a different EVM chain. TSN uses one specific event: a destination liquidity contract emits `LiquidityAvailable`. An off-chain proof worker uses the official Attestcoin USC flow to fetch Merkle and continuity proofs and submits them to `DestinationLiquidityASC` on Creditcoin. That contract verifies the proofs through the native Block Prover precompile at `0x0FD2`. On success, the ASC writes the observation into the registry.
 
 A verified proof means "at source block N, the destination vault reported this much liquidity". It does not create liquidity, move stablecoin, or grant authority to pay. The destination vault is still the only source of value, and the destination executor still runs the final balance check before releasing funds.
 
@@ -87,7 +87,7 @@ The direct Creditcoin route is one Solana debit transaction plus one Creditcoin 
 
 ## Fees and gas
 
-The Creditcoin fee is charged inside the same exit transaction: the Node signs an exact `feeAmount`, the Hub pays the recipient's net amount, and the Hub sends the fee to the configured fee recipient. Native CTC (or the destination chain's native token) pays gas; stablecoins are the settlement value.
+The Creditcoin fee is charged inside the same exit transaction. The Node signs an exact `feeAmount`. The Hub pays the recipient's net amount and sends the fee to the configured fee recipient. Native CTC (or the destination chain's native token) pays gas; stablecoins are the settlement value.
 
 ## What this model does not do
 

@@ -1,10 +1,10 @@
 ---
 title: "Build and Sign a Cross-Chain Payment Intent"
 sidebarTitle: "Cross-Chain Payment Intent"
-description: "Opt an intent into cross-network settlement: build the canonical Cross-Chain Payment Intent message, bind a Creditcoin destination route, and submit through the TSN cross-chain SDK client."
+description: "Build the canonical Cross-Chain Payment Intent message, bind a Creditcoin destination route, and submit it through the TSN cross-chain SDK client."
 ---
 
-A cross-chain payment intent authorizes Solana to debit the sender and Creditcoin to pay the recipient on a supported destination network. It is a superset of the Solana-only payment intent: the sender signs the same amount, TIN, and route commitment fields, plus the destination network, destination executor, and settlement route identifier. This page shows how to construct that message, run the destination preflight, and submit the intent so the Node can accept it into the cross-chain flow.
+A cross-chain payment intent authorizes Solana to debit the sender and Creditcoin to pay the recipient on a supported destination network. It is a superset of the Solana-only payment intent. The sender signs the same amount, TIN, and route commitment fields, plus the destination network, destination executor, and settlement route identifier. This page shows how to construct that message, run the destination preflight, and submit the intent so the Node can accept it into the cross-chain flow.
 
 ## When to use this
 
@@ -138,7 +138,7 @@ const request = buildCreateIntentRequest({
 const mempoolIntent = await client.submitDebitIntent(request);
 ```
 
-`submitDebitIntent` forwards to the Node's `POST /intents` endpoint. On success the Node returns the mempool entry with the assigned status. From that point the intent moves through the standard [payment intent lifecycle](/developers/payment-intent-lifecycle), with Cranker jobs on Solana and then on Creditcoin, followed by the destination-network payout when the route is not Creditcoin itself.
+`submitDebitIntent` forwards to the Node's `POST /intents` endpoint. On success the Node returns the mempool entry with the assigned status. From there the intent moves through the standard [payment intent lifecycle](/developers/payment-intent-lifecycle). Cranker jobs run on Solana and then on Creditcoin, followed by the destination-network payout when the route is not Creditcoin itself.
 
 ## Fields the Node re-verifies
 
