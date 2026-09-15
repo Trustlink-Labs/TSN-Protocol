@@ -4,7 +4,7 @@ sidebarTitle: "Introduction"
 description: "TSN is an identity-first, intent-based, privacy-preserving settlement layer for stablecoin and digital asset transfers, built on Solana by TrustLink Labs."
 ---
 
-**Transfer Settlement Network (TSN)** is an identity-first, intent-based, privacy-preserving settlement layer for stablecoin and digital asset transfers, built on Solana by [TrustLink Labs](/about/trustlink-labs). Senders authorize payments against a portable identity, not a raw public key. Operators route and submit those payments without the power to change what the sender signed.
+**Transfer Settlement Network (TSN)** is an identity-first, intent-based, privacy-preserving settlement layer for stablecoin and digital asset transfers, built on Solana by [TrustLink Labs](/about/trustlink-labs). TSN is TrustLink Labs' implementation of the Decentralized Settlement Protocol (DESP) architecture: the Mother Node coordinates verification, while independent Cranker Nodes provide permissioned execution. Senders authorize payments against a portable identity, not a raw public key. Operators route and submit those payments without the power to change what the sender signed.
 
 <CardGroup cols={3}>
   <Card title="Identity-first" icon="fingerprint">
@@ -28,7 +28,7 @@ Most payment networks collapse three responsibilities into one operator: authori
 
 <Note>
   Transport does not authorize, and authorization does not require transport to
-  be honest. Nodes, Receivers, and Crankers move traffic through TSN, but they
+  be honest. Mother Nodes, Receivers, and Cranker Nodes move traffic through TSN, but they
   cannot forge a Mother signature, rewrite sender-signed fields, or replay a
   settlement.
 </Note>
