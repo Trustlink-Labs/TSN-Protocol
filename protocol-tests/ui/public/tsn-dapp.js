@@ -140,8 +140,8 @@
       const displayName = $("tinDisplayName").value.trim();
       if (!activeWallet) throw new Error("Connect a browser wallet first.");
       if (!displayName) throw new Error("Enter a display name.");
-      log("TIN CREATION INPUTS READY", `Wallet ${activeWallet.publicKey.toBase58()} / display name ${displayName}`);
-      log("TIN CREATION BLOCKED", "The current SDK does not yet expose the wallet + display creation builder required by the Node/Cranker path.");
+      log("TIN CREATION INPUTS VALID", `Wallet ${activeWallet.publicKey.toBase58()} / display name ${displayName}`);
+      log("TIN CREATION NOT SUBMITTED", "The on-chain program assigns the TIN, but the active Node/SDK private creation payload still requires a TIN before it can be submitted. No intent or transaction was created.");
     } catch (error) { log("TIN IDENTITY BLOCKED", error.message); }
   }
 
