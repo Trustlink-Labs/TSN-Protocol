@@ -74,7 +74,7 @@ There is no separate Cranker program to deploy. A Cranker is a signed operator p
 
 ## Cross-chain settlement on Creditcoin
 
-A Cranker that opts into cross-chain settlement submits Node-authorized payouts to `CreditcoinSettlementHub` on Creditcoin CC3 Testnet in addition to its Solana work. The Node authorizes each payout with an EIP-712 signature over a `TSN_CREDITCOIN_PAYOUT_AUTHORIZATION`, and the Cranker relays that authorization and signature to the hub, which pays the recipient from destination liquidity. The Cranker never chooses the destination, mint, or amount; those are bound to the Node's signature.
+A Cranker that opts into cross-chain settlement submits Node-authorized payouts to `CreditcoinSettlementHub` on Creditcoin CC3 Testnet in addition to its Solana work. The Node authorizes each payout with an EIP-712 signature over a `TSN_CREDITCOIN_PAYOUT_AUTHORIZATION`. The Cranker relays that authorization and signature to the hub, which pays the recipient from destination liquidity. The Cranker never chooses the destination, mint, or amount; those are bound to the Node's signature.
 
 Opt in when the deployment you serve settles to Creditcoin. Skip it if you only crank Solana settlement work; the daemon continues to process Solana payouts without any Creditcoin variables set.
 
