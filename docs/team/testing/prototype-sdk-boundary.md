@@ -18,24 +18,30 @@ The prototype must not import TCAP/TIN program clients, derive settlement PDAs,
 or assemble raw settlement instructions in a payment route. Those operations
 belong inside the SDK, Node, Receiver, Cranker, or program packages.
 
-## Infrastructure diagnostics
+## Protocol UI scope
 
-The prototype may still use low-level Solana RPC and account inspection in
-routes explicitly labelled as diagnostics, preflight, wallet loading, faucet,
-or evidence verification. Those routes are test-lab instrumentation, not the
-application integration example. They must not be presented as the way a
-developer builds a TSN payment dApp.
+The Protocol UI is not an infrastructure diagnostic console. It does not load
+local keypair files, run a faucet, inspect TCAP accounts, derive PDAs, or build
+raw program instructions. Those tools belong in separate operator and test
+scripts, not in the dApp example.
 
 ## Current implementation observation
 
-The wallet-transfer route now calls
-`buildTsnSplTokenTransferTransaction` from `@trustlink/tsn-sdk`. The UI server
-only validates the session and returns the SDK-produced unsigned transaction.
-The user's wallet remains responsible for signing it.
+The UI server has no Solana, SPL-token, TCAP, or TIN client imports. It invokes
+the SDK for TIN route lookup, payment authorization, intent submission,
+wallet-transfer construction, and sponsored funding construction. The browser
+wallet owns signing and no private key enters the UI server.
 
-The private TIN preparation route remains blocked until the Node-side TIN
-allocator contract is available. It must not fall back to direct program
-creation. This is an intentional safety boundary, not a fabricated success.
+The UI also calls `getTsnNetworkStatus` before transaction preparation. It
+tries the local Node, Receiver, and RPC endpoints first, falls back to the
+configured live Receiver/RPC and future live Node, and reads Cranker liveness
+from the Node's heartbeat-backed route response. The selected RPC source is
+also passed to SDK route and transaction helpers, so the UI does not report a
+healthy live gateway while quietly preparing transactions against a different
+RPC. A missing route or unavailable Cranker blocks signing in the prototype.
+
+Private TIN issuance remains a service-authorized flow. The UI explains that
+boundary and does not fabricate a TIN or fall back to direct program creation.
 
 ## Verification
 

@@ -207,6 +207,7 @@ export function buildPaymentAuthorizationIntentRequest(params: {
 
 export async function submitPaymentAuthorizationToMempool(params: {
   mempoolUrl: string;
+  apiKey?: string | null;
   fetchImpl?: typeof fetch;
   paymentId: string;
   recipientHash: string;
@@ -242,6 +243,7 @@ export async function submitPaymentAuthorizationToMempool(params: {
   const client = new TsnHttpClient({
     baseUrl: params.mempoolUrl,
     fetchImpl: params.fetchImpl,
+    apiKey: params.apiKey,
   });
   const intent = await client.postIntent<CreateIntentRequest, TsnMempoolIntent>(
     intentRequest,

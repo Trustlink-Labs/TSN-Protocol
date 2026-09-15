@@ -1,0 +1,219 @@
+---
+title: "Get Started with TSN: Sign, Submit, and Settle on Devnet"
+sidebarTitle: "Getting Started"
+description: "Set up Solana tooling, register a TIN, sign a payment intent, and submit it to the TSN Receiver on Devnet. Follow the complete path from SDK installation to on-chain confirmation."
+---
+
+This guide walks you through your first application integration with the Transfer Settlement Network (TSN). You will install the SDK, check service availability, resolve a Transfer Identity Number (TIN), construct a signed payment intent, submit it through the SDK, and observe the work lifecycle. TSN is a Solana-first settlement coordination layer. The live path uses credit-only TCAP tips, not public payout accounts.
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+- Solana CLI installed and configured for Devnet
+- A Solana wallet with Devnet SOL
+- The canonical `@trustlink/tsn-sdk` package
+- A browser wallet that supports message signing
+
+TSN Receiver, Node, and Cranker are operator-run services. As an integrator,
+you use the SDK façade; your application does not import TCAP/TIN program
+clients or construct raw settlement instructions.
+
+## Step-by-step
+
+<Steps>
+  <Step title="Install tooling and set environment variables">
+    The TSN SDK is currently a private workspace package; it is not published to the public npm registry. From the repository root, install and build the canonical SDK:
+
+    ```bash title="Install the local SDK"
+    npm --prefix tsn-protocol/sdks/tsn-sdk install
+    npm run tsn:sdk:build
+    ```
+
+    Configure the Devnet endpoints for your integration:
+
+    ```bash title="Environment variables"
+    export TSN_RPC_GATEWAY_URL=https://tsn-rpc-gateway.vercel.app
+    export TSN_RECEIVER_URL=https://tsn-receiver-kappa.vercel.app
+    export SOLANA_CLUSTER=devnet
+    ```
+
+  </Step>
+  <Step title="Check the TSN network before signing">
+    Let the SDK select local services first and live services second. Do this
+    before preparing a payment and again before requesting a wallet signature.
+
+    ```ts title="SDK service gate"
+    import { getTsnNetworkStatus } from "@trustlink/tsn-sdk";
+
+    const network = await getTsnNetworkStatus({
+      local: {
+        node: "http://127.0.0.1:8000",
+        receiver: "http://127.0.0.1:3000",
+        rpc: "http://127.0.0.1:8787",
+      },
+      live: {
+        node: process.env.TSN_NODE_URL ?? null,
+        receiver: process.env.TSN_RECEIVER_URL ?? "https://tsn-receiver-kappa.vercel.app",
+        rpc: process.env.TSN_RPC_GATEWAY_URL ?? "https://tsn-rpc-gateway.vercel.app",
+      },
+    });
+
+    if (!network.readyForTransactions) {
+      throw new Error("TSN services are not ready");
+    }
+    ```
+
+    Cranker availability comes from the Node heartbeat-backed route response;
+    a Cranker is a worker, not a public application HTTP service.
+
+  </Step>
+  <Step title="Obtain or register a TIN">
+    A TIN is a portable 10-digit identity issued by the Transfer Identity Protocol (TIP). Resolve its public payment route through the SDK.
+
+    ```ts title="Resolve a TIN"
+    import { resolveTinRoute } from "@trustlink/tsn-sdk";
+
+    const tinRecord = await resolveTinRoute({
+      tin: "1234567890",
+      rpcUrl: process.env.TSN_RPC_GATEWAY_URL!,
+      programId: "TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT",
+    });
+    ```
+
+    The registry returns the active route commitment, route version, and policy commitment. Your device never shares the privacy-receiving root with the registry or the Node.
+
+  </Step>
+  <Step title="Construct and sign a payment intent locally">
+    Build the canonical payment message on your authorized device. The intent binds amount, mint, fee limits, expiry, a one-time nonce, sender authorization, transaction commitment, recipient route commitment, and route version.
+
+    ```json title="Conceptual intent fields"
+    {
+      "amount": "1000000",
+      "tokenMint": "E7jSHdPLzgGafBou5PswKcsS5JxiPnek7TxquFAxXm6h",
+      "feeLimit": "5000",
+      "expiresAtSlot": 320000000,
+      "nonce": "a1b2c3d4e5f6...",
+      "senderAuthorization": "signed-canonical-message...",
+      "transactionCommitment": "commitment-digest...",
+      "recipientRouteCommitment": "route-commitment-digest...",
+      "routeVersion": 1
+    }
+    ```
+
+    Use the GPRU helpers to derive the authorization scope:
+
+    ```ts title="Derive GPRU identity"
+    import { deriveGpruIdentity, createCanonicalGpruAuthorizationMessage } from "@trustlink/tsn-sdk/gpru";
+
+    const gpruIdentity = deriveGpruIdentity({
+      tinPrivacyReceivingRoot,
+      settlementCommitment,
+      epochContext,
+      authorizationScope,
+    });
+
+    const authMessage = createCanonicalGpruAuthorizationMessage({
+      tinPrivacyReceivingRoot,
+      settlementCommitment,
+      epochContext,
+      authorizationScope,
+      gpruIdentity,
+    });
+    ```
+
+  </Step>
+  <Step title="Submit to the TSN Receiver">
+    Submit the signed intent through the SDK. The SDK sends the request to the configured TSN service boundary; the browser must never hold a Node or Receiver API key.
+    ```ts title="Submit authorized funding work"
+    import { submitPaymentAuthorizationToMempool } from "@trustlink/tsn-sdk";
+
+    const result = await submitPaymentAuthorizationToMempool({
+      mempoolUrl: process.env.TSN_RECEIVER_URL!,
+      apiKey: process.env.TSN_RECEIVER_NODE_API_KEY,
+      paymentId,
+      recipientHash: recipientTin,
+      recipientTin,
+      recipientRouteCommitment,
+      recipientRouteVersion,
+      tokenMintAddress,
+      senderWallet,
+      senderAuthorizationMessage,
+      senderAuthorizationSignature,
+      senderAuthorizationNonce,
+      senderAuthorizationIssuedAt,
+      senderAuthorizationExpiresAt,
+      amount,
+      senderFundingMode: "wallet_only_v2",
+    });
+    console.log(result.intent.id, result.intent.status);
+    ```
+
+    The Receiver records the work as `RECEIVED`. The response uses `id` as the stable work/payment identifier. The Node then verifies the signed authorization before a Cranker can lease it.
+
+  </Step>
+  <Step title="Observe the work lifecycle">
+    The internal Receiver state machine is:
+
+    ```text
+    RECEIVED -> NODE_VERIFYING -> VERIFIED -> CRANKER_LEASED -> SUBMITTED -> CONFIRMED
+    ```
+
+    Node services can list payment work with authenticated `GET /intents`. The public view maps active internal states to `pending`, `REJECTED` to `canceled`, and `CONFIRMED` to `executed`; use `receiverStatus` when you need the raw state. There is no public `GET /intents/:id` endpoint in the current Receiver.
+
+  </Step>
+  <Step title="Confirm on Solana">
+    Once `receiverStatus` reaches `CONFIRMED`, read the returned transaction signature and verify it on Solana Explorer (Devnet cluster):
+
+    ```bash
+    solana confirm -ud <transaction_signature>
+    ```
+
+    The on-chain program enforces the commitment, lease, nullifier, and expiry.
+
+  </Step>
+</Steps>
+
+## Devnet program IDs
+
+| Program                | Program ID                                     | Status                                              |
+| ---------------------- | ---------------------------------------------- | --------------------------------------------------- |
+| TSN / TrustLink Escrow | `TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V`  | Active Devnet                                       |
+| TIN registry           | `TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT`  | Active Devnet                                       |
+| TCAP                   | Deployment-specific; set `TCAP_PROGRAM_ID`     | Credit-only path; verify the deployed ID before use |
+| Stable-TCAP faucet     | `E7jSHdPLzgGafBou5PswKcsS5JxiPnek7TxquFAxXm6h` | Devnet test infrastructure                          |
+
+<Info>
+  The Stable-TCAP faucet is Devnet-only and valueless. It is not USDC or any
+  production stablecoin. Historical TCAP ID placeholders are not valid Solana
+  public keys; obtain the deployed ID before constructing TCAP instructions.
+</Info>
+
+## Next steps
+
+<CardGroup>
+  <Card title="Intent Lifecycle" icon="code-branch" href="/developers/payment-intent-lifecycle">
+    Understand how intents move from signed message to on-chain settlement.
+  </Card>
+
+<Card
+  title="Funding & Acceptance"
+  icon="coins"
+  href="/developers/funding-and-accepted-intent"
+>
+  Learn how epoch treasury funding and the AcceptedIntent PDA work.
+</Card>
+
+<Card
+  title="Confidential Settlement"
+  icon="lock"
+  href="/developers/confidential-settlement"
+>
+  Explore the TCAP credit-only settlement path and the ConfidentialSettlement
+  ABI.
+</Card>
+
+  <Card title="Security Invariants" icon="shield" href="/security/invariants">
+    Review the safety properties enforced by the TSN protocol.
+  </Card>
+</CardGroup>

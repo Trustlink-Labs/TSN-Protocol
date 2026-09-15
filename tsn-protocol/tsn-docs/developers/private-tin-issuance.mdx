@@ -1,0 +1,118 @@
+---
+title: "Use a Private TIN in a TSN Payment App"
+sidebarTitle: "Private TINs"
+description: "Build a privacy-aware payment experience with the TSN SDK without exposing TIN secrets to application servers or settlement operators."
+---
+
+TSN applications use private-by-default TINs. The application keeps the
+lookup secret and sensitive identity material under the user's control, while
+the TSN SDK produces the commitments and encrypted envelopes needed for
+settlement coordination. The Node, Receiver, and generic Cranker receive
+authenticated protocol data, not the lookup secret or a plaintext identity.
+
+## Application boundary
+
+```text
+Payment UI -> @trustlink/tsn-sdk -> TSN services -> generic Cranker
+```
+
+The application integrates through `@trustlink/tsn-sdk`. It does not import
+TCAP or TIN program clients directly, derive settlement PDAs, or assemble raw
+settlement instructions. Those responsibilities remain behind the SDK and
+service boundaries.
+
+## Prepare private identity material locally
+
+The SDK creates an encrypted identity envelope and its lookup commitment in
+the owner-controlled application boundary. The lookup secret is never
+serialized into a request to the Node.
+
+```ts
+import { createTinV1IdentityEnvelope } from "@trustlink/tsn-sdk/tins";
+
+const identity = await createTinV1IdentityEnvelope({
+  tin: userTin,
+  displayName: userDisplayName,
+  lookupSecret: userLookupSecret,
+});
+
+const creationData = {
+  tin: userTin,
+  lookupCommitment: Buffer.from(identity.lookupCommitment).toString("hex"),
+  encryptedIdentityEnvelope: Buffer.from(identity.encryptedIdentityEnvelope).toString("base64"),
+};
+```
+
+Keep `userLookupSecret` in the owner-controlled application boundary. Do not
+log it, send it to the Node, place it in a Cranker payload, or include it in
+analytics events.
+
+The application submits an owner-authorized creation request through the TSN
+service boundary and displays the returned operation status. It does not call
+a direct `createTin` program method.
+
+## Resolve a TIN and prepare a payment
+
+Resolve a TIN with the SDK after the owner authorizes local disclosure, then
+use the returned route commitment to prepare a payment authorization.
+
+```ts
+import {
+  createPaymentAuthorization,
+  resolveTinRoute,
+} from "@trustlink/tsn-sdk";
+
+const identity = await resolveTinRoute({
+  tin: recipientTin,
+  rpcUrl: TSN_RPC_URL,
+  programId: TIN_PROGRAM_ID,
+});
+
+const authorization = createPaymentAuthorization({
+  senderWallet: wallet.publicKey.toBase58(),
+  senderIdentity: `wallet:${wallet.publicKey.toBase58()}`,
+  receiverIdentity: `tin:${recipientTin}`,
+  recipientRouteCommitment: identity.tcapRelationshipCommitment,
+  recipientRouteVersion: identity.tcapRouteVersion,
+  tokenMintAddress: settlementMint,
+  amount,
+  senderFeeAmount,
+  totalTokenRequiredUi: amount + senderFeeAmount,
+  fundingMode: "wallet_only_v2",
+});
+```
+
+The wallet signs the authorization required by the SDK-generated intent. The
+Node validates the request and route, while the generic Cranker submits only
+the authorized protocol operation.
+
+## Build a wallet-to-wallet transfer
+
+Use the SDK to construct the unsigned transaction. The connected wallet signs
+it; no private key is passed to the SDK or Node.
+
+```ts
+import { buildTsnSplTokenTransferTransaction } from "@trustlink/tsn-sdk";
+import { Transaction } from "@solana/web3.js";
+
+const unsigned = await buildTsnSplTokenTransferTransaction({
+  senderWallet: wallet.publicKey.toBase58(),
+  recipientWallet,
+  tokenMintAddress: settlementMint,
+  amountUi: "1.00",
+  tokenDecimals: 6,
+  rpcUrl: TSN_RPC_URL,
+});
+
+await wallet.signTransaction(
+  Transaction.from(Buffer.from(unsigned.transactionBase64, "base64")),
+);
+```
+
+For a TIN payment, use `createPaymentAuthorization` and
+`buildPaymentAuthorizationIntentRequest` from the SDK instead. The SDK is the
+application interface; the TSN services coordinate settlement underneath it.
+
+For internal deployment, registry initialization, RPC configuration, and
+evidence procedures, use the team runbooks. Those operator instructions are
+intentionally not part of public developer documentation.

@@ -1562,3 +1562,20 @@ export async function resolveTIN(params: {
     tcapPolicyCommitment: null,
   };
 }
+
+/**
+ * Resolve the public payment-route commitments for a TIN through the TSN SDK.
+ * Application code supplies an RPC URL instead of constructing a Solana client
+ * or importing TIP program helpers directly.
+ */
+export async function resolveTinRoute(params: {
+  tin: bigint | number | string;
+  rpcUrl: string;
+  programId?: PublicKey | string | null;
+}): Promise<TinResolvedIdentity> {
+  return resolveTIN({
+    tin: params.tin,
+    connection: new Connection(params.rpcUrl, "confirmed"),
+    programId: params.programId,
+  });
+}
