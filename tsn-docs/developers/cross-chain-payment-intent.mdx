@@ -1,0 +1,176 @@
+---
+title: "Build and Sign a Cross-Chain Payment Intent"
+sidebarTitle: "Cross-Chain Payment Intent"
+description: "Opt an intent into cross-network settlement: build the canonical Cross-Chain Payment Intent message, bind a Creditcoin destination route, and submit through the TSN cross-chain SDK client."
+---
+
+A cross-chain payment intent authorizes Solana to debit the sender and Creditcoin to pay the recipient on a supported destination network. It is a superset of the Solana-only payment intent: the sender signs the same amount, TIN, and route commitment fields, plus the destination network, destination executor, and settlement route identifier. This page shows how to construct that message, run the destination preflight, and submit the intent so the Node can accept it into the cross-chain flow.
+
+## When to use this
+
+Use a cross-chain payment intent when the recipient should be paid on Creditcoin or on another EVM network that Creditcoin routes to (for example a supported testnet). If the payout stays entirely on Solana, keep using the regular signed [Payment Intent](/developers/payment-intent-lifecycle) message. The two message formats are intentionally separate so Solana-only flows are unaffected.
+
+## Prerequisites
+
+- The sender's device can produce a Solana ed25519 signature over a UTF-8 canonical message.
+- The recipient TIN, route commitment, and route version match the recipient's currently-published route.
+- The destination route is registered in `DestinationLiquidityRegistry` on Creditcoin and its Attestcoin liquidity observation is fresh. The [Cross-Network Settlement](/architecture/cross-network-settlement) page explains what "registered" and "fresh" mean.
+- You have the Creditcoin route metadata: the registry contract address on Creditcoin, the route ID (`bytes32`), the destination executor address (`0x…40 hex`), and the destination stablecoin symbol.
+
+## The canonical message
+
+The cross-chain intent uses the canonical action `TSN Cross-Chain Payment Intent`. It is a text message with a fixed field order and the TSN canonical domain footer. The Node parses this exact format and rejects any deviation.
+
+```text title="Illustrative TSN Cross-Chain Payment Intent message"
+TSN Cross-Chain Payment Intent
+---
+Intent ID: 1c2f5e6a-...-payment-uuid
+Amount: 12.500000 USDC
+Asset: usdset
+Recipient TIN: 1234567890
+Recipient Route Commitment: a1b2c3...64hex
+Recipient Route Version: 3
+Fee: 0.010000 USDC
+Sender: <sender-solana-public-key>
+Nonce: <one-time-nonce>
+Expires: 2026-09-16T12:30:00.000Z
+Destination Network: creditcoin-testnet
+Destination Executor: 0xabc...def
+Settlement Route ID: 7f8e...64hex
+Domain: ...<8-char-domain-hash-suffix>
+```
+
+Rules the Node enforces:
+
+- `Amount` and `Fee` are decimal USDC amounts. The Node re-parses them into base units and compares against the request payload.
+- `Recipient TIN` is plain digits.
+- `Recipient Route Commitment` and `Settlement Route ID` are lowercase 32-byte hex without a `0x` prefix.
+- `Destination Executor` is a lowercase 20-byte EVM address with the `0x` prefix.
+- `Destination Network` is a lowercase `[a-z0-9-]+` slug (for example `creditcoin-testnet`).
+- `Expires` is a strict ISO 8601 UTC timestamp and must be in the future.
+- `Nonce` is single-use per (domain, action, sender).
+
+If any of these fail, the Node responds with `400`. If the destination preflight (route registry lookup and liquidity check) fails, the Node responds with `409` and does not admit the intent.
+
+## Build the message with the SDK
+
+The `@trustlink/tsn-sdk` cross-chain module exposes `buildCrossChainPaymentIntentMessage` to produce a byte-exact canonical message. Sign the returned string with the sender's Solana private key and forward the base64 signature.
+
+```ts title="Build and sign the canonical message"
+import { buildCrossChainPaymentIntentMessage } from "@trustlink/tsn-sdk";
+import nacl from "tweetnacl";
+
+const message = buildCrossChainPaymentIntentMessage({
+  intentId: paymentId,
+  amountBaseUnits: 12_500_000n,         // 12.500000 USDC
+  destinationToken: "usdset",
+  recipientTin: "1234567890",
+  recipientRouteCommitment: recipientRouteCommitmentHex,
+  recipientRouteVersion: 3,
+  feeBaseUnits: 10_000n,                // 0.010000 USDC
+  sender: senderPublicKey,              // Solana base58
+  nonce: crypto.randomUUID(),
+  expires: new Date(Date.now() + 10 * 60 * 1000),
+  destinationNetwork: "creditcoin-testnet",
+  destinationExecutor: "0xabc...def",
+  settlementRouteId: settlementRouteIdHex,
+});
+
+const signature = nacl.sign.detached(
+  new TextEncoder().encode(message),
+  senderSigningKey,
+);
+const senderAuthorizationSignature = Buffer.from(signature).toString("base64");
+```
+
+## Run the destination preflight
+
+Before you submit the intent, ask the Node and Creditcoin whether the route is currently accepting settlements. `TsnCrossChainClient.preflight()` calls the Node's `/settlement-networks` endpoint and reads the registry and liquidity observation directly from Creditcoin. It returns `status: "ready"` only when both the Node route gate and Creditcoin evidence pass.
+
+```ts title="Preflight the Creditcoin route"
+import { TsnCrossChainClient } from "@trustlink/tsn-sdk";
+
+const client = new TsnCrossChainClient({
+  nodeUrl: process.env.TSN_NODE_URL!,
+  apiKey: process.env.TSN_NODE_API_KEY,
+  route: {
+    rpcUrl: "https://rpc.cc3-testnet.creditcoin.network/",
+    registry: process.env.CREDITCOIN_ROUTE_REGISTRY! as `0x${string}`,
+    routeId: process.env.CREDITCOIN_ROUTE_ID! as `0x${string}`,
+  },
+});
+
+const snapshot = await client.preflight();
+if (snapshot.status !== "ready") {
+  throw new Error(`cross-chain route not ready: ${snapshot.logs.join(" | ")}`);
+}
+```
+
+The snapshot's `logs` array is written in the same order a terminal runner would produce and is safe to surface in a UI when a route is blocked.
+
+## Submit the intent
+
+Build a `CreateIntentRequest` with the cross-chain fields set and submit it through `submitDebitIntent`. The SDK rejects the request locally if the destination fields are missing, and the Node rejects it if any signed field disagrees with the request payload.
+
+```ts title="Submit the signed cross-chain intent"
+import { buildCreateIntentRequest } from "@trustlink/tsn-sdk";
+
+const request = buildCreateIntentRequest({
+  paymentId,
+  senderWallet: senderPublicKey,
+  senderAuthorizationMessage: message,
+  senderAuthorizationSignature,
+  senderAuthorizationNonce: nonceUsedAbove,
+  senderAuthorizationExpiresAt: expiresIsoString,
+  senderFeeAmount: "0.010000",
+  amount: "12.500000",
+  tokenMintAddress: solanaUsdcMint,
+  recipientHash,
+  recipientTin: "1234567890",
+  recipientRouteCommitment: recipientRouteCommitmentHex,
+  recipientRouteVersion: 3,
+  destinationNetwork: "creditcoin-testnet",
+  destinationExecutor: "0xabc...def",
+  destinationToken: "usdset",
+  settlementRouteId: settlementRouteIdHex,
+});
+
+const mempoolIntent = await client.submitDebitIntent(request);
+```
+
+`submitDebitIntent` forwards to the Node's `POST /intents` endpoint. On success the Node returns the mempool entry with the assigned status. From that point the intent moves through the standard [payment intent lifecycle](/developers/payment-intent-lifecycle), with Cranker jobs on Solana and then on Creditcoin, followed by the destination-network payout when the route is not Creditcoin itself.
+
+## Fields the Node re-verifies
+
+The Node re-parses every signed field and compares it to the request:
+
+| Signed field | Request field | Rejected when |
+| --- | --- | --- |
+| `Intent ID` | `paymentId` | Mismatch. |
+| `Amount` / `Fee` | `amount` / `senderFeeAmount` | Base-unit mismatch after decimal conversion. |
+| `Asset` | `destinationToken` | Case-insensitive mismatch. |
+| `Destination Network` | `destinationNetwork` | Missing, wrong slug, or mismatch. |
+| `Destination Executor` | `destinationExecutor` | Not a 20-byte EVM address or mismatch. |
+| `Settlement Route ID` | `settlementRouteId` | Not 32-byte hex or mismatch after stripping `0x`. |
+| `Nonce` | `senderAuthorizationNonce` | Reused or mismatch. |
+| `Expires` | `senderAuthorizationExpiresAt` | In the past or mismatch. |
+
+If all fields agree, the Node runs the destination-route preflight against the on-chain registry and only then admits the intent.
+
+## Recipient shapes
+
+The cross-chain SDK models the recipient with `CrossChainRecipient`, which is either a TIN or a wallet:
+
+```ts
+type CrossChainRecipient =
+  | { kind: "tin"; tinHash: `0x${string}` }
+  | { kind: "wallet"; address: `0x${string}` };
+```
+
+Use `tin` when the recipient is discovered through TSN identity and the destination vault should resolve the payout account from the verified route. Use `wallet` only for direct payouts to a known EVM address on the destination network.
+
+## Related pages
+
+- [Cross-Network Settlement](/architecture/cross-network-settlement) for the Settlement Hub, destination registry, and Attestcoin roles.
+- [Payment Intent Lifecycle](/developers/payment-intent-lifecycle) for the state machine that applies once the Node admits the intent.
+- [Replay and Retries](/developers/replay-and-retries) for safe retry behavior on the nonce and settlement identifier.

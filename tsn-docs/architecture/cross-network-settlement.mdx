@@ -1,0 +1,103 @@
+---
+title: "Cross-Network Settlement: The Correspondent-Bank Model"
+sidebarTitle: "Cross-Network Settlement"
+description: "How TSN keeps Solana as the accounting chain while paying recipients on Creditcoin and other EVM networks through the Settlement Hub, destination executors, and Attestcoin-verified liquidity."
+---
+
+TSN never moves value across networks by wrapping tokens or by passing arbitrary messages. Solana always authorizes the debit. Payout happens from stablecoin liquidity that already lives on the destination network. Creditcoin acts as the settlement source that turns a signed Solana commitment into an authenticated instruction other EVM networks can execute. This is a correspondent-bank model: each network holds its own funds, and the protocol only exchanges authenticated evidence between them.
+
+## Chain roles
+
+| Chain | Role |
+| --- | --- |
+| Solana | Accounting chain. Holds the sealed TIP state, the two-phase exit commitment, and the sender-signed debit authorization. |
+| Creditcoin | First live EVM settlement rail and the source of onward instructions. Consumes the Solana commitment and publishes an authenticated payout message. |
+| Other EVM networks (for example Base, Ethereum) | Destination networks. Each has its own prefunded stablecoin vault and destination executor, activated only after Attestcoin verifies a fresh liquidity observation. |
+
+Solana still runs the sealed TIP-head overwrite, the exit commitment, Path 1/2 liability wiring, GPRU-only authorization, and the one-vault model. None of the raw TIN values, device keys, or private balances are ever sent to an EVM network.
+
+## The three surfaces
+
+TSN cross-network settlement is built from three on-chain surfaces plus one test stablecoin. Each one has a narrow job.
+
+### `CreditcoinSettlementHub`
+
+The Hub is the authenticated-message source on Creditcoin.
+
+- Consumes the Node's EIP-712 authorization that references a specific Solana exit commitment.
+- Enforces replay protection: a settlement identifier can be consumed once.
+- For a direct Creditcoin payout, releases stablecoin from the Creditcoin destination vault and pays the recipient net of the configured fee.
+- For an onward-EVM payout, reserves verified destination liquidity in the registry and publishes an authenticated instruction for the selected destination executor.
+
+The Hub never chooses a recipient, amount, or network. Those values are signed by the sender in the canonical message and re-signed by the Node under EIP-712 before the Cranker submits.
+
+### `DestinationLiquidityRegistry`
+
+The registry is the eligibility record for onward EVM routes. It stores, per route ID:
+
+- The destination network key and chain ID.
+- The destination executor address and settlement token.
+- The current Attestcoin-verified liquidity observation (available amount, source block, `validUntil`, nonce).
+- The reservation held for any in-flight settlement.
+
+The registry does not custody stablecoin. It records which routes are supported and which liquidity observations are currently valid. When a route is disabled, its liquidity observation is expired, or the reservation exceeds the observed amount, the Node rejects any intent that targets it.
+
+### Destination executor and vault
+
+Every onward EVM network has its own pair:
+
+- `TSNSettlementExecutor` verifies the authenticated Creditcoin message on the destination Inbox and calls the local vault.
+- `TSNERCLiquidityVault` is a prefunded stablecoin vault that only its registered executor can drain.
+
+A destination network is only "live" once its vault is prefunded, its executor is registered, and the registry holds a fresh Attestcoin-verified `LiquidityAvailable` observation.
+
+### USDSET
+
+USDSET is the ERC-20 test stablecoin TSN uses on Creditcoin testnet and destination testnets so integrators can exercise the full path with real balances. Production destinations use the network's canonical stablecoin.
+
+## Attestcoin, and what a proof does
+
+Attestcoin is the readability layer that lets Creditcoin trust an event that happened on a different EVM chain. TSN uses one specific event: a destination liquidity contract emits `LiquidityAvailable`. An off-chain proof worker uses the official Attestcoin USC flow to fetch Merkle and continuity proofs, submits them to `DestinationLiquidityASC` on Creditcoin, and that contract verifies them through the native Block Prover precompile at `0x0FD2`. On success, the ASC writes the observation into the registry.
+
+A verified proof means "at source block N, the destination vault reported this much liquidity". It does not create liquidity, move stablecoin, or grant authority to pay. The destination vault is still the only source of value, and the destination executor still runs the final balance check before releasing funds.
+
+## End-to-end settlement flow
+
+```text
+1. Sender signs canonical "TSN Cross-Chain Payment Intent" on device.
+2. Node validates the intent, checks the destination route in the registry,
+   confirms the verified liquidity observation is fresh, and re-signs an
+   EIP-712 authorization bound to the Solana exit commitment.
+3. Cranker submits the Solana debit intent. The Solana program records the
+   authorized exit commitment.
+4. Cranker submits the Creditcoin exit transaction. CreditcoinSettlementHub
+   consumes the commitment and either:
+     - pays directly from the Creditcoin vault (direct route), or
+     - reserves registry liquidity and publishes an authenticated Attestcoin
+       instruction for the selected destination executor (onward route).
+5. For onward routes, a relayer delivers the authenticated message to the
+   destination network. TSNSettlementExecutor verifies it and releases the
+   payout from TSNERCLiquidityVault to the recipient.
+6. After the destination payout event is observed, the Hub owner frees the
+   corresponding registry reservation. This releases accounting capacity
+   only; it cannot move destination funds or authorize a new settlement.
+```
+
+The direct Creditcoin route is one Solana debit transaction plus one Creditcoin exit transaction. An onward-EVM route adds one destination transaction on the selected network. There is no second Solana payout in either case.
+
+## Fees and gas
+
+The Creditcoin fee is charged inside the same exit transaction: the Node signs an exact `feeAmount`, the Hub pays the recipient's net amount, and the Hub sends the fee to the configured fee recipient. Native CTC (or the destination chain's native token) pays gas; stablecoins are the settlement value.
+
+## What this model does not do
+
+- **No wrapped tokens.** The recipient receives the destination network's own stablecoin from a vault that already holds it.
+- **No arbitrary cross-chain message passing.** The only message is an authenticated payout instruction bound to one authorized Solana commitment.
+- **No cross-chain custody.** The Hub, registry, and ASC never hold recipient funds. Custody is always local to the network that pays.
+- **No route without evidence.** A destination network is eligible only when its route is registered, its executor is deployed, and its liquidity observation is verified and fresh.
+
+## Related pages
+
+- [Receiver, Node, and Cranker](/architecture/node-receiver-cranker) for the transport separation the settlement flow relies on.
+- [Trust Model](/architecture/trust-model) for the authorization-versus-transport split.
+- [Build and sign a cross-chain payment intent](/developers/cross-chain-payment-intent) for the developer-facing workflow.

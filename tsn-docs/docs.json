@@ -69,7 +69,8 @@
               "architecture/mother-authority",
               "architecture/node-receiver-cranker",
               "architecture/epoch-treasury",
-              "architecture/tcap"
+              "architecture/tcap",
+              "architecture/cross-network-settlement"
             ]
           },
           {
@@ -78,6 +79,7 @@
               "developers/payment-intent-lifecycle",
               "developers/funding-and-accepted-intent",
               "developers/confidential-settlement",
+              "developers/cross-chain-payment-intent",
               "developers/tcap-tip-credits",
               "developers/replay-and-retries"
             ]
