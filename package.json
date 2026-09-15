@@ -165,7 +165,8 @@
     "git:hygiene:fix": "node scripts/git-hygiene-check.mjs --fix",
     "git:pull:all": "git pull --rebase origin main",
     "git:pull:protocol": "git fetch tsn-protocol main",
-    "git:push:current": "git branch -M main && git push -u origin main",
+  "git:push:current": "git branch -M main && git push -u origin main",
+  "git:push:tsn-protocol": "git subtree push --prefix=tsn-protocol tsn-protocol main",
     "git:commit:push:all": "git add -A && git diff --cached --quiet && echo No changes to commit || (git commit -m \"Something just got updated!\" && npm run git:push:current)",
     "tcap:one-time:deposit-credit:devnet": "node protocol-tests/scenarios/tcap-one-time-deposit-credit.mjs"
   },

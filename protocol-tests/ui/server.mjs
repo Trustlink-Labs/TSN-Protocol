@@ -221,7 +221,7 @@ async function handleApi(req, res, url) {
     });
     return json(res, 200, { status: "UNSIGNED_FUNDING_READY", ...funding, sdk: "@trustlink/tsn-sdk.buildTsnSponsoredSettlementTransaction" });
   }
-  return json(res, 404, { error: "SDK_ROUTE_NOT_FOUND" });
+  return json(res, 404, { error: "SDK_ROUTE_NOT_FOUND", method: req.method, path: url.pathname });
 }
 
 function getSession(req) {

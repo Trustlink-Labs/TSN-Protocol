@@ -59,6 +59,7 @@
   function renderNetworkStatus(status) {
     networkStatus = status;
     const selectedByService = new Map(Object.entries(status.selected ?? {}).map(([service, selected]) => [service, selected]));
+    const serviceLabels = { node: "MOTHER NODE", receiver: "RECEIVER", rpc: "RPC GATEWAY", cranker: "CRANKER NODE" };
     const services = ["node", "receiver", "rpc", "cranker"].map((service) => {
       const item = [...status.services].reverse().find((entry) => entry.service === service && entry.state === "online")
         ?? status.services.find((entry) => entry.service === service)
@@ -69,14 +70,14 @@
         : selected?.url ? `${item.source} / ${selected.url.replace(/^https?:\/\//, "")}` : item.detail ?? item.source;
       const displayState = service === "cranker" && status.onlineCrankers == null ? "ON DEMAND" : item.state.toUpperCase();
       const displayClass = service === "cranker" && status.onlineCrankers == null ? "unknown" : item.state;
-      return `<div class="status-card service-${service}"><span>${service.toUpperCase()}</span><strong class="state-${displayClass}">${displayState}</strong><small title="${detail}">${short(detail, 34)}</small></div>`;
+      return `<div class="status-card service-${service}"><span>${serviceLabels[service]}</span><strong class="state-${displayClass}">${displayState}</strong><small title="${detail}">${short(detail, 34)}</small></div>`;
     });
     const nativeReady = status.readyForNativeTransactions ?? status.readyForTransactions;
     const crossChainReady = status.readyForCrossChainTransactions ?? (nativeReady && status.routeCount > 0);
     const crankerText = status.onlineCrankers == null
       ? "discovery on demand"
       : `${status.onlineCrankers} recently active`;
-    $("serviceStatus").innerHTML = `<div class="status-grid">${services.join("")}</div><div class="status-summary"><span>Native TSN <b class="state-${nativeReady ? "online" : "offline"}">${nativeReady ? "READY" : "BLOCKED"}</b></span><span>Cross-chain <b class="state-${crossChainReady ? "online" : "unknown"}">${crossChainReady ? "READY" : "ROUTE REQUIRED"}</b></span><span>Registered routes <b>${status.routeCount}</b></span><span>Cranker discovery <b class="state-unknown">${crankerText}</b></span></div><p class="status-note">Crankers are not tracked by IP. They authenticate with Mother-DNA and become visible when they claim authorized work.</p>`;
+    $("serviceStatus").innerHTML = `<div class="status-grid">${services.join("")}</div><div class="status-summary"><span>Native TSN <b class="state-${nativeReady ? "online" : "offline"}">${nativeReady ? "READY" : "BLOCKED"}</b></span><span>Cross-chain <b class="state-${crossChainReady ? "online" : "unknown"}">${crossChainReady ? "READY" : "ROUTE REQUIRED"}</b></span><span>Registered routes <b>${status.routeCount}</b></span><span>Cranker Node <b class="state-unknown">${crankerText}</b></span></div><p class="status-note">Cranker Nodes are not tracked by IP. They authenticate with Mother-DNA and become observable when they claim authorized work.</p>`;
   }
 
   async function refreshStatus() {
@@ -138,7 +139,7 @@
   }
 
   function configureCurrentTinPath() {
-    $("panel-create-tin").innerHTML = `<div class="section-head"><div><h2>Create your private TIN</h2><p>Connect a wallet and choose a display name. The Solana program assigns the 10-digit TIN during the finalized creation transaction.</p></div></div><div class="form"><label>Connected wallet<input id="tinOwnerWallet" readonly value="${activeWallet?.publicKey?.toBase58?.() ?? "Connect wallet above"}"></label><label>Display name<input id="tinDisplayName" placeholder="Your display name" autocomplete="name"></label><div></div></div><div class="form-actions" style="margin-top:12px"><button id="prepareTinIdentity">Prepare owner creation</button></div><p class="notice" style="margin-top:14px">The current protocol does not ask the user for a TIN, phone number, or lookup secret. The UI will not claim a TIN was created until the SDK creation payload is accepted by the Node, submitted by a Cranker, and finalized on Solana.</p><details><summary>VIEW SDK CODE / creation boundary</summary><pre>User inputs: connected wallet and display name. The SDK must build the encrypted route payload and owner authorization before submission.</pre><a href="https://trust-link-tsn.mintlify.site/developers/private-tin-issuance" target="_blank" rel="noreferrer">Read the Private TIN guide -&gt;</a></details>`;
+    $("panel-create-tin").innerHTML = `<div class="section-head"><div><h2>Create private TIN</h2><p>Connect a wallet and choose a display name. The Solana program assigns the 10-digit TIN during the finalized creation transaction.</p></div></div><div class="form"><label>Connected wallet<input id="tinOwnerWallet" readonly value="${activeWallet?.publicKey?.toBase58?.() ?? "Connect wallet above"}"></label><label>Display name<input id="tinDisplayName" placeholder="Your display name" autocomplete="name"></label><div></div></div><div class="form-actions" style="margin-top:12px"><button id="prepareTinIdentity">Prepare owner creation</button></div><p class="notice" style="margin-top:14px">The current protocol does not ask the user for a TIN, phone number, or lookup secret. The UI will not claim a TIN was created until the SDK creation payload is accepted by the Node, submitted by a Cranker, and finalized on Solana.</p><details><summary>VIEW SDK CODE / creation boundary</summary><pre>User inputs: connected wallet and display name. The SDK must build the encrypted route payload and owner authorization before submission.</pre><a href="https://trust-link-tsn.mintlify.site/developers/private-tin-issuance" target="_blank" rel="noreferrer">Read the Private TIN guide -&gt;</a></details>`;
   }
 
   async function prepareTinIdentity() {
