@@ -1,0 +1,69 @@
+---
+title: "How a TSN Payment Feels: One Action, Many Checks"
+sidebarTitle: "How It Works"
+description: "A TSN payment looks like one action to the user. Under the hood, TIN, GPRU, TSN, and TCAP cooperate. This page shows both views side by side."
+---
+
+**In plain English:** From the user's side, a TSN payment is one action: enter a 10-digit TIN, review the amount, and approve. The protocol then resolves the route, verifies the authorization, coordinates settlement, and records a private credit. Timing depends on wallet approval, service leases, Solana confirmation, and the current settlement path.
+
+## What the user sees
+
+```text
+1. Type a 10-digit TIN
+2. Confirm amount
+3. See a pending or confirmed status
+```
+
+That is the intended product surface. No wallet address to copy and no settlement network to choose. The wallet still authorizes the payment, and the app should distinguish a submitted payment from a confirmed one.
+
+## What actually happens behind the action
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant TIN as TIN
+    participant GPRU as GPRU
+    participant TSN as TSN
+    participant TCAP as TCAP
+
+    U->>TIN: Resolve 10-digit TIN to a route
+    TIN-->>U: Route commitment + policy
+    U->>GPRU: Sign intent bound to route
+    GPRU->>TSN: Sender authorization and route commitment
+    TSN->>TSN: Node verifies and submits authorized work to Receiver
+    TSN->>TSN: Cranker leases and submits the exact authorized transaction
+    TSN->>TSN: Verify Mother-rooted DNA permit
+    TSN->>TCAP: Advance opaque tip commitment (CPI)
+    TCAP-->>U: Encrypted snapshot updated
+    U-->>U: Payment status becomes pending or confirmed
+```
+
+Four layers, one payment action. Each layer stays inside its boundary, so no layer needs to know more than it should.
+
+## Layer-by-layer, in one line each
+
+| Step           | Layer    | What it does                                                                  | What it never sees                                           |
+| -------------- | -------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Look up        | **TIN**  | Resolves the 10-digit number to a route                                       | Sender's balance                                             |
+| Authorize      | **GPRU** | Signs a scoped authorization                                                  | Custody of funds                                             |
+| Move value     | **TSN**  | Coordinates authorized funding, acceptance, leases, and settlement submission | Recipient's private route material inside the tip transition |
+| Update balance | **TCAP** | Advances the commitment tip and encrypted snapshot                            | Plaintext balance                                            |
+
+Any single layer, on its own, is incomplete. Together, they form a payment path.
+
+## Why the user does not see any of this
+
+Because no layer needs the full picture, the user does not have to hand it out. There is no wallet address to copy and no settlement network to choose. The wallet still authorizes the payment, while TSN and Solana enforce the protocol boundaries.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="diagram-project" href="/how-it-works/architecture">
+    The architecture and role boundaries behind the payment flow.
+  </Card>
+
+  <Card title="FAQ" icon="circle-question" href="/get-started/faq">
+    What is on-chain, what is not, and what the operator can see.
+  </Card>
+</CardGroup>
