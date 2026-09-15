@@ -37,25 +37,32 @@ The program-defined creation flow is:
 The TIN is an identifier, not a private identity document. Do not log encrypted
 envelope contents or expose decrypted identity data to a Cranker.
 
-## Current implementation status
+## SDK submission flow
 
-The deployed `CreateTin` program instruction assigns the 10-digit TIN during
-its on-chain execution. The active private-creation serializer and Node
-operation normalizer still require a TIN before they will construct or accept
-the private creation payload. These two source-backed behaviors cannot form a
-safe single creation request: an application must not predict a sequence value
-or ask the user to supply one.
+Use the program-assigned builder. It generates the encrypted seed material,
+nonce, expiry, TCap commitments, and owner intent hash locally. The wallet
+signs that exact intent before any payload reaches the Node.
 
-For that reason, the SDK lab accepts only the real user inputs, wallet and
-display name, then stops before creating an intent. It reports that no Solana
-transaction was submitted. This is an implementation boundary, not an
-alternative TIN-issuance method.
+```ts
+const prepared = buildProgramAssignedTinCreation({
+  ownerPubkey: wallet.publicKey,
+  displayName: "Daniel TrustLINK LABS",
+});
 
-The existing `createTinV1IdentityEnvelope` SDK helper requires a TIN as an
-input. It is therefore not a valid builder for the program-assigned TIN flow
-described on this page. Integrators should not use it to invent a client-side
-TIN or construct a normal creation request until the canonical SDK creation
-builder is released.
+const ownerSignature = await wallet.signMessage(prepared.intentHash);
+await submitProgramAssignedTinCreation({
+  nodeUrl: TSN_NODE_URL,
+  prepared,
+  ownerPubkey: wallet.publicKey,
+  ownerSignature,
+  displayName: "Daniel TrustLINK LABS",
+});
+```
+
+The Node validates the signed payload, the generic Cranker submits the
+`CreateTin` instruction, and Solana assigns the 10-digit TIN. The application
+reads and displays the assigned value only after finalization. No application
+code predicts a sequence value or asks the user to type a TIN.
 
 ## Resolve a TIN and prepare a payment
 

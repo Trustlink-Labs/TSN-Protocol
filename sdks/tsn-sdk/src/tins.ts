@@ -660,6 +660,127 @@ function serializeTinRegistryMutationParams(
   return encodeInstruction(tag, parts);
 }
 
+/**
+ * Build the canonical program-assigned TIN creation payload. The caller
+ * supplies only the owner wallet and display name; the Solana program assigns
+ * the 10-digit TIN when the Cranker submits the resulting instruction.
+ */
+export function buildProgramAssignedTinCreation(params: {
+  ownerPubkey: PublicKey;
+  displayName: string;
+  expiryTs?: bigint | number;
+  nonce?: Uint8Array;
+  encryptedMasterSeed?: Uint8Array;
+}) {
+  if (!params.displayName.trim()) throw new Error("displayName is required");
+  const nonce = Buffer.from(params.nonce ?? randomNonce(32));
+  if (nonce.length !== 32) throw new Error("nonce must be 32 bytes");
+  const expiryTs = BigInt(params.expiryTs ?? Math.floor(Date.now() / 1000) + 900);
+  const encryptedMasterSeed = Buffer.from(params.encryptedMasterSeed ?? (() => {
+    throw new Error("encryptedMasterSeed must come from the SDK owner-encryption flow");
+  })());
+  const zero = Buffer.alloc(32);
+  const relationshipCommitment = Buffer.from(randomNonce(32));
+  const relationshipReference = Buffer.from(randomNonce(32));
+  const policyCommitment = Buffer.from(randomNonce(32));
+  const routeVersion = Buffer.alloc(8);
+  routeVersion.writeBigUInt64LE(1n);
+  const expiry = Buffer.alloc(8);
+  expiry.writeBigInt64LE(expiryTs);
+  const intentHash = Buffer.from(sha256(Buffer.concat([
+    Buffer.from("TINS_CREATE_INTENT_V1"),
+    params.ownerPubkey.toBuffer(),
+    Buffer.from(params.displayName),
+    encryptedMasterSeed,
+    zero,
+    zero,
+    routeVersion,
+    nonce,
+    Buffer.from([1]),
+    relationshipCommitment,
+    relationshipReference,
+    policyCommitment,
+    nonce,
+    expiry,
+  ])));
+  return {
+    intentHash,
+    nonce,
+    expiryTs,
+    encryptedMasterSeed,
+    encryptedMetadataHash: zero,
+    pruConfigurationHash: zero,
+    encryptedPublicRouteEnvelope: Buffer.alloc(0),
+    routeVersion: 1n,
+    routeNonce: nonce,
+    tcapRouteVersion: 1,
+    tcapRelationshipCommitment: relationshipCommitment,
+    tcapRelationshipReference: relationshipReference,
+    tcapPolicyCommitment: policyCommitment,
+    instructionData: serializeTinRegistryMutationParams(12, {
+      ownerPubkey: params.ownerPubkey,
+      displayName: params.displayName,
+      encryptedMasterSeed,
+      encryptedMetadataHash: zero,
+      pruConfigurationHash: zero,
+      encryptedPublicRouteEnvelope: Buffer.alloc(0),
+      routeVersion: 1n,
+      routeNonce: nonce,
+      tcapRouteVersion: 1,
+      tcapRelationshipCommitment: relationshipCommitment,
+      tcapRelationshipReference: relationshipReference,
+      tcapPolicyCommitment: policyCommitment,
+      nonce,
+      intentHash,
+      expiryTs,
+    }),
+  };
+}
+
+/** Submit a wallet-signed program-assigned creation through the TSN Node. */
+export async function submitProgramAssignedTinCreation(params: {
+  nodeUrl: string;
+  prepared: ReturnType<typeof buildProgramAssignedTinCreation>;
+  ownerPubkey: PublicKey | string;
+  ownerSignature: Uint8Array | string;
+  displayName: string;
+}) {
+  const hex = (value: Uint8Array) => Buffer.from(value).toString("hex");
+  const base64 = (value: Uint8Array) => Buffer.from(value).toString("base64");
+  const ownerPubkey = typeof params.ownerPubkey === "string" ? params.ownerPubkey : params.ownerPubkey.toBase58();
+  const ownerSignature = typeof params.ownerSignature === "string"
+    ? params.ownerSignature
+    : Buffer.from(params.ownerSignature).toString("base64");
+  const prepared = params.prepared;
+  const response = await fetch(`${params.nodeUrl.replace(/\/$/, "")}/tin-operations`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      intentType: "tin_creation",
+      programAssigned: true,
+      ownerPubkey,
+      ownerSignature,
+      displayName: params.displayName,
+      ownerIntentHash: hex(prepared.intentHash),
+      nonce: hex(prepared.nonce),
+      expiry: Number(prepared.expiryTs),
+      encryptedMasterSeed: base64(prepared.encryptedMasterSeed),
+      encryptedMetadataHash: hex(prepared.encryptedMetadataHash),
+      pruConfigurationHash: hex(prepared.pruConfigurationHash),
+      encryptedPublicRouteEnvelope: "",
+      routeVersion: Number(prepared.routeVersion),
+      routeNonce: hex(prepared.routeNonce),
+      tcapRouteVersion: prepared.tcapRouteVersion,
+      tcapRelationshipCommitment: hex(prepared.tcapRelationshipCommitment),
+      tcapRelationshipReference: hex(prepared.tcapRelationshipReference),
+      tcapPolicyCommitment: hex(prepared.tcapPolicyCommitment),
+    }),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body?.detail ?? body?.error ?? `TIN creation rejected (${response.status})`);
+  return body;
+}
+
 /** Complete Borsh layout for the active TCap-backed TIN mutation. */
 function serializeTinTcapRegistryMutationParams(
   tag: 12 | 13,
