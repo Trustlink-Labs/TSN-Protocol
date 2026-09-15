@@ -72,6 +72,44 @@ The Cranker submits to Solana directly. The TSN RPC Gateway is used by browsers 
 
 There is no separate Cranker program to deploy. A Cranker is a signed operator process that uses the already-deployed TSN program. Only the deployment owner should build or upgrade the on-chain program.
 
+## Cross-chain settlement on Creditcoin
+
+A Cranker that opts into cross-chain settlement submits Node-authorized payouts to `CreditcoinSettlementHub` on Creditcoin CC3 Testnet in addition to its Solana work. The Node authorizes each payout with an EIP-712 signature over a `TSN_CREDITCOIN_PAYOUT_AUTHORIZATION`, and the Cranker relays that authorization and signature to the hub, which pays the recipient from destination liquidity. The Cranker never chooses the destination, mint, or amount; those are bound to the Node's signature.
+
+Opt in when the deployment you serve settles to Creditcoin. Skip it if you only crank Solana settlement work; the daemon continues to process Solana payouts without any Creditcoin variables set.
+
+### Required Creditcoin credentials
+
+Add the following environment variables to the Cranker daemon alongside the Solana operator configuration:
+
+| Variable | Purpose |
+| --- | --- |
+| `CREDITCOIN_RPC_URL` | JSON-RPC endpoint for Creditcoin CC3 Testnet (chain ID `102031`). |
+| `CREDITCOIN_CRANKER_KEYPAIR_FILE` | Path to a JSON key file containing `{ "address", "privateKey" }` for the EVM signer that submits to the hub. Never reuse the Solana operator key or a deployer key. |
+| `CREDITCOIN_SETTLEMENT_HUB` | Address of the deployed `CreditcoinSettlementHub` the operator is pinned to. |
+| `CREDITCOIN_LIQUIDITY_REGISTRY` | Address of the `DestinationLiquidityRegistry` (or Creditcoin-direct liquidity registry) that owns the route. |
+| `CREDITCOIN_ROUTE_ID` | 32-byte route identifier registered in the liquidity registry that this Cranker is authorized to settle. |
+
+If a Creditcoin payout arrives without all five values set, the daemon rejects the work item rather than submitting a partial transaction. Pin the hub, registry, and route id to the exact addresses published by the deployment owner; do not accept them from the payout payload.
+
+### Fund the Creditcoin signer
+
+The Creditcoin Cranker keypair pays gas on CC3 Testnet in CTC. Generate and fund it once before starting the daemon:
+
+```bash
+npm run creditcoin:key:fund
+```
+
+The helper creates a fresh EVM keypair at `CREDITCOIN_CRANKER_KEYPAIR_FILE` if one does not exist, verifies the RPC returns chain ID `102031`, and transfers CTC from the deployer keypair to the new address. Re-running it prints the current address and balance without creating a new key. Set `CREDITCOIN_CRANKER_FUND_CTC` to change the funding amount (default `10`).
+
+### What the Cranker does per Creditcoin payout
+
+1. Receives a `TSN_CREDITCOIN_PAYOUT_AUTHORIZATION` work item from the Receiver, carrying the Node's EIP-712 authorization and signature.
+2. Calls `CreditcoinSettlementHub` with that authorization and signature using the pinned route id; the hub verifies the signature and pays the recipient from registered destination liquidity.
+3. Reports `CONFIRMED` back to the Receiver with the Creditcoin transaction hash and the Attestcoin message id emitted by the hub.
+
+The same hard boundaries apply: the Cranker cannot alter the recipient, amount, mint, route, or expiry. Tampering breaks the Node's signature and the hub reverts before any funds move.
+
 ## Related
 
 <CardGroup cols={2}>
