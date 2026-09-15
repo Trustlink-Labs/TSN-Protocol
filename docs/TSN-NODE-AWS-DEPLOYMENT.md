@@ -17,11 +17,11 @@ cd ~
 git clone https://github.com/bigdreamsweb3/trustlink-pay.git
 ```
 
-The checkout must contain `~/trustlink-pay/tsn-protocol/tsn-node`.
+The checkout must contain `~/trustlink-pay/tsn-protocol/services/tsn-node`.
 
 ## Configure secrets locally
 
-Edit `tsn-protocol/tsn-node/.env` locally, never in Git. It must contain the
+Edit `tsn-protocol/services/tsn-node/.env` locally, never in Git. It must contain the
 same keys as `.env.example`. Required production values include the Receiver
 credential, RPC gateway, program ID, Receiver URL, claim-slot HMAC secret, and
 the configured Node/Mother signing and decryption keys. Do not replace keys
@@ -32,7 +32,7 @@ already registered with the deployed protocol using newly generated values.
 ```bash
 export TSN_AWS_HOST=ubuntu@51.21.218.67
 export TSN_AWS_KEY="$HOME/.ssh/tsn-node-key.pem"
-bash tsn-protocol/tsn-node/deploy-aws.sh
+bash tsn-protocol/services/tsn-node/deploy-aws.sh
 ```
 
 The script validates required variables without printing their values, uploads

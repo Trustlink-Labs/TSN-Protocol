@@ -4,9 +4,9 @@ import process from "node:process";
 
 const root = process.cwd();
 const lockfiles = [
-  "tsn-protocol/tsn/protocol/Cargo.lock",
-  "transfer-identity-protocol/tin-registrar/program/Cargo.lock",
-  "tcap-protocol/Cargo.lock",
+  "tsn-protocol/programs/tsn/protocol/Cargo.lock",
+  "tsn-protocol/programs/transfer-identity-protocol/tin-registrar/program/Cargo.lock",
+  "tsn-protocol/programs/tcap-protocol/Cargo.lock",
 ];
 const requiredPins = [
   ["blake3", "1.5.5", "cargo update -p blake3 --precise 1.5.5"],
@@ -78,7 +78,7 @@ function stabilizeLockfile(path) {
     }
   }
 
-  if (path === "tcap-protocol/Cargo.lock") {
+  if (path === "tsn-protocol/programs/tcap-protocol/Cargo.lock") {
     const rayonVersions = packageVersions(packages, "rayon");
     if (rayonVersions.some((version) => compareVersions(version, "1.10.0") > 0)) {
       errors.push(

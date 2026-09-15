@@ -99,11 +99,16 @@ ZK-PRU/
 tsn-protocol-extraction/
 
 # TCAP deployment program keypair
-tcap-protocol/tcap-program-keys/
+tsn-protocol/programs/tcap-protocol/tcap-program-keys/
 **/tcap-program-keypair.json
 
 # Stable-TCAP Devnet faucet deployment keys (local secrets)
-tcap-protocol/stable-tcap-program-keys/
+tsn-protocol/programs/tcap-protocol/stable-tcap-program-keys/
+
+# Legacy local copies preserved during the TSN category migration.
+tsn-protocol/tsn-sdk/
+tsn-protocol/tsn-node/
+tsn-protocol/services/tsn-node/.git.local-backup/
 **/stable-tcap-faucet-keypair.json
 **/stable-tcap-mint-keypair.json
 

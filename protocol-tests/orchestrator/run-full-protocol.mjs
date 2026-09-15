@@ -31,7 +31,7 @@ const timeline = [];
 const errors = [];
 const testWallet = await resolveTestWallet(connection);
 const scenariosReport = registryReport();
-const pipelineState = { stateVersion: 1, pipelineType: "TCAP_FUNDING_PIPELINE", pipelineStatus: "RUNNING", activeStepId: null, failedStepId: null, failedStepIndex: null, totalProtocolSteps: 10, steps: ["verify_tcap_program","load_reserve_configuration","inspect_funding_source","verify_asset_acceptance","compute_funding_commitment","simulate_funding_instruction","submit_transaction","confirm_transaction","verify_token_movement","verify_funding_state"].map((id) => ({ id, title: id, status: "WAITING" })), diagnostics: { evidenceWrite: "PENDING", claudeReview: "PENDING", playbackGeneration: "PENDING" } };
+const pipelineState = { stateVersion: 1, pipelineType: "TCAP_FUNDING_PIPELINE", pipelineStatus: "RUNNING", activeStepId: null, failedStepId: null, failedStepIndex: null, totalProtocolSteps: 10, steps: ["verify_tcap_program", "load_reserve_configuration", "inspect_funding_source", "verify_asset_acceptance", "compute_funding_commitment", "simulate_funding_instruction", "submit_transaction", "confirm_transaction", "verify_token_movement", "verify_funding_state"].map((id) => ({ id, title: id, status: "WAITING" })), diagnostics: { evidenceWrite: "PENDING", claudeReview: "PENDING", playbackGeneration: "PENDING" } };
 async function persistPipeline() { pipelineState.stateVersion += 1; await fs.writeFile(path.join(runDir, "pipeline-state.json"), `${JSON.stringify(pipelineState, null, 2)}\n`, "utf8"); }
 function markStep(id, status, extra = {}) { const step = pipelineState.steps.find((x) => x.id === id); if (!step) return; step.status = status; Object.assign(step, extra); pipelineState.activeStepId = status === "RUNNING" ? id : (pipelineState.activeStepId === id ? null : pipelineState.activeStepId); }
 markStep("verify_tcap_program", "RUNNING");
@@ -54,7 +54,7 @@ if (!testWallet) {
   pipelineState.blockedStepId = "inspect_funding_source";
   pipelineState.blockedStepIndex = 3;
   pipelineState.activeStepId = null;
-  for (const id of ["verify_asset_acceptance","compute_funding_commitment","simulate_funding_instruction","submit_transaction","confirm_transaction","verify_token_movement","verify_funding_state"]) markStep(id, "SKIPPED_DUE_TO_PREVIOUS_FAILURE", { causedBy: "inspect_funding_source" });
+  for (const id of ["verify_asset_acceptance", "compute_funding_commitment", "simulate_funding_instruction", "submit_transaction", "confirm_transaction", "verify_token_movement", "verify_funding_state"]) markStep(id, "SKIPPED_DUE_TO_PREVIOUS_FAILURE", { causedBy: "inspect_funding_source" });
   await persistPipeline();
   stageResult("3/10", "BLOCKED_TEST_WALLET_NOT_CONFIGURED", "No simulation or transaction was attempted");
 }
@@ -131,7 +131,7 @@ async function verifyPrograms(rpcConnection) {
   for (const [name, id] of Object.entries({ tcap: PROGRAM_IDS.tcap })) {
     const pubkey = new PublicKey(id);
     const account = await rpcConnection.getAccountInfo(pubkey, "confirmed");
-    const idlPath = name === "tcap" ? path.join(root, "tcap-protocol", "target", "idl", "tcap.json") : null;
+    const idlPath = name === "tcap" ? path.join(root, "tsn-protocol", "programs", "tcap-protocol", "target", "idl", "tcap.json") : null;
     let idlInstructions = [];
     if (idlPath) {
       try { idlInstructions = JSON.parse(await fs.readFile(idlPath, "utf8")).instructions?.map((ix) => ix.name) ?? []; } catch { idlInstructions = []; }
@@ -197,5 +197,5 @@ function diagnostic(action, detail) {
 }
 
 function appendEvent(event) {
-  fs.appendFile(path.join(runDir, "live-events.jsonl"), `${JSON.stringify(event)}\n`).catch(() => {});
+  fs.appendFile(path.join(runDir, "live-events.jsonl"), `${JSON.stringify(event)}\n`).catch(() => { });
 }

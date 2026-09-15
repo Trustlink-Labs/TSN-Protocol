@@ -86,7 +86,7 @@ function pda(...parts) {
 function rpcUrl() {
   let anchorRpc;
   for (const file of [
-    path.join(REPO_ROOT, "tcap-protocol", "Anchor.toml"),
+    path.join(REPO_ROOT, "tsn-protocol", "tcap-protocol", "Anchor.toml"),
     path.join(REPO_ROOT, "tsn-protocol", "tsn", "protocol", "Anchor.toml"),
   ]) {
     try {

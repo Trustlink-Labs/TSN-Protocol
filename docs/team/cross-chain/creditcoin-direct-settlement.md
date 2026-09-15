@@ -29,7 +29,7 @@ vault.
 ## Build
 
 ```text
-cd tsn-protocol/tsn-crosschain
+cd tsn-protocol/services/tsn-crosschain
 npm run build
 npx tsx scripts/deploy-creditcoin-direct.ts --compile-only
 ```

@@ -113,10 +113,10 @@ export function createRecord(evidence, sessionId, overrides = {}) {
     evidence_class: evidence.evidenceClass ?? "UNKNOWN",
     ...Object.fromEntries(
       Object.entries(overrides).filter(([k]) => ![
-        "provider","model","purpose","cached","blocked","blockedReason","status",
-        "estimatedCostUsd","diagnosisSummary","possibleCauses","recommendedNextStep",
-        "confidenceLevel","inputSummary","testStage","relatedProgram","relatedInstruction",
-        "references","filesRead","filesModified","commandsRun",
+        "provider", "model", "purpose", "cached", "blocked", "blockedReason", "status",
+        "estimatedCostUsd", "diagnosisSummary", "possibleCauses", "recommendedNextStep",
+        "confidenceLevel", "inputSummary", "testStage", "relatedProgram", "relatedInstruction",
+        "references", "filesRead", "filesModified", "commandsRun",
       ].includes(k))
     ),
   };
@@ -161,7 +161,7 @@ export function deterministicFundingDiagnosis(evidence, sessionId) {
     recommendedNextStep: "Run the shared fixed vector in JavaScript and Rust, then capture a field-offset comparison for the live instruction before simulating again.",
     confidenceLevel: "HIGH",
     uncertaintyNotes: "The historical simulation did not expose either full preimage or the program-recomputed hash, so the differing field is not yet proven.",
-    filesRead: ["tcap-protocol/programs/tcap/src/funding.rs", "tcap-protocol/scripts/devnet-funding-claim.mjs"],
+    filesRead: ["tsn-protocol/programs/tcap-protocol/programs/tcap/src/funding.rs", "tsn-protocol/programs/tcap-protocol/scripts/devnet-funding-claim.mjs"],
     status: "DETERMINISTIC_COMPLETE",
     evidenceClass: "DEVNET_SIMULATION_EVIDENCE",
     estimatedCostUsd: 0,

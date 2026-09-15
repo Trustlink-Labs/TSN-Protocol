@@ -70,6 +70,11 @@ The private TIN registry is a separate Solana program from TSN escrow:
 Program ID: TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT
 ```
 
+After the repository reorganization, the Anchor workspace is located at
+`tsn-protocol/programs/transfer-identity-protocol/tin-registrar/program`.
+The old repository-root path `/transfer-identity-protocol/tin-registrar/program`
+must not be used.
+
 Verify it independently:
 
 ```powershell
@@ -84,9 +89,13 @@ TIN debit intent can reference it.
 
 ### Observed TIN upgrade status
 
-The live TIN program was last deployed at Devnet slot `481383589`, whose block
-time was `2026-08-05T12:09:41Z`. The local `tins_program.so` was also last
-written on August 5. The TIN source has a newer repository commit from
-September 13, so the upgraded source has not yet been deployed to Devnet.
-Treat the live TIN program as the previous deployment until the guarded build
-and deploy sequence produces a new deployment receipt or slot.
+The upgraded TIN binary was deployed successfully to the existing program ID
+at Devnet slot `498316930`, whose block time was `2026-09-14T15:58:57Z`.
+`solana program show` confirmed the same program ID, upgradeable loader,
+program-data account, and upgrade authority. The build emitted legacy
+`num_derive` non-local-impl warnings and reported that no Anchor IDL exists;
+neither prevented deployment because this is a native Solana program rather
+than an Anchor IDL-driven program.
+
+The next gate is state initialization and creation of a fresh private TIN PDA.
+Program deployment alone does not create a TIN registry account.

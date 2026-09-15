@@ -11,12 +11,12 @@ not be silently replaced by an EVM contract.
 Creditcoin is EVM-compatible and also exposes Substrate infrastructure. Use
 the explorers for different questions:
 
-| View | Use it for | What it shows |
-| --- | --- | --- |
-| [Blockscout EVM explorer](https://creditcoin-testnet.blockscout.com/) | Solidity deployments, EVM calls, contract addresses, gas, logs, and verification | EVM accounts, contract creation, calldata, receipts, and events |
-| [Subscan explorer](https://creditcoin3-testnet.subscan.io/) | Runtime-level funding and extrinsics | Substrate extrinsics, blocks, and the underlying Creditcoin runtime activity |
-| [Creditcoin testnet docs](https://docs.creditcoin.org/environments/testnet) | Network configuration | RPC URLs, explorers, EVM chain ID, and Attestcoin testnet tools |
-| [Attestcoin dashboard](https://dashboard.cc3-testnet.creditcoin.network/) | Attestcoin environment and dApp tooling | ASC-related testnet configuration and developer access |
+| View                                                                        | Use it for                                                                       | What it shows                                                                |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [Blockscout EVM explorer](https://creditcoin-testnet.blockscout.com/)       | Solidity deployments, EVM calls, contract addresses, gas, logs, and verification | EVM accounts, contract creation, calldata, receipts, and events              |
+| [Subscan explorer](https://creditcoin3-testnet.subscan.io/)                 | Runtime-level funding and extrinsics                                             | Substrate extrinsics, blocks, and the underlying Creditcoin runtime activity |
+| [Creditcoin testnet docs](https://docs.creditcoin.org/environments/testnet) | Network configuration                                                            | RPC URLs, explorers, EVM chain ID, and Attestcoin testnet tools              |
+| [Attestcoin dashboard](https://dashboard.cc3-testnet.creditcoin.network/)   | Attestcoin environment and dApp tooling                                          | ASC-related testnet configuration and developer access                       |
 
 An EVM deployment can therefore appear in Blockscout as a contract creation
 and in Subscan as Creditcoin runtime activity. That does not make it a
@@ -95,14 +95,14 @@ stablecoin, vault, and executor values belong to the separate
 
 The current TSN cross-chain environment is organized into these categories:
 
-| Input | Meaning | Evidence or source |
-| --- | --- | --- |
-| CC3 RPC | Network endpoint | Official testnet environment |
-| Local deployer key reference | Signs EVM deployment transactions | Private operator-controlled store; never commit or publish the key |
-| Authorization signer | Signs TSN EIP-712 payout authorizations | Node-controlled signer policy; use a separate production signer |
-| Attestcoin fee token | ERC-20 used for message-fee funding in the Hub | Must be confirmed for the selected CC3 environment |
-| Registry and route data | Destination network, executor, Outbox, token, and capacity | Added after destination deployment; never guessed |
-| Destination stablecoin | Asset held by the destination liquidity vault | Supplied to `deploy:destination` and funded on the payout network |
+| Input                        | Meaning                                                    | Evidence or source                                                 |
+| ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| CC3 RPC                      | Network endpoint                                           | Official testnet environment                                       |
+| Local deployer key reference | Signs EVM deployment transactions                          | Private operator-controlled store; never commit or publish the key |
+| Authorization signer         | Signs TSN EIP-712 payout authorizations                    | Node-controlled signer policy; use a separate production signer    |
+| Attestcoin fee token         | ERC-20 used for message-fee funding in the Hub             | Must be confirmed for the selected CC3 environment                 |
+| Registry and route data      | Destination network, executor, Outbox, token, and capacity | Added after destination deployment; never guessed                  |
+| Destination stablecoin       | Asset held by the destination liquidity vault              | Supplied to `deploy:destination` and funded on the payout network  |
 
 ### Observed authorization-signer check
 
@@ -228,7 +228,7 @@ After the destination vault and executor are deployed and funded, configure the
 complete route on Creditcoin with:
 
 ```text
-cd tsn-protocol/tsn-crosschain
+cd tsn-protocol/services/tsn-crosschain
 npm run configure:route
 ```
 
@@ -242,7 +242,7 @@ run. A successful local command is not sufficient evidence until the explorer
 receipt and matching on-chain route state are recorded.
 
 The required environment names are mirrored in
-`tsn-protocol/tsn-crosschain/.env.example`. Do not fill them with guessed
+`tsn-protocol/services/tsn-crosschain/.env.example`. Do not fill them with guessed
 addresses: obtain each address from the verified destination deployment and
 Attestcoin environment, then record the explorer evidence in this guide.
 
@@ -297,13 +297,13 @@ not “cross-chain happy path ready.”
 The successful core deployment produced the following evidence on CC3. The
 RPC receipts reported status `0x1` for all five transactions:
 
-| Operation | Contract or call | Transaction |
-| --- | --- | --- |
-| Registry creation | `0x87710a05770c84Dd706F2CfdC9862A44CC159973` | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x1e2ad1f1054d8e364f0fd7650e3eb594a8d4ed69e3963541d0f43ca09aaef984) |
-| Liquidity ASC creation | `0x279668eaf51cC3e39F6AeDE46644BAaC689B3EC3` | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x8f7ce08b8b55d1d8eb370615baf6c3713c5a2403c317d1235e122c6024a0de76) |
-| Registry → liquidity ASC | configuration call | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x683053620123a8651a3bbd05da0889cf8c2658878667e3bebc9cde9daff03bd3) |
-| Settlement Hub creation | `0x0EF8B97927eE1f7B3F6171E9308E1554886EEC74` | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x06522b8aea73acee6b85d6bebdc3dc3991e66b299fe64f173dcde38179137c8f) |
-| Registry → Settlement Hub | configuration call | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x715ca99000558967d4f2d87b33578e3f24f3a7e4034c7ae70a0a97810fff332e) |
+| Operation                 | Contract or call                             | Transaction                                                                                                                |
+| ------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Registry creation         | `0x87710a05770c84Dd706F2CfdC9862A44CC159973` | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x1e2ad1f1054d8e364f0fd7650e3eb594a8d4ed69e3963541d0f43ca09aaef984) |
+| Liquidity ASC creation    | `0x279668eaf51cC3e39F6AeDE46644BAaC689B3EC3` | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x8f7ce08b8b55d1d8eb370615baf6c3713c5a2403c317d1235e122c6024a0de76) |
+| Registry → liquidity ASC  | configuration call                           | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x683053620123a8651a3bbd05da0889cf8c2658878667e3bebc9cde9daff03bd3) |
+| Settlement Hub creation   | `0x0EF8B97927eE1f7B3F6171E9308E1554886EEC74` | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x06522b8aea73acee6b85d6bebdc3dc3991e66b299fe64f173dcde38179137c8f) |
+| Registry → Settlement Hub | configuration call                           | [receipt](https://creditcoin-testnet.blockscout.com/tx/0x715ca99000558967d4f2d87b33578e3f24f3a7e4034c7ae70a0a97810fff332e) |
 
 The first deployment record used one malformed-looking final hash because the
 provider response exposed an extra character through `TransactionResponse.hash`.
@@ -408,7 +408,7 @@ transaction hash, explorer link, and the post-deployment configuration state.
 ## Route-gate expiry: Node restart versus liquidity refresh
 
 The Node loads `TSN_DESTINATION_ROUTES_JSON` and
-`TSN_CREDITCOIN_RPC_URL` from `tsn-protocol/tsn-node/.env` at startup. A
+`TSN_CREDITCOIN_RPC_URL` from `tsn-protocol/services/tsn-node/.env` at startup. A
 configured route is not automatically a ready route: the Node also reads the
 route's current `latestObservation` from the Creditcoin
 `DestinationLiquidityRegistry`. If `validUntil` is earlier than the current
@@ -420,7 +420,7 @@ When this happens, restart the Node so it reloads the local configuration:
 ```powershell
 # Stop the running Node with Ctrl+C, then run from the repository root.
 cd C:\Users\codepara\Desktop\trust-link
-python tsn-protocol/tsn-node/server.py --test-crosschain --receipt --network creditcoin-testnet --verbose
+python tsn-protocol/services/tsn-node/server.py --test-crosschain --receipt --network creditcoin-testnet --verbose
 ```
 
 Check the route from a separate terminal:

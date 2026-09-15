@@ -157,7 +157,7 @@ bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$
 
 <!-- PAPERS -->
 
-bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol$ cd /mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol
+bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol$ cd /mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol
 
 node scripts/devnet-initialize.mjs
 (node:2486) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
@@ -166,7 +166,7 @@ TCAP initialized on devnet: TcApT4CytBqvqEDpRYVB7Wfi6aFzmtSZdWvDsq6bp9x
 Config PDA: 2Q48b1TAhJECiGtLwMirvyNerFSBUBcpQvCPPemQryVY
 Registry PDA: 6oGZV9yt5M6uPH66UZPhJZsGsqfJg2Ec1mtV8VEjQjbE
 Signature: 5YyRWBndQYxDVBGL6JRPUeU46e5S8mGo4jbTSJYvQYsi8d9kfmdUPcdUXS6H9gs1Uzum654dT6tnB9e1vbkYok9n
-bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol$
+bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol$
 
 spl-token create-token --decimals 2
 Creating token 9ZqZ4fLxzSedkoZfUFYVXrbezNUbf41KxU9N5i6R92PK under program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
@@ -178,7 +178,7 @@ Signature: 4K1fzTKTpbvypWgJ6Za3tYwk7wdxi8NJBsCQ9ZhtC6URs8tSfdkGNHiJZv5SxbtR8Q3CA
 
 <!--  -->
 
-bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol$ cd /mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol
+bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol$ cd /mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol
 set -euo pipefail
 
 FAUCET_PROGRAM_ID="E7jSHdPLzgGafBou5PswKcsS5JxiPnek7TxquFAxXm6h"
@@ -204,7 +204,7 @@ artifact_bytes=329992
 Deploying cluster: https://devnet.helius-rpc.com/?api-key=<REDACTED>
 Upgrade authority: /home/bigdream/.config/solana/id.json
 Deploying program "stable_tcap_faucet"...
-Program path: /mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol/target/deploy/stable_tcap_faucet.so...
+Program path: /mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol/target/deploy/stable_tcap_faucet.so...
 Program Id: E7jSHdPLzgGafBou5PswKcsS5JxiPnek7TxquFAxXm6h
 
 Deploy success
@@ -372,21 +372,21 @@ No transaction was submitted for credit; register + credit remains the next expl
 (Use `node --trace-deprecation ...` to show where the warning was created)
 Registered TSN TCAP credit authorization: whPPVQxGXHuvFK3gSR1UCPzUCXib5j2msqVGjs7ewiefbduDiPWPm2dbNZnDRvLiNz2h9CwdccgJqr23SAvaVjy
 Submitted TCAP credit: R4G3fwBLvEgCDKD8mmqBtekkLtVa2RjA3rxpwa2ubDhMtLbVnxgiCr34ryhcKEjL8gTUhXovEJHsUs9YvDat6gx
-file:///mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol/tcap-sdk/dist/tip-rpc.js:3
+file:///mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol/tcap-sdk/dist/tip-rpc.js:3
 throw new Error(message);
 ^
 
 Error: tip_account_version_unsupported
-at fail (file:///mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol/tcap-sdk/dist/tip-rpc.js:3:11)
-at decodeTcapTinTipV1Account (file:///mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol/tcap-sdk/dist/tip-rpc.js:43:9)
-at fetchTcapTinTipV1 (file:///mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol/tcap-sdk/dist/tip-rpc.js:79:12) at async file:///mnt/c/Users/codepara/Desktop/trust-link/tcap-protocol/scripts/devnet-credit-smoke.mjs:193:13
+at fail (file:///mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol/tcap-sdk/dist/tip-rpc.js:3:11)
+at decodeTcapTinTipV1Account (file:///mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol/tcap-sdk/dist/tip-rpc.js:43:9)
+at fetchTcapTinTipV1 (file:///mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol/tcap-sdk/dist/tip-rpc.js:79:12) at async file:///mnt/c/Users/codepara/Desktop/trust-link/tsn-protocol/tcap-protocol/scripts/devnet-credit-smoke.mjs:193:13
 
 Node.js v22.22.2
 bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$ export TCAP_RPC_URL=https://api.devnet.solana.com
 
 node --input-type=module -e '
 import fs from "node:fs";
-import { fetchTcapTinTipV1 } from "./tcap-protocol/tcap-sdk/dist/tip-rpc.js";
+import { fetchTcapTinTipV1 } from "./tsn-protocol/tcap-protocol/tcap-sdk/dist/tip-rpc.js";
 const env = Object.fromEntries(
 fs.readFileSync("protocol-tests/tcap-credit-devnet.env","utf8")
 .split(/\r?\n/)
@@ -1473,4 +1473,3 @@ transactionLogs: [
 
 Node.js v22.22.2
 bigdream@DESKTOP-FRI99BQ:/mnt/c/Users/codepara/Desktop/trust-link$
-

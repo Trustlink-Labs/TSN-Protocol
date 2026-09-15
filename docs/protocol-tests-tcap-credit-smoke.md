@@ -2,7 +2,7 @@
 
 The protocol-test orchestrator now runs the live GPRU/TCAP credit-tip smoke
 through `protocol-tests/scenarios/tcap-credit-smoke.mjs`. It invokes
-`tcap-protocol/scripts/devnet-credit-smoke.mjs`; it does not use the retired
+`tsn-protocol/programs/tcap-protocol/scripts/devnet-credit-smoke.mjs`; it does not use the retired
 funding-claim or `deposit_with_funding_commitment_v1` path.
 
 ## Wallet and RPC

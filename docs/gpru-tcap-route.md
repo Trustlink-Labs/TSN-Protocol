@@ -28,9 +28,23 @@ The Python Cranker daemon has no custody role here: it may carry opaque TCAP ref
 ## Usage
 
 ```ts
-import { deriveGpruIdentity, createCanonicalGpruAuthorizationMessage } from "@trustlink/tsn-sdk/gpru";
-const gpruIdentity = deriveGpruIdentity({ tinPrivacyReceivingRoot, settlementCommitment, epochContext, authorizationScope });
-const message = createCanonicalGpruAuthorizationMessage({ tinPrivacyReceivingRoot, settlementCommitment, epochContext, authorizationScope, gpruIdentity });
+import {
+  deriveGpruIdentity,
+  createCanonicalGpruAuthorizationMessage,
+} from "@trustlink/tsn-sdk/gpru";
+const gpruIdentity = deriveGpruIdentity({
+  tinPrivacyReceivingRoot,
+  settlementCommitment,
+  epochContext,
+  authorizationScope,
+});
+const message = createCanonicalGpruAuthorizationMessage({
+  tinPrivacyReceivingRoot,
+  settlementCommitment,
+  epochContext,
+  authorizationScope,
+  gpruIdentity,
+});
 ```
 
 A Cranker submits the usual owner-signed TIN update transaction; it does not create any receiving wallet or token account for the GPRU.
@@ -41,4 +55,4 @@ The derivation uses separate domain tags for identity derivation and authorizati
 
 ## Testing notes
 
-Run `npm test` from `tsn-protocol/tsn-sdk` for deterministic derivation, canonical-byte signature verification, and existing TSN tests. Run `cargo check` from `transfer-identity-protocol/tin-registrar/program` to check the TIN Registrar processor and account serialization changes.
+Run `npm test` from `tsn-protocol/sdks/tsn-sdk` for deterministic derivation, canonical-byte signature verification, and existing TSN tests. Run `cargo check` from `tsn-protocol/programs/transfer-identity-protocol/tin-registrar/program` to check the TIN Registrar processor and account serialization changes.

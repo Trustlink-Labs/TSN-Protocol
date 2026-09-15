@@ -47,11 +47,11 @@ const tsnNodeApplication = {
 
 module.exports = {
   apps: [
-    createNpmApplication("receiver", "tsn-protocol/tsn-receiver", "dev"),
+    createNpmApplication("receiver", "tsn-protocol/services/tsn-receiver", "dev"),
     tsnNodeApplication,
     createNpmApplication("backend", "backend", "dev"),
-    createNpmApplication("mempool-ui", "tsn-protocol/tsn-mempool-ui", "dev"),
-    createNpmApplication("rpc-gateway", "tsn-protocol/tsn-rpc-gateway", "dev"),
-    createNpmApplication("cranker", "tsn-protocol/tsn-cranker-op-daemon", "crank:start"),
+    createNpmApplication("mempool-ui", "tsn-protocol/services/tsn-mempool-ui", "dev"),
+    createNpmApplication("rpc-gateway", "tsn-protocol/services/tsn-rpc-gateway", "dev"),
+    createNpmApplication("cranker", "tsn-protocol/services/tsn-cranker-op-daemon", "crank:start"),
   ],
 };

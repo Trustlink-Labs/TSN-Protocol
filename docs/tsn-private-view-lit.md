@@ -54,16 +54,16 @@ flowchart TD
 
 No single mechanism provides the guarantee. The protection is compositional:
 
-| Layer | Protection |
-| --- | --- |
-| Wallet ownership proof | Establishes control of the TIN owner authority |
-| Device signing key | Proves possession for private sessions and requests |
-| Device encryption key | Restricts envelope decryption to the authorized device |
-| Authenticated encryption | Protects confidentiality and integrity before rendering |
-| SDK-owned Lit element | Keeps plaintext out of application properties and state |
-| Canvas rendering | Keeps the value out of DOM text nodes and attributes |
-| Closed Shadow DOM | Hides the internal tree from ordinary selectors |
-| Lifecycle cleanup | Clears state when disconnected, expired, revoked, or replaced |
+| Layer                    | Protection                                                    |
+| ------------------------ | ------------------------------------------------------------- |
+| Wallet ownership proof   | Establishes control of the TIN owner authority                |
+| Device signing key       | Proves possession for private sessions and requests           |
+| Device encryption key    | Restricts envelope decryption to the authorized device        |
+| Authenticated encryption | Protects confidentiality and integrity before rendering       |
+| SDK-owned Lit element    | Keeps plaintext out of application properties and state       |
+| Canvas rendering         | Keeps the value out of DOM text nodes and attributes          |
+| Closed Shadow DOM        | Hides the internal tree from ordinary selectors               |
+| Lifecycle cleanup        | Clears state when disconnected, expired, revoked, or replaced |
 
 ## Rendering contract
 
@@ -173,7 +173,7 @@ may contain the host element and safe attributes, never the revealed value.
 ## Verification checklist
 
 - `customElements.get("tsn-private-value")` resolves to the SDK class;
-- the class is exported from `tsn-protocol/tsn-sdk`, not the application;
+- the class is exported from `tsn-protocol/sdks/tsn-sdk`, not the application;
 - `element.shadowRoot === null` after mounting;
 - the host has no plaintext child or private-value attribute;
 - the value is drawn only as canvas pixels and cleared on disconnect;
@@ -184,14 +184,14 @@ may contain the host element and safe attributes, never the revealed value.
 
 ## Source locations
 
-| Source | Responsibility |
-| --- | --- |
-| `tsn-protocol/tsn-sdk/src/private-view/private-value-element.ts` | Lit element and lifecycle |
-| `tsn-protocol/tsn-sdk/src/private-view/public.ts` | Public SDK export |
-| `tsn-protocol/tsn-sdk/src/device/` | Device credentials and fingerprints |
-| `tsn-protocol/tsn-sdk/src/authorization/` | Owner-device authorization |
-| `tsn-protocol/tsn-sdk/src/sessions/` | Proof-of-possession sessions |
-| `tsn-protocol/tsn-sdk/src/receipts/` | Encryption and key envelopes |
+| Source                                                                | Responsibility                      |
+| --------------------------------------------------------------------- | ----------------------------------- |
+| `tsn-protocol/sdks/tsn-sdk/src/private-view/private-value-element.ts` | Lit element and lifecycle           |
+| `tsn-protocol/sdks/tsn-sdk/src/private-view/public.ts`                | Public SDK export                   |
+| `tsn-protocol/sdks/tsn-sdk/src/device/`                               | Device credentials and fingerprints |
+| `tsn-protocol/sdks/tsn-sdk/src/authorization/`                        | Owner-device authorization          |
+| `tsn-protocol/sdks/tsn-sdk/src/sessions/`                             | Proof-of-possession sessions        |
+| `tsn-protocol/sdks/tsn-sdk/src/receipts/`                             | Encryption and key envelopes        |
 
 ## Current extraction limitation
 

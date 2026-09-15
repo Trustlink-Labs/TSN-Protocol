@@ -9,6 +9,6 @@
   "discoveryEvidence": [
     "terminal-dev.md: spl-token create-token record and creation signature",
     "docs/TCAP-DEPOSIT-PHASE.md: Devnet registration and deposit evidence",
-    "tcap-protocol/scripts/devnet-funding-claim.mjs: canonical fixture candidate"
+    "tsn-protocol/programs/tcap-protocol/scripts/devnet-funding-claim.mjs: canonical fixture candidate"
   ]
 }

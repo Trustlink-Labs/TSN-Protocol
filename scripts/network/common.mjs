@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { decodeAssetEntry, deriveAssetAddresses, inspectAsset } from "../../tcap-protocol/scripts/tcap-asset-admin.mjs";
+import { decodeAssetEntry, deriveAssetAddresses, inspectAsset } from "../../tsn-protocol/programs/tcap-protocol/scripts/tcap-asset-admin.mjs";
 
 export const TCAP = new PublicKey("TcApT4CytBqvqEDpRYVB7Wfi6aFzmtSZdWvDsq6bp9x");
 export const TSN = new PublicKey("TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V");

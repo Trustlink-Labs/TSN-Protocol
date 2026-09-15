@@ -1,14 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "es2022"
-    ],
-    "types": [
-      "node"
-    ],
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "types": ["node"],
     "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
@@ -26,42 +20,25 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@trustlink/tsn-sdk": [
-        "../tsn-protocol/tsn-sdk/dist"
-      ],
-      "@trustlink/tsn-sdk/*": [
-        "../tsn-protocol/tsn-sdk/dist/*"
-      ],
+      "@/*": ["./*"],
+      "@trustlink/tsn-sdk": ["../tsn-protocol/sdks/tsn-sdk/dist"],
+      "@trustlink/tsn-sdk/*": ["../tsn-protocol/sdks/tsn-sdk/dist/*"],
       "@trustlink/tsn-cranker-sdk": [
-        "../tsn-protocol/tsn-cranker-sdk/src"
+        "../tsn-protocol/sdks/tsn-cranker-sdk/src"
       ],
       "@trustlink/tip-sdk": [
-        "../transfer-identity-protocol/tip-sdk/src"
+        "../tsn-protocol/programs/transfer-identity-protocol/tip-sdk/src"
       ],
-      "@coral-xyz/anchor": [
-        "./node_modules/@coral-xyz/anchor"
-      ],
-      "@solana/spl-token": [
-        "./node_modules/@solana/spl-token"
-      ],
-      "@solana/web3.js": [
-        "./node_modules/@solana/web3.js"
-      ]
+      "@coral-xyz/anchor": ["./node_modules/@coral-xyz/anchor"],
+      "@solana/spl-token": ["./node_modules/@solana/spl-token"],
+      "@solana/web3.js": ["./node_modules/@solana/web3.js"]
     }
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": [
-    "../transfer-identity-protocol/tip-sdk",
-    "../tsn-protocol/tsn-cranker-sdk",
-    "../tsn-protocol/tsn-sdk",
+    "../tsn-protocol/programs/transfer-identity-protocol/tip-sdk",
+    "../tsn-protocol/sdks/tsn-cranker-sdk",
+    "../tsn-protocol/sdks/tsn-sdk",
     ".next",
     ".pytest_cache",
     ".tsn-logs",

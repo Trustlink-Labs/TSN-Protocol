@@ -73,7 +73,7 @@ function requireExactVersion(label, output, pattern, expected) {
   if (version !== expected) {
     throw new Error(
       `${label} must be ${expected} for devnet deploy builds, but found ${version}.\n` +
-        `Output: ${output}`,
+      `Output: ${output}`,
     );
   }
 }
@@ -83,8 +83,8 @@ function requireSolana18Version(label, output, pattern) {
   if (!version.startsWith(`${requiredSolanaMajorMinor}.`)) {
     throw new Error(
       `${label} must be Solana/SBF ${requiredSolanaMajorMinor}.x for devnet deploy builds, but found ${version}.\n` +
-        "Solana/SBF 3.x and standalone cargo-build-sbf 4.x can emit unsupported sBPF bytecode.\n" +
-        `Output: ${output}`,
+      "Solana/SBF 3.x and standalone cargo-build-sbf 4.x can emit unsupported sBPF bytecode.\n" +
+      `Output: ${output}`,
     );
   }
 }
@@ -105,7 +105,7 @@ function warnIfHostCargoCanRewriteLockfile(cargoOutput) {
   if (compareVersions(version, "1.78.0") >= 0) {
     warnings.push(
       `host cargo is ${version}; avoid regenerating Solana deploy lockfiles with host cargo because it can write Cargo.lock v4. ` +
-        "If a lockfile changes, run npm run deploy:lockfiles:stabilize before deploying.",
+      "If a lockfile changes, run npm run deploy:lockfiles:stabilize before deploying.",
     );
   }
 }
@@ -169,14 +169,14 @@ requireSolana18Version(
 requireExactVersion("anchor-cli", anchorVersion, /anchor-cli\s+(\d+\.\d+\.\d+)/, requiredAnchor);
 warnIfHostCargoCanRewriteLockfile(cargoVersion);
 
-const tsnAnchorPath = "tsn-protocol/tsn/protocol/Anchor.toml";
-const tinsAnchorPath = "transfer-identity-protocol/tin-registrar/program/Anchor.toml";
-const tinsCargoPath = "transfer-identity-protocol/tin-registrar/program/Cargo.toml";
-const tsnLockPath = "tsn-protocol/tsn/protocol/Cargo.lock";
-const tinsLockPath = "transfer-identity-protocol/tin-registrar/program/Cargo.lock";
-const tcapAnchorPath = "tcap-protocol/Anchor.toml";
-const tcapCargoPath = "tcap-protocol/programs/tcap/Cargo.toml";
-const tcapLockPath = "tcap-protocol/Cargo.lock";
+const tsnAnchorPath = "tsn-protocol/programs/tsn/protocol/Anchor.toml";
+const tinsAnchorPath = "tsn-protocol/programs/transfer-identity-protocol/tin-registrar/program/Anchor.toml";
+const tinsCargoPath = "tsn-protocol/programs/transfer-identity-protocol/tin-registrar/program/Cargo.toml";
+const tsnLockPath = "tsn-protocol/programs/tsn/protocol/Cargo.lock";
+const tinsLockPath = "tsn-protocol/programs/transfer-identity-protocol/tin-registrar/program/Cargo.lock";
+const tcapAnchorPath = "tsn-protocol/programs/tcap-protocol/Anchor.toml";
+const tcapCargoPath = "tsn-protocol/programs/tcap-protocol/programs/tcap/Cargo.toml";
+const tcapLockPath = "tsn-protocol/programs/tcap-protocol/Cargo.lock";
 
 const tsnAnchor = read(tsnAnchorPath);
 const tinsAnchor = read(tinsAnchorPath);
@@ -216,8 +216,8 @@ for (const [path, body, snippet] of forbiddenSnippets) {
   if (body.includes(snippet)) {
     throw new Error(
       `${path} must not set ${snippet}.\n` +
-        "Anchor can try to auto-install Solana through solana-install when this is set. " +
-        "TrustLink Pay uses deploy:doctor to verify the active Solana/SBF toolchain instead.",
+      "Anchor can try to auto-install Solana through solana-install when this is set. " +
+      "TrustLink Pay uses deploy:doctor to verify the active Solana/SBF toolchain instead.",
     );
   }
 }
@@ -236,7 +236,7 @@ for (const [path, body] of lockfiles) {
   if (lockVersion !== "3") {
     throw new Error(
       `${path} uses Cargo.lock format version ${lockVersion ?? "unknown"}, but Solana/SBF 1.18.x Cargo needs version 3.\n` +
-        "Run npm run deploy:lockfiles:stabilize before deploying.",
+      "Run npm run deploy:lockfiles:stabilize before deploying.",
     );
   }
 
@@ -246,70 +246,70 @@ for (const [path, body] of lockfiles) {
   if (hasPackageVersion(packages, "blake3", (version) => version.startsWith("1.8."))) {
     throw new Error(
       `${path} uses blake3 ${blake3Versions.join(", ")}, which currently pulls Rust edition 2024 crates.\n` +
-        "Solana/SBF 1.18.x uses Cargo 1.75 and cannot parse those manifests. Pin blake3 to 1.5.5, then run npm run deploy:lockfiles:stabilize.",
+      "Solana/SBF 1.18.x uses Cargo 1.75 and cannot parse those manifests. Pin blake3 to 1.5.5, then run npm run deploy:lockfiles:stabilize.",
     );
   }
 
   if (hasPackageVersion(packages, "indexmap", (version) => compareVersions(version, "2.3.0") > 0)) {
     throw new Error(
       `${path} uses indexmap ${packageVersions(packages, "indexmap").join(", ")}, but Solana/SBF 1.18.x cannot build newer indexmap crates that require newer Rust/edition support.\n` +
-        "Run inside this lockfile's program directory: cargo update -p indexmap --precise 2.3.0",
+      "Run inside this lockfile's program directory: cargo update -p indexmap --precise 2.3.0",
     );
   }
 
   if (hasPackageVersion(packages, "borsh", (version) => compareVersions(version, "1.5.7") > 0)) {
     throw new Error(
       `${path} uses borsh ${packageVersions(packages, "borsh").join(", ")}, which requires Rust 1.77+ and breaks Solana/SBF 1.18.x deploy builds.\n` +
-        "Run inside this lockfile's program directory: cargo update -p borsh --precise 1.5.7",
+      "Run inside this lockfile's program directory: cargo update -p borsh --precise 1.5.7",
     );
   }
 
   if (hasPackageVersion(packages, "zeroize_derive", (version) => version === "1.5.0")) {
     throw new Error(
       `${path} uses zeroize_derive 1.5.0, which requires Rust edition 2024.\n` +
-        "Solana/SBF 1.18.x uses Cargo 1.75. Pin zeroize_derive to 1.4.3, then run npm run deploy:lockfiles:stabilize.",
+      "Solana/SBF 1.18.x uses Cargo 1.75. Pin zeroize_derive to 1.4.3, then run npm run deploy:lockfiles:stabilize.",
     );
   }
 
   if (hasPackageVersion(packages, "proc-macro-crate", (version) => version === "3.5.0")) {
     throw new Error(
       `${path} uses proc-macro-crate 3.5.0, which resolves to toml_edit 0.25.x and toml_parser 1.1.x.\n` +
-        "That TOML parser chain requires Rust edition 2024. Pin proc-macro-crate to 3.3.0, then run npm run deploy:lockfiles:stabilize.",
+      "That TOML parser chain requires Rust edition 2024. Pin proc-macro-crate to 3.3.0, then run npm run deploy:lockfiles:stabilize.",
     );
   }
 
   if (hasPackageVersion(packages, "jobserver", (version) => compareVersions(version, "0.1.34") > 0)) {
     throw new Error(
       `${path} uses jobserver ${packageVersions(packages, "jobserver").join(", ")}, which requires a newer Rust toolchain than Solana/SBF 1.18.x provides.\n` +
-        "Run inside this lockfile's program directory: cargo update -p jobserver@0.1.35 --precise 0.1.32",
+      "Run inside this lockfile's program directory: cargo update -p jobserver@0.1.35 --precise 0.1.32",
     );
   }
 
-  if (path === "tcap-protocol/Cargo.lock" && hasPackageVersion(packages, "rayon", (version) => compareVersions(version, "1.10.0") > 0)) {
+  if (path === "tsn-protocol/programs/tcap-protocol/Cargo.lock" && hasPackageVersion(packages, "rayon", (version) => compareVersions(version, "1.10.0") > 0)) {
     throw new Error(
       `${path} uses rayon ${packageVersions(packages, "rayon").join(", ")}, which is too new for the pinned Anchor/IDL Rust toolchain.\n` +
-        "Run inside this lockfile's program directory: cargo update -p rayon --precise 1.10.0",
+      "Run inside this lockfile's program directory: cargo update -p rayon --precise 1.10.0",
     );
   }
 
   if (hasPackageVersion(packages, "toml_parser", (version) => version.startsWith("1."))) {
     throw new Error(
       `${path} uses toml_parser 1.x, which requires Rust edition 2024.\n` +
-        "Pin proc-macro-crate to 3.3.0 so Cargo resolves toml_edit 0.22.x without toml_parser.",
+      "Pin proc-macro-crate to 3.3.0 so Cargo resolves toml_edit 0.22.x without toml_parser.",
     );
   }
 
   if (hasPackageVersion(packages, "toml_edit", (version) => version.startsWith("0.25."))) {
     throw new Error(
       `${path} uses toml_edit 0.25.x, which pulls toml_parser 1.x and requires Rust edition 2024.\n` +
-        "Pin proc-macro-crate to 3.3.0 so Cargo resolves toml_edit 0.22.x.",
+      "Pin proc-macro-crate to 3.3.0 so Cargo resolves toml_edit 0.22.x.",
     );
   }
 
-  if (path === "tcap-protocol/Cargo.lock" && hasPackageVersion(packages, "proc-macro2", (version) => compareVersions(version, "1.0.94") > 0)) {
+  if (path === "tsn-protocol/programs/tcap-protocol/Cargo.lock" && hasPackageVersion(packages, "proc-macro2", (version) => compareVersions(version, "1.0.94") > 0)) {
     throw new Error(
       `${path} uses proc-macro2 ${packageVersions(packages, "proc-macro2").join(", ")}; expected 1.0.94 for Anchor 0.30.1 IDL builds.\n` +
-        "Run inside this lockfile's program directory: cargo update -p proc-macro2 --precise 1.0.94",
+      "Run inside this lockfile's program directory: cargo update -p proc-macro2 --precise 1.0.94",
     );
   }
 }

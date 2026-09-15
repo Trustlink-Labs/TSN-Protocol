@@ -228,12 +228,12 @@ flowchart TD
     F --> G --> H --> I
 ```
 
-| Stage | Recorded role | Devnet signature |
-| --- | --- | --- |
-| Wallet funding | 5 USDC main-wallet top-up used in the sender funding set | [5u9HmqD5...](https://solscan.io/tx/5u9HmqD5wNmBmHWfDWmw3vhpMhN42j15YPTmUVgpcMtbuwdGdhqRVqGrZAVF5ic1CiS1ZzuF1D2tMyVaanf4eqye?cluster=devnet) |
-| Protected source batch A | Earlier protected source movement; part of the sender funding set | [3wgVPZYz...](https://solscan.io/tx/3wgVPZYzEqvht5pkPRetF8tFsXoWmy8obbSSqYYTmxaR1fw6oci2y93P96GhK4xXqu4ttSSD7mMYPyEoDjXVporU?cluster=devnet) |
-| Protected source batch B | Earlier protected source movement; completed the recorded source set | [2M26JcpS...](https://solscan.io/tx/2M26JcpSVhKAQvB5yC3Pp4L6NYLHiU8UTMFMsrMbJwt2Jj23dd3pqRG8nWTxerYrcXqm7R78Jt4992smK7jh7eWJ?cluster=devnet) |
-| Settlement | 10 USDC settlement into the recipient TIN&#8217;s recorded private receiving route | [46wGVb9s...](https://solscan.io/tx/46wGVb9sfBqWWonk3CQ14xZCc6Qzf2ksYyZMpG4TDhqzhh49pRS59CjhCgq9oPVnfEVhSKdJyb3Rib7HM99A8TfU?cluster=devnet) |
+| Stage                    | Recorded role                                                                      | Devnet signature                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wallet funding           | 5 USDC main-wallet top-up used in the sender funding set                           | [5u9HmqD5...](https://solscan.io/tx/5u9HmqD5wNmBmHWfDWmw3vhpMhN42j15YPTmUVgpcMtbuwdGdhqRVqGrZAVF5ic1CiS1ZzuF1D2tMyVaanf4eqye?cluster=devnet) |
+| Protected source batch A | Earlier protected source movement; part of the sender funding set                  | [3wgVPZYz...](https://solscan.io/tx/3wgVPZYzEqvht5pkPRetF8tFsXoWmy8obbSSqYYTmxaR1fw6oci2y93P96GhK4xXqu4ttSSD7mMYPyEoDjXVporU?cluster=devnet) |
+| Protected source batch B | Earlier protected source movement; completed the recorded source set               | [2M26JcpS...](https://solscan.io/tx/2M26JcpSVhKAQvB5yC3Pp4L6NYLHiU8UTMFMsrMbJwt2Jj23dd3pqRG8nWTxerYrcXqm7R78Jt4992smK7jh7eWJ?cluster=devnet) |
+| Settlement               | 10 USDC settlement into the recipient TIN&#8217;s recorded private receiving route | [46wGVb9s...](https://solscan.io/tx/46wGVb9sfBqWWonk3CQ14xZCc6Qzf2ksYyZMpG4TDhqzhh49pRS59CjhCgq9oPVnfEVhSKdJyb3Rib7HM99A8TfU?cluster=devnet) |
 
 These signatures are preserved as supplied Devnet evidence. They document the
 earlier route and must not be used as evidence that the current GPRU, TSN Epoch
@@ -241,23 +241,25 @@ Treasury and TCAP credit path has been deployed or validated.
 
 Current Devnet program IDs:
 
-| Program | Address |
-| --- | --- |
-| TSN / `trustlink_escrow` | `TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V` |
-| TCAP / `tcap` | `TcApT4CytBqvqEDpRYVB7Wfi6aFzmtSZdWvDsq6bp9x` |
+| Program                                 | Address                                       |
+| --------------------------------------- | --------------------------------------------- |
+| TSN / `trustlink_escrow`                | `TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V` |
+| TCAP / `tcap`                           | `TcApT4CytBqvqEDpRYVB7Wfi6aFzmtSZdWvDsq6bp9x` |
 | TIP / Transfer Identity / TIN registrar | `TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT` |
 
 ## Repository map
 
-| Path | Purpose |
-| --- | --- |
-| `frontend/` | TrustLink Pay application |
-| `backend/` | API, application records and notifications |
-| `transfer-identity-protocol/` | TIP/TIN registrar and SDK |
-| `tsn-protocol/` | TSN programs, SDK, Receiver, Node and Cranker tooling |
-| `tcap-protocol/` | TCAP program, SDK and credit tooling |
-| `protocol-tests/` | Devnet-only protocol scenarios and UI |
-| `docs/` | Architecture, security, operations and evidence documentation |
+| Path                                                | Purpose                                                       |
+| --------------------------------------------------- | ------------------------------------------------------------- |
+| `frontend/`                                         | TrustLink Pay application                                     |
+| `backend/`                                          | API, application records and notifications                    |
+| `tsn-protocol/programs/transfer-identity-protocol/` | TIP/TIN registrar and SDK                                     |
+| `tsn-protocol/programs/`                            | Solana TSN, TCAP and TIP programs                             |
+| `tsn-protocol/sdks/`                                | Canonical TSN SDK and Cranker SDK                             |
+| `tsn-protocol/services/`                            | Node, Receiver, RPC, Cranker, Cross-chain and UI services     |
+| `tsn-protocol/programs/tcap-protocol/`              | TCAP program, SDK and credit tooling                          |
+| `protocol-tests/`                                   | Devnet-only protocol scenarios and UI                         |
+| `docs/`                                             | Architecture, security, operations and evidence documentation |
 
 ## Milestones and ecosystem support
 

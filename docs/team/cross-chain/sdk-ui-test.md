@@ -11,7 +11,7 @@ configuration. The Creditcoin registry remains the runtime authority.
 Build the SDK:
 
 ```powershell
-cd tsn-protocol/tsn-sdk
+cd tsn-protocol/sdks/tsn-sdk
 npm run build
 ```
 
@@ -25,7 +25,8 @@ const snapshot = await loadCrossChainUiSnapshot({
   route: {
     rpcUrl: "https://rpc.cc3-testnet.creditcoin.network",
     registry: "0x764Ac587b1fC0feBEE86012cF7A2489b575EE5D1",
-    routeId: "0xd1c8fb4fdaa90f4b4cf7f385e0f426c0cc6130ecff6ac078f0c95b91125e3943",
+    routeId:
+      "0xd1c8fb4fdaa90f4b4cf7f385e0f426c0cc6130ecff6ac078f0c95b91125e3943",
   },
 });
 
@@ -62,7 +63,7 @@ The Node loads its route mirror at process startup. After changing the local
 ignored Node environment, restart the Node before testing the UI:
 
 ```powershell
-python tsn-protocol/tsn-node/server.py --test-crosschain --receipt --network creditcoin-testnet --verbose
+python tsn-protocol/services/tsn-node/server.py --test-crosschain --receipt --network creditcoin-testnet --verbose
 ```
 
 Confirm that `GET /settlement-networks` returns the USDSET route before

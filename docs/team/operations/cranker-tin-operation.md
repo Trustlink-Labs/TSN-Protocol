@@ -22,9 +22,9 @@ The lookup secret, plaintext TIN identity, and display name do not enter the Cra
 
 ## Verification checklist
 
-- `python -m py_compile tsn-protocol/tsn-node/server.py`
-- `npm run build` from `tsn-protocol/tsn-sdk`
-- `npx tsc --noEmit -p tsconfig.json` from `tsn-protocol/tsn-cranker-op-daemon`
+- `python -m py_compile tsn-protocol/services/tsn-node/server.py`
+- `npm run build` from `tsn-protocol/sdks/tsn-sdk`
+- `npx tsc --noEmit -p tsconfig.json` from `tsn-protocol/services/tsn-cranker-op-daemon`
 - Receiver production build and deployment must be run from the Receiver repository before claiming the hosted path is live.
 
 This runbook describes the implemented local boundary. It does not claim a real TIN transaction until a Devnet signature is recorded in the evidence log.

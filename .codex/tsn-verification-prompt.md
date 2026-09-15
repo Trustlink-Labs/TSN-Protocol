@@ -21,7 +21,7 @@ Audit the latest TSN SDK, protocol-test dapp, TSN docs, and their boundaries. Fi
   - Wallet-to-wallet payment has no TIN, route commitment, or route-version inputs.
   - TIN creation asks only for display name; the user must never choose a TIN.
   - Debit-to-credit and debit-to-exit remain visibly gated until SDK/account/proof prerequisites exist.
-- `tsn-protocol/tsn-sdk/src/tsn-exit.ts`
+- `tsn-protocol/sdks/tsn-sdk/src/tsn-exit.ts`
   - Must not contain malformed public keys or import-time crashes.
   - TCAP program configuration must be runtime/deployment-specific when no valid pinned ID exists.
 - `tsn-protocol/tsn-docs`
@@ -65,7 +65,7 @@ Run these from the repository root:
 
 ```powershell
 npm run tsn:sdk:build
-node --input-type=module -e "await import('./tsn-protocol/tsn-sdk/dist/index.js'); console.log('SDK_IMPORT_OK')"
+node --input-type=module -e "await import('./tsn-protocol/sdks/tsn-sdk/dist/index.js'); console.log('SDK_IMPORT_OK')"
 node --check protocol-tests/ui/server.mjs
 node --check protocol-tests/ui/public/tsn-dapp.js
 npm run tsn:receiver:test

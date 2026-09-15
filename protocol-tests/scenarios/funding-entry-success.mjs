@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 
 export async function runFundingEntrySuccess({ root, rpc, programIds }) {
-  const script = `${root}/tcap-protocol/scripts/devnet-funding-claim.mjs`;
+  const script = `${root}/tsn-protocol/programs/tcap-protocol/scripts/devnet-funding-claim.mjs`;
   const child = spawn(process.execPath, [script], { cwd: root, env: { ...process.env, TCAP_RPC_URL: rpc }, stdio: ["ignore", "pipe", "pipe"] });
   let stdout = "";
   let stderr = "";

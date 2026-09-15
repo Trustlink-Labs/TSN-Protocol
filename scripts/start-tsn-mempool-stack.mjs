@@ -42,7 +42,7 @@ async function isHttpReachable(url) {
 const children = [];
 if (startLocalReceiver && !(await isPortOpen(receiverPort))) {
   children.push(spawnTagged("tsn-receiver", npm, ["run", "dev", "--", "-p", String(receiverPort)],
-    `${rootDir}/tsn-protocol/tsn-receiver`));
+    `${rootDir}/tsn-protocol/services/tsn-receiver`));
 } else if (startLocalReceiver) console.log(`[tsn-receiver] reusing localhost:${receiverPort}`);
 
 if (!(await isPortOpen(nodePort))) {
@@ -50,20 +50,20 @@ if (!(await isPortOpen(nodePort))) {
     console.log(`[tsn-node] using live service ${liveNodeUrl}`);
   } else {
     children.push(spawnTagged("tsn-node", process.platform === "win32" ? "python" : "python3", ["-u", "server.py"],
-      `${rootDir}/tsn-protocol/tsn-node`, {
-        ...process.env,
-        TSN_RECEIVER_URL: process.env.TSN_RECEIVER_URL ||
-          (startLocalReceiver ? `http://127.0.0.1:${receiverPort}` : liveReceiverUrl),
-        TSN_RECEIVER_FALLBACK_URL: process.env.TSN_RECEIVER_FALLBACK_URL || liveReceiverUrl,
-        PYTHONUNBUFFERED: "1",
-      }));
+      `${rootDir}/tsn-protocol/services/tsn-node`, {
+      ...process.env,
+      TSN_RECEIVER_URL: process.env.TSN_RECEIVER_URL ||
+        (startLocalReceiver ? `http://127.0.0.1:${receiverPort}` : liveReceiverUrl),
+      TSN_RECEIVER_FALLBACK_URL: process.env.TSN_RECEIVER_FALLBACK_URL || liveReceiverUrl,
+      PYTHONUNBUFFERED: "1",
+    }));
   }
 } else console.log(`[tsn-node] reusing localhost:${nodePort}`);
 
 if (process.env.TSN_START_MEMPOOL_UI === "true") {
   if (!(await isPortOpen(uiPort))) {
     children.push(spawnTagged("tsn-mempool-ui", npm, ["run", "dev", "--", "-p", String(uiPort)],
-      `${rootDir}/tsn-protocol/tsn-mempool-ui`));
+      `${rootDir}/tsn-protocol/services/tsn-mempool-ui`));
   } else console.log(`[tsn-mempool-ui] reusing localhost:${uiPort}`);
 }
 

@@ -10,8 +10,8 @@ import path from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction, sendAndConfirmTransaction } from "@solana/web3.js";
-import { TCAP_PROGRAM_ID, buildDepositAssetV2Instruction, buildTsnRegisterOneTimeCreditInstruction, deriveOneTimeCreditPermitDigest } from "../../tcap-protocol/scripts/tcap-credit-transaction.mjs";
-import { computeTcapBalanceSnapshotCommitment, encryptTcapBalanceSnapshotV1, importTcapSnapshotKey } from "../../tcap-protocol/tcap-sdk/dist/index.js";
+import { TCAP_PROGRAM_ID, buildDepositAssetV2Instruction, buildTsnRegisterOneTimeCreditInstruction, deriveOneTimeCreditPermitDigest } from "../../tsn-protocol/programs/tcap-protocol/scripts/tcap-credit-transaction.mjs";
+import { computeTcapBalanceSnapshotCommitment, encryptTcapBalanceSnapshotV1, importTcapSnapshotKey } from "../../tsn-protocol/programs/tcap-protocol/tcap-sdk/dist/index.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 function loadEnvFile(file) {

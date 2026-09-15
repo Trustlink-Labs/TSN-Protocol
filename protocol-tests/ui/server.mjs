@@ -10,8 +10,8 @@ import { diagnosticConfig, diagnosticConfigFromBody, loadDiagnosticRecords, save
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const runsRoot = path.join(root, "protocol-test-runs");
-const tsnSdk = await import(pathToFileURL(path.join(root, "tsn-protocol/tsn-sdk/dist/index.js")).href);
-const splToken = await import(pathToFileURL(path.join(root, "tsn-protocol/tsn-sdk/node_modules/@solana/spl-token/lib/esm/index.js")).href);
+const tsnSdk = await import(pathToFileURL(path.join(root, "tsn-protocol/sdks/tsn-sdk/dist/index.js")).href);
+const splToken = await import(pathToFileURL(path.join(root, "tsn-protocol/sdks/tsn-sdk/node_modules/@solana/spl-token/lib/esm/index.js")).href);
 const CURRENT_ROUTE_VERSION = 1;
 const port = Number(process.env.TRUSTLINK_UI_PORT || 4317);
 const clients = new Set();
@@ -28,7 +28,7 @@ function readEnvDefaults(file) {
 }
 const CREDIT_DEFAULTS = await readEnvDefaults(path.join(root, "protocol-tests/tcap-credit-devnet.defaults.env"));
 function configuredAnchorRpc() {
-  for (const file of ["tcap-protocol/Anchor.toml", "tsn-protocol/tsn/protocol/Anchor.toml"]) {
+  for (const file of ["tsn-protocol/programs/tcap-protocol/Anchor.toml", "tsn-protocol/programs/tsn/protocol/Anchor.toml"]) {
     try {
       const text = readFileSync(path.join(root, file), "utf8");
       const match = text.match(/^cluster\s*=\s*"([^"]+)"/m);

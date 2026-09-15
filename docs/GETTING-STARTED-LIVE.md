@@ -61,13 +61,13 @@ keys, snapshot-decryption keys, or private commitment material.
 
 ## SDK user
 
-The SDK is a private workspace package at `tsn-protocol/tsn-sdk`. Build and test
+The SDK is a private workspace package at `tsn-protocol/sdks/tsn-sdk`. Build and test
 it locally:
 
 ```powershell
-npm --prefix tsn-protocol/tsn-sdk install
-npm --prefix tsn-protocol/tsn-sdk run build
-npm --prefix tsn-protocol/tsn-sdk test
+npm --prefix tsn-protocol/sdks/tsn-sdk install
+npm --prefix tsn-protocol/sdks/tsn-sdk run build
+npm --prefix tsn-protocol/sdks/tsn-sdk test
 ```
 
 For a client or test harness, configure the RPC and Receiver URLs without
@@ -83,7 +83,7 @@ TSN_RECEIVER_URL=https://tsn-receiver-kappa.vercel.app
 | Program                | Program ID                                    |
 | ---------------------- | --------------------------------------------- |
 | TSN / TrustLink Escrow | `TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V` |
-| TCAP                   | `TcApT4CytBqvqEDpRYVB7WfiB1e53VJJg9X8NoRP8V` |
+| TCAP                   | `TcApT4CytBqvqEDpRYVB7WfiB1e53VJJg9X8NoRP8V`  |
 | TIP / TIN registrar    | `TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT` |
 
 The SDK owns canonical plan construction, commitments, source selection,
@@ -177,4 +177,4 @@ payment.
 - [`protocol-architecture.md`](protocol-architecture.md) — protocol roles
 - [`security-model.md`](security-model.md) — security boundaries
 - [`tsn-receiver-node-architecture.md`](tsn-receiver-node-architecture.md) — Receiver and Node boundary
-- [`../tsn-protocol/tsn-sdk/README.md`](../tsn-protocol/tsn-sdk/README.md) — SDK responsibilities
+- [`../tsn-protocol/sdks/tsn-sdk/README.md`](../tsn-protocol/sdks/tsn-sdk/README.md) — SDK responsibilities

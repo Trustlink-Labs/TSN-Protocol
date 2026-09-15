@@ -2,15 +2,15 @@
 
 ## Repository areas
 
-| Area | Role |
-| --- | --- |
-| `frontend/` | TrustLink Pay application and route review UI |
-| `backend/` | Application authentication, profile, notifications, and APIs |
-| `transfer-identity-protocol/` | TIN program and client tooling |
-| `tsn-protocol/tsn-sdk/` | Planning, commitments, local authorization, and state policy |
-| `tsn-protocol/tsn-node/` | TSN Node implementation and intent/claim coordination |
-| `tsn-protocol/tsn-cranker-op-daemon/` | Cranker operator and fee-paying submission |
-| `tsn-protocol/tsn/protocol/` | Solana TSN Program and on-chain tests |
+| Area                                                | Role                                                         |
+| --------------------------------------------------- | ------------------------------------------------------------ |
+| `frontend/`                                         | TrustLink Pay application and route review UI                |
+| `backend/`                                          | Application authentication, profile, notifications, and APIs |
+| `tsn-protocol/programs/transfer-identity-protocol/` | TIN program and client tooling                               |
+| `tsn-protocol/sdks/tsn-sdk/`                        | Planning, commitments, local authorization, and state policy |
+| `tsn-protocol/services/tsn-node/`                   | TSN Node implementation and intent/claim coordination        |
+| `tsn-protocol/services/tsn-cranker-op-daemon/`      | Cranker operator and fee-paying submission                   |
+| `tsn-protocol/programs/tsn/protocol/`               | Solana TSN Program and on-chain tests                        |
 
 ## Local development
 

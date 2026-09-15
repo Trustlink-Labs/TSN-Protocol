@@ -91,13 +91,13 @@ program/cluster configuration.
 From the repository root:
 
 ```powershell
-npm --prefix tsn-protocol/tsn-cranker-op-daemon install
+npm --prefix tsn-protocol/services/tsn-cranker-op-daemon install
 ```
 
 Or from inside the operator package:
 
 ```powershell
-cd tsn-protocol/tsn-cranker-op-daemon
+cd tsn-protocol/services/tsn-cranker-op-daemon
 npm install
 ```
 
@@ -111,7 +111,7 @@ Run this once on the machine that will operate the Cranker. These commands are
 instructions for the operator; this guide does not run them.
 
 ```bash
-cd tsn-protocol/tsn-cranker-op-daemon
+cd tsn-protocol/services/tsn-cranker-op-daemon
 mkdir -p keys
 solana-keygen new --outfile keys/cranker-keypair.json --no-bip39-passphrase
 chmod 600 keys/cranker-keypair.json
@@ -125,7 +125,7 @@ a deployment image.
 
 ## Configure the environment
 
-Create `tsn-protocol/tsn-cranker-op-daemon/.env` from `.env.example`. Use
+Create `tsn-protocol/services/tsn-cranker-op-daemon/.env` from `.env.example`. Use
 real values only on the private operator machine:
 
 ```dotenv
@@ -244,7 +244,7 @@ npm run tsn:cranker:setup
 Raw commands are available inside the operator package:
 
 ```powershell
-cd tsn-protocol/tsn-cranker-op-daemon
+cd tsn-protocol/services/tsn-cranker-op-daemon
 npm run setup:raw -- init-vault <TOKEN_MINT_OR_SYMBOL>
 npm run setup:raw -- fund-cranker <TOKEN_MINT_OR_SYMBOL> <FUNDER_KEYPAIR> <FUNDER_TOKEN_ACCOUNT> <BASE_UNITS>
 npm run policy:open
@@ -310,7 +310,7 @@ it; the Cranker must not invent a new route.
 Use the same Devnet RPC and program ID as the operator environment:
 
 ```bash
-solana address -k tsn-protocol/tsn-cranker-op-daemon/keys/cranker-keypair.json
+solana address -k tsn-protocol/services/tsn-cranker-op-daemon/keys/cranker-keypair.json
 solana account <MOTHER_ESCROW_PDA> --url devnet
 solana account <CRANKER_PDA> --url devnet
 solana program show TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V --url devnet
@@ -384,4 +384,4 @@ the corresponding on-chain and Receiver evidence.
 - [TSN operations and testing](./operations-and-testing.md)
 - [TSN receiver and node architecture](./tsn-receiver-node-architecture.md)
 - [TSN security model](./security-model.md)
-- [Cranker source package](../tsn-protocol/tsn-cranker-op-daemon/)
+- [Cranker source package](../tsn-protocol/services/tsn-cranker-op-daemon/)

@@ -5,9 +5,9 @@ liquidity, EVM executors, and cross-network route activation.
 
 - [Cross-network build plan](../../CROSS-NETWORK-PAYMENTS-BUILD-PLAN.md)
 - [Cross-network research](../../CROSS-NETWORK-PAYMENTS-RESEARCH.md)
-- [TSN cross-chain source docs](../../../tsn-protocol/tsn-crosschain/docs/README.md)
-- [Creditcoin-first settlement](../../../tsn-protocol/tsn-crosschain/docs/creditcoin-first-settlement.md)
-- [Cross-chain architecture](../../../tsn-protocol/tsn-crosschain/docs/architecture.md)
+- [TSN cross-chain source docs](../../../tsn-protocol/services/tsn-crosschain/docs/README.md)
+- [Creditcoin-first settlement](../../../tsn-protocol/services/tsn-crosschain/docs/creditcoin-first-settlement.md)
+- [Cross-chain architecture](../../../tsn-protocol/services/tsn-crosschain/docs/architecture.md)
 - [Creditcoin navigation and deployment experience](./creditcoin-navigation.md)
 - [Direct Creditcoin settlement](./creditcoin-direct-settlement.md) — the
   first destination prototype: registry, stablecoin vault, executor, and

@@ -30,6 +30,34 @@ TSN remains TrustLink Labs' Transfer Settlement Network within the broader Decen
 
 The TIN V1 program must be deployed on Solana Devnet before any public demo claim. The deployment record must include the program ID, deployment transaction, fresh TIN issuance transaction, resolver evidence, and the later Solana-to-Creditcoin settlement transactions. No placeholder address or fabricated transaction hash is valid evidence.
 
+## Global initialization gate
+
+Program deployment does not initialize the TIN registry state. The team must
+initialize the program's global-state PDA once on Devnet before issuing any
+private TIN. The initialization instruction sets the starting sequence used by
+the registry; it does not create a user TIN and does not store a display name,
+lookup secret, or private identity data.
+
+Run the idempotent initializer from the repository root after deploying the
+program:
+
+```bash
+npm run tin:init-global -- \
+  TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT \
+  ~/.config/solana/id.json \
+  100000000
+```
+
+The command uses the Solana Devnet RPC selected by the TSN RPC resolver. If the
+global-state PDA already exists, it reports `already_initialized` and does not
+submit another transaction. If it creates the PDA, record the real Solana
+signature, program ID, global-state PDA, payer, and starting sequence in the
+team evidence log. Never record the keypair contents or lookup secret.
+
+Only after this gate passes may the SDK create a private TIN issuance intent.
+That intent still follows the current SDK → Node → generic Cranker → TIN
+program path; global initialization is not an issuance transaction.
+
 ## Runtime configuration
 
 The existing SDK façade accepts the protected lookup secret through its resolver options, and the TSN Node accepts the same secret through `TINS_LOOKUP_SECRET`. The value must be provisioned through the team secret store or an ignored local environment file; it must never be committed, printed, or sent to the Receiver. When the variable is absent, the Node continues using the existing route reader until the fresh private-registry deployment is activated.

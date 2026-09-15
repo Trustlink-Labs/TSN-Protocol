@@ -12,7 +12,7 @@ import {
   serializeTinCreationRegistryParams,
   serializeResolveTinParams,
   createTinOwnerIntentHash,
-} from "../../transfer-identity-protocol/tip-sdk/src/index";
+} from "../../tsn-protocol/programs/transfer-identity-protocol/tip-sdk/src/index";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -74,7 +74,12 @@ async function main() {
   console.log("Identity PDA:", identityPda.toBase58(), "bump:", identityBump);
 
   const [globalStatePda, globalBump] = getGlobalStatePda();
-  console.log("Global State PDA:", globalStatePda.toBase58(), "bump:", globalBump);
+  console.log(
+    "Global State PDA:",
+    globalStatePda.toBase58(),
+    "bump:",
+    globalBump,
+  );
 
   console.log("\n[2] Testing client-side phone encryption...");
   const phoneNumber = "+2348123456789";
@@ -133,7 +138,10 @@ async function main() {
   } catch {
     directCreateBlocked = true;
   }
-  assert(directCreateBlocked, "Direct user-submitted CreateTin must remain disabled");
+  assert(
+    directCreateBlocked,
+    "Direct user-submitted CreateTin must remain disabled",
+  );
 
   const challengeNonce = crypto.randomBytes(32);
   const resolveParams = serializeResolveTinParams(walletPubkey, challengeNonce);
@@ -151,7 +159,9 @@ async function main() {
   );
 
   console.log("\n[4] Testing owner signature primitive...");
-  const signature = await mockWallet.signMessage(new Uint8Array(challengeNonce));
+  const signature = await mockWallet.signMessage(
+    new Uint8Array(challengeNonce),
+  );
   const spkiHeader = Buffer.from("302a300506032b6570032100", "hex");
   const spkiKey = Buffer.concat([spkiHeader, walletPubkey.toBuffer()]);
   const publicKeyObj = crypto.createPublicKey({

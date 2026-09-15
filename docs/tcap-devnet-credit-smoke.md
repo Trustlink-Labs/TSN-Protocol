@@ -20,10 +20,10 @@ This is the program that owns the CPI authorization PDA; no new RPC URL,
 wallet layout, or deployment system is introduced:
 
 ```bash
-cd tsn-protocol/tsn/protocol
+cd tsn-protocol/programs/tsn/protocol
 anchor build
 anchor deploy
-cd ../../../tcap-protocol
+cd ../../tcap-protocol
 anchor build
 anchor deploy
 ```
@@ -32,7 +32,7 @@ Then use the checked-in TCAP `Anchor.toml` and the same wallet and cluster
 configuration:
 
 ```bash
-cd tcap-protocol
+cd tsn-protocol/programs/tcap-protocol
 anchor build
 anchor deploy
 ```
@@ -48,10 +48,10 @@ node scripts/devnet-credit-smoke.mjs
 On PowerShell:
 
 ```powershell
-Set-Location tsn-protocol/tsn/protocol
+Set-Location tsn-protocol/programs/tsn/protocol
 anchor build
 anchor deploy
-Set-Location ../../../tcap-protocol
+Set-Location ..\..\tcap-protocol
 anchor build
 anchor deploy
 if (-not $env:ANCHOR_PROVIDER_URL) { throw "Set ANCHOR_PROVIDER_URL using the repository's existing deployment environment" }
@@ -278,4 +278,3 @@ If the existing Devnet config is detected in the legacy pre-proof-verifier layou
   the program upgrade has not completed.
 - `MISSING_DEPENDENCY TCAP_EMPTY_TREE_ROOT_HEX`: governance/root setup is not
   complete; never substitute a random or zero root.
-

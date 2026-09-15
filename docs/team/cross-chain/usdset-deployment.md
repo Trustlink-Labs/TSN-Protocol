@@ -24,7 +24,7 @@ the `mint` authority.
 
 ## Commands
 
-From `tsn-protocol/tsn-crosschain`:
+From `tsn-protocol/services/tsn-crosschain`:
 
 ```powershell
 npx tsx scripts/deploy-usdset.ts --compile-only

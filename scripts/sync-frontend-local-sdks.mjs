@@ -11,8 +11,8 @@ function remove(path) {
   rmSync(path, { recursive: true, force: true });
 }
 
-run("npm", ["--prefix", "tsn-protocol/tsn-sdk", "install"]);
-run("npm", ["--prefix", "tsn-protocol/tsn-sdk", "run", "build"]);
+run("npm", ["--prefix", "tsn-protocol/sdks/tsn-sdk", "install"]);
+run("npm", ["--prefix", "tsn-protocol/sdks/tsn-sdk", "run", "build"]);
 
 run("npm", ["--prefix", "packages/trustlink-whatsapp-sdk", "install"]);
 run("npm", ["--prefix", "packages/trustlink-whatsapp-sdk", "run", "build"]);

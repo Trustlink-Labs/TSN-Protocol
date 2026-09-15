@@ -1,6 +1,6 @@
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import nacl from "tweetnacl";
-import { createTipClient } from "../transfer-identity-protocol/tip-sdk/dist/index.js"; 
+import { createTipClient } from "../tsn-protocol/programs/transfer-identity-protocol/tip-sdk/dist/index.js";
 import { createSolanaConnection } from "./lib/tsn-rpc.mjs";
 
 async function main() {
@@ -11,7 +11,7 @@ async function main() {
   console.log(`Setting up new TIN for '${displayName}' with phone '${phoneNumber}'...`);
 
   const connection = createSolanaConnection({ frontendSafe: false });
-  
+
   // 1. Generate a brand new random wallet for testing
   const walletKeypair = Keypair.generate();
   console.log(`Generated Wallet Pubkey: ${walletKeypair.publicKey.toBase58()}`);
@@ -43,7 +43,7 @@ async function main() {
   console.log(" - Derive a Program Derived Address (PDA) for your TinAccount");
   console.log(" - Encrypt your phone number using a derived key");
   console.log(" - Send the CreateTin instruction to the TIN Registrar program");
-  
+
   try {
     const result = await tipClient.createTin({
       wallet: mockWallet,

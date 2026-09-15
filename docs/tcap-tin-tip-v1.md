@@ -5,7 +5,7 @@
 
 ## Summary
 
-TCAP now has a small, versioned account for the private state of a TINS tip relationship. The account is derived from a *blinded* TINS privacy-receiving-root commitment, so neither a raw TIN nor a wallet address is part of the PDA derivation or account data. It keeps only a current commitment, transition sequence, policy commitment, last transition nullifier, frozen bit, and PDA bump.
+TCAP now has a small, versioned account for the private state of a TINS tip relationship. The account is derived from a _blinded_ TINS privacy-receiving-root commitment, so neither a raw TIN nor a wallet address is part of the PDA derivation or account data. It keeps only a current commitment, transition sequence, policy commitment, last transition nullifier, frozen bit, and PDA bump.
 
 ## Implementation notes
 
@@ -91,16 +91,16 @@ and settlement coordination.
 
 ## Security and privacy considerations
 
-* **Hidden:** public native balances, stable-unit balances, raw TIN values, wallet addresses, GPRU keys, token accounts, encrypted snapshot ciphertext, and the unblinded TINS receiving root.
-* **Exposed:** the account PDA exists, its owner is TCAP, its fixed-size commitment-oriented state is readable, and initialization emits that account key. This is the minimum public fact required to address the account.
-* **Why:** binding the PDA to a blinded commitment creates deterministic, non-custodial addressing while avoiding identity and payment metadata in permanent account fields or logs.
+- **Hidden:** public native balances, stable-unit balances, raw TIN values, wallet addresses, GPRU keys, token accounts, encrypted snapshot ciphertext, and the unblinded TINS receiving root.
+- **Exposed:** the account PDA exists, its owner is TCAP, its fixed-size commitment-oriented state is readable, and initialization emits that account key. This is the minimum public fact required to address the account.
+- **Why:** binding the PDA to a blinded commitment creates deterministic, non-custodial addressing while avoiding identity and payment metadata in permanent account fields or logs.
 
 ## Testing notes
 
 Run the TCAP program tests from the protocol workspace:
 
 ```bash
-cd tcap-protocol
+cd tsn-protocol/programs/tcap-protocol
 cargo test -p tcap
 ```
 

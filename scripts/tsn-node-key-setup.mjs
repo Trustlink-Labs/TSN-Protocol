@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { resolve } from "node:path";
 import nacl from "tweetnacl";
 
-const envPath = resolve("tsn-protocol/tsn-node/.env");
+const envPath = resolve("tsn-protocol/services/tsn-node/.env");
 const routeKey = "TSN_ROUTE_DECRYPTION_PRIVATE_KEY";
 const thresholdKey = "TSN_THRESHOLD_NONCE_SIGNING_KEY";
 const attestationKey = "TSN_ROUTE_ATTESTATION_SIGNING_KEY";
@@ -41,7 +41,7 @@ try { chmodSync(envPath, 0o600); } catch { /* Windows ACLs provide the protectio
 
 console.log(JSON.stringify({
   status: "CREATED",
-  environmentFile: "tsn-protocol/tsn-node/.env",
+  environmentFile: "tsn-protocol/services/tsn-node/.env",
   generated: {
     routeDecryption: Boolean(route),
     thresholdNonceVerification: Boolean(threshold),

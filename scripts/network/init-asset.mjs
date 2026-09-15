@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { PublicKey, SystemProgram, Transaction, TransactionInstruction, sendAndConfirmTransaction } from "@solana/web3.js";
-import { run as adminRun } from "../../tcap-protocol/scripts/tcap-asset-admin.mjs";
+import { run as adminRun } from "../../tsn-protocol/programs/tcap-protocol/scripts/tcap-asset-admin.mjs";
 import { connection, parseOptions, inspect, assetForMint, keypairPath, loadKeypair } from "./common.mjs";
 
 const cliOptions = parseOptions(process.argv.slice(2));
@@ -14,9 +14,11 @@ if (live.config.registryAuthority !== signer.publicKey.toBase58()) {
   if (!options.confirm) throw new Error(`TCAP_CONFIG_AUTHORITY_REPAIR_REQUIRED: registry authority is ${live.config.registryAuthority}; rerun with --confirm to submit governance-only migrate_tcap_config_layout_v1`);
   const config = new PublicKey(live.addresses.config);
   const data = createHash("sha256").update("global:migrate_tcap_config_layout_v1").digest().subarray(0, 8);
-  const repair = new TransactionInstruction({ programId: live.program.address ? new PublicKey(live.program.address) : new PublicKey("TcApT4CytBqvqEDpRYVB7Wfi6aFzmtSZdWvDsq6bp9x"), keys: [
-    { pubkey: signer.publicKey, isSigner: true, isWritable: true }, { pubkey: config, isSigner: false, isWritable: true }, { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-  ], data });
+  const repair = new TransactionInstruction({
+    programId: live.program.address ? new PublicKey(live.program.address) : new PublicKey("TcApT4CytBqvqEDpRYVB7Wfi6aFzmtSZdWvDsq6bp9x"), keys: [
+      { pubkey: signer.publicKey, isSigner: true, isWritable: true }, { pubkey: config, isSigner: false, isWritable: true }, { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ], data
+  });
   const signature = await sendAndConfirmTransaction(connection(), new Transaction().add(repair), [signer], { commitment: "confirmed" });
   console.log(`Repaired TCAP config registry authority via governance migration: ${signature}`);
 }

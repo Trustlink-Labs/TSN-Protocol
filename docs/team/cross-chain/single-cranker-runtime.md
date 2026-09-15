@@ -8,14 +8,14 @@ Creditcoin settlement.
 
 ## Required runtime services
 
-| Service | Runtime | Purpose |
-| --- | --- | --- |
-| Solana Devnet RPC | remote | Source-chain reads and transactions |
-| Creditcoin CC3 RPC | remote | EVM settlement reads and transactions |
-| TSN Receiver | deployed service | Durable work queue and Cranker leases |
-| TSN Node | local or deployed | Intent validation, route admission, and authorization |
-| Generic Cranker | one local/deployed process | Solana and EVM transaction submission |
-| Test UI | local or deployed | Calls the TSN SDK and displays evidence |
+| Service            | Runtime                    | Purpose                                               |
+| ------------------ | -------------------------- | ----------------------------------------------------- |
+| Solana Devnet RPC  | remote                     | Source-chain reads and transactions                   |
+| Creditcoin CC3 RPC | remote                     | EVM settlement reads and transactions                 |
+| TSN Receiver       | deployed service           | Durable work queue and Cranker leases                 |
+| TSN Node           | local or deployed          | Intent validation, route admission, and authorization |
+| Generic Cranker    | one local/deployed process | Solana and EVM transaction submission                 |
+| Test UI            | local or deployed          | Calls the TSN SDK and displays evidence               |
 
 No localnet validator is required.
 
@@ -48,7 +48,7 @@ not authorize payouts.
 Generate the dedicated CC3 Testnet EVM Cranker wallet from the daemon package:
 
 ```powershell
-cd tsn-protocol/tsn-cranker-op-daemon
+cd tsn-protocol/services/tsn-cranker-op-daemon
 npm run creditcoin:key:fund
 ```
 
@@ -67,14 +67,14 @@ Start the Node, then the one Cranker process, then the test UI:
 
 ```powershell
 # Window 1
-python tsn-protocol/tsn-node/server.py --test-crosschain --receipt --network creditcoin-testnet --verbose
+python tsn-protocol/services/tsn-node/server.py --test-crosschain --receipt --network creditcoin-testnet --verbose
 
 # Window 2
-cd tsn-protocol/tsn-cranker-op-daemon
+cd tsn-protocol/services/tsn-cranker-op-daemon
 npm run crank:start
 
 # Window 3
-cd tsn-protocol/tsn-mempool-ui
+cd tsn-protocol/services/tsn-mempool-ui
 npm run dev
 ```
 

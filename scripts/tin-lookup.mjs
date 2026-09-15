@@ -4,7 +4,7 @@ import bs58 from "bs58";
 import {
   decodeTinsIdentityRegistry,
   resolveTIN,
-} from "../tsn-protocol/tsn-sdk/dist/tins.js";
+} from "../tsn-protocol/sdks/tsn-sdk/dist/tins.js";
 import { resolveSolanaRpcUrl } from "./lib/tsn-rpc.mjs";
 
 const DEFAULT_TIP_PROGRAM_ID = new PublicKey(

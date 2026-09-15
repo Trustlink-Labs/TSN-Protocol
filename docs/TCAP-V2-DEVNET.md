@@ -21,7 +21,7 @@ provider Devnet RPC rather than the browser gateway for this operator command.
 export TCAP_RPC_URL="https://devnet.helius-rpc.com/?api-key=<your-key>"
 export TCAP_MINT="4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
 export TCAP_TOKEN_PROGRAM="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-export TSN_MOTHER_AUTHORITY_WALLET="tsn-protocol/tsn-node/keys/tsn-mother-authority.json"
+export TSN_MOTHER_AUTHORITY_WALLET="tsn-protocol/services/tsn-node/keys/tsn-mother-authority.json"
 
 npm run tcap:asset-state:v2:init:devnet
 ```
@@ -67,13 +67,13 @@ appear in that credit transaction.
 These are derived by the setup command for the current Devnet mint; they are
 not substitutes for an on-chain presence check:
 
-| Account | Address |
-| --- | --- |
-| TCAP config | `2Q48b1TAhJECiGtLwMirvyNerFSBUBcpQvCPPemQryVY` |
-| Asset state | `Bg2ZJq8jgrjz5iYo5r3LtwSyZFGeMCjyFhfnzzk74iq` |
-| Reserve state | `3f6KxF1FRPY4ntyXxr1RbMEMwMHngV7vMGcAdBKdEc5d` |
+| Account           | Address                                        |
+| ----------------- | ---------------------------------------------- |
+| TCAP config       | `2Q48b1TAhJECiGtLwMirvyNerFSBUBcpQvCPPemQryVY` |
+| Asset state       | `Bg2ZJq8jgrjz5iYo5r3LtwSyZFGeMCjyFhfnzzk74iq`  |
+| Reserve state     | `3f6KxF1FRPY4ntyXxr1RbMEMwMHngV7vMGcAdBKdEc5d` |
 | Reserve authority | `GA9tyfeGYQWa7bcAhY8qQEKvYkjxDze9vSWqvVcueLs7` |
-| Governed vault | `2R76WD9xbzt3yMHtXEBLoxEbi2bkXYN9Hpk8nQoxsAnh` |
+| Governed vault    | `2R76WD9xbzt3yMHtXEBLoxEbi2bkXYN9Hpk8nQoxsAnh` |
 
 ## Run the V2 debit-only test
 

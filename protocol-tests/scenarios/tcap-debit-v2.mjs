@@ -13,12 +13,12 @@ import {
   deriveTcapTipLiabilityV2,
   deriveTcapPdas,
   deriveGpruTcapDebitTransitionFields,
-} from "../../tcap-protocol/scripts/tcap-credit-transaction.mjs";
+} from "../../tsn-protocol/programs/tcap-protocol/scripts/tcap-credit-transaction.mjs";
 import {
   computeTcapBalanceSnapshotCommitment,
   decryptTcapBalanceSnapshotV1,
   importTcapSnapshotKey,
-} from "../../tcap-protocol/tcap-sdk/dist/index.js";
+} from "../../tsn-protocol/programs/tcap-protocol/tcap-sdk/dist/index.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const FIXTURE_USER = path.join(REPO_ROOT, "protocol-tests", "tcap-v2-fixture", "user.json");
@@ -175,7 +175,7 @@ async function main() {
   const afterInfo = await connection.getAccountInfo(liability, "confirmed");
   const after = liabilityState(afterInfo);
   const snapshotCryptoKey = await importTcapSnapshotKey(Buffer.from(snapshotKeyHex, "hex"));
-  const persisted = await (await import("../../tcap-protocol/tcap-sdk/dist/index.js")).encryptTcapBalanceSnapshotV1({ ...provisional, new_commitment: newCommitment }, snapshotCryptoKey);
+  const persisted = await (await import("../../tsn-protocol/programs/tcap-protocol/tcap-sdk/dist/index.js")).encryptTcapBalanceSnapshotV1({ ...provisional, new_commitment: newCommitment }, snapshotCryptoKey);
   writeEnvelope(path.resolve(REPO_ROOT, env("TCAP_SNAPSHOT_STORE_DIR") ?? ".tcap-snapshots"), newCommitment.toString("hex"), persisted);
   console.log(JSON.stringify({ status: "PASSED", instruction: "tsn_register_tcap_debit_authorization_v2 -> debit_tcap_gpru_tip_v2", signature, tip: tip.toBase58(), liability: liability.toBase58(), reserve: state.reserve.toBase58(), vault: state.vault.toBase58(), availableBefore: before.available.toString(), availableAfter: after.available.toString(), spentBefore: before.spent.toString(), spentAfter: after.spent.toString(), forbiddenAccounts: forbidden }, null, 2));
 }
