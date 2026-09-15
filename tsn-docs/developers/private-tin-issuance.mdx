@@ -9,9 +9,9 @@ wallet and display name; the Solana program generates the 10-digit TIN from
 its global sequence during creation. Phone verification, user-entered TINs,
 and random-secret-only issuance are not part of the current creation path.
 
-The TSN SDK produces the commitment and encrypted envelope needed for
-settlement coordination. The Node, Receiver, and generic Cranker receive
-authenticated protocol data, not a plaintext phone number, TIN, or identity.
+The TSN SDK owns application-facing protocol construction. The Node, Receiver,
+and generic Cranker receive authenticated protocol data rather than a
+plaintext identity document. A Cranker submits only verified work.
 
 ## Application boundary
 
@@ -26,7 +26,7 @@ service boundaries.
 
 ## Creation sequence
 
-The intended creation boundary is:
+The program-defined creation flow is:
 
 1. Connect the owner wallet and enter a display name.
 2. Let the SDK build the encrypted route payload and owner authorization.
@@ -34,40 +34,28 @@ The intended creation boundary is:
 4. Let the Solana program assign the TIN during finalization.
 5. Show the assigned TIN only after the finalized on-chain record is read.
 
-The TIN is an identifier, not a private identity document. Do not log the
-encrypted envelope contents or expose decrypted identity data to a Cranker.
-The current UI accepts only wallet and display name, but it stops honestly
-until the SDK creation builder for the Node/Cranker path is available; it does
-not claim that a TIN was created before a real Solana finalization.
+The TIN is an identifier, not a private identity document. Do not log encrypted
+envelope contents or expose decrypted identity data to a Cranker.
 
-## Prepare private identity material locally after issuance
+## Current implementation status
 
-The SDK creates an encrypted identity envelope and its lookup commitment in
-the owner-controlled application boundary. The finalized TIN is never sent to
-the Node as a plaintext lookup secret.
+The deployed `CreateTin` program instruction assigns the 10-digit TIN during
+its on-chain execution. The active private-creation serializer and Node
+operation normalizer still require a TIN before they will construct or accept
+the private creation payload. These two source-backed behaviors cannot form a
+safe single creation request: an application must not predict a sequence value
+or ask the user to supply one.
 
-```ts
-import { createTinV1IdentityEnvelope } from "@trustlink/tsn-sdk/tins";
+For that reason, the SDK lab accepts only the real user inputs, wallet and
+display name, then stops before creating an intent. It reports that no Solana
+transaction was submitted. This is an implementation boundary, not an
+alternative TIN-issuance method.
 
-const identity = await createTinV1IdentityEnvelope({
-  tin: issuedTin,
-  displayName: userDisplayName,
-});
-
-const creationData = {
-  tin: userTin,
-  lookupCommitment: Buffer.from(identity.lookupCommitment).toString("hex"),
-  encryptedIdentityEnvelope: Buffer.from(identity.encryptedIdentityEnvelope).toString("base64"),
-};
-```
-
-Keep the phone lookup secret and assigned TIN under the owner's control. Do
-not log either value, place either value in a Cranker payload, or include
-either value in analytics events.
-
-The application submits an owner-authorized creation request through the TSN
-service boundary and displays the returned operation status. It does not call
-a direct `createTin` program method.
+The existing `createTinV1IdentityEnvelope` SDK helper requires a TIN as an
+input. It is therefore not a valid builder for the program-assigned TIN flow
+described on this page. Integrators should not use it to invent a client-side
+TIN or construct a normal creation request until the canonical SDK creation
+builder is released.
 
 ## Resolve a TIN and prepare a payment
 
