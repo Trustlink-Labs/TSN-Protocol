@@ -39,14 +39,16 @@ envelope contents or expose decrypted identity data to a Cranker.
 
 ## SDK submission flow
 
-Use the program-assigned builder. It generates the encrypted seed material,
-nonce, expiry, TCap commitments, and owner intent hash locally. The wallet
-signs that exact intent before any payload reaches the Node.
+Use the program-assigned builder. It generates the nonce, expiry, TCap
+commitments, and owner intent hash locally, but it deliberately refuses to
+invent `encryptedMasterSeed`. That field must come from the SDK owner-
+encryption flow before the wallet signs the final intent.
 
 ```ts
 const prepared = buildProgramAssignedTinCreation({
   ownerPubkey: wallet.publicKey,
   displayName: "Daniel TrustLINK LABS",
+  encryptedMasterSeed: ownerEncryptedMasterSeed,
 });
 
 const ownerSignature = await wallet.signMessage(prepared.intentHash);
@@ -60,9 +62,12 @@ await submitProgramAssignedTinCreation({
 ```
 
 The Node validates the signed payload, the generic Cranker submits the
-`CreateTin` instruction, and Solana assigns the 10-digit TIN. The application
-reads and displays the assigned value only after finalization. No application
-code predicts a sequence value or asks the user to type a TIN.
+`CreateTin` instruction, and Solana assigns the 10-digit TIN. The current
+Developer Console stops before submission when `ownerEncryptedMasterSeed` is
+not available; this is intentional fail-closed behavior, not a missing TIN
+input. The application reads and displays the assigned value only after
+finalization. No application code predicts a sequence value or asks the user
+to type a TIN.
 
 ## Resolve a TIN and prepare a payment
 
