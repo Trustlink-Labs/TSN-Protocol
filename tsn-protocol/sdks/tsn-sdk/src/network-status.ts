@@ -16,6 +16,10 @@ export type TsnNetworkStatus = {
   selected: Partial<Record<TsnServiceStatus["service"], { source: TsnServiceSource; url: string | null }>>;
   routeCount: number;
   onlineCrankers: number | null;
+  /** Node, Receiver, and RPC are reachable for native Solana TSN actions. */
+  readyForNativeTransactions: boolean;
+  /** A registered settlement destination is also required for cross-chain actions. */
+  readyForCrossChainTransactions: boolean;
   readyForTransactions: boolean;
 };
 
@@ -132,13 +136,22 @@ export async function getTsnNetworkStatus(params: TsnNetworkStatusOptions = {}):
   services.push({ service: "cranker", source: nodeSelected?.source ?? "none", url: nodeSelected?.url ?? null, latencyMs: null, state: crankerState, detail: onlineCrankers === null ? "Cranker heartbeat count was not returned by the Node" : `${onlineCrankers} online Cranker(s) reported by the Node` });
   selected.cranker = { source: nodeSelected?.source ?? "none", url: nodeSelected?.url ?? null };
 
+  // A Cranker is permissioned by Mother-DNA and becomes observable when it
+  // accepts or processes authorized work. It is not a public availability
+  // prerequisite for an application to create an authorization.
   const coreOnline = ["node", "receiver", "rpc"].every((service) => services.find((item) => item.service === service && item.state === "online"));
+  const readyForNativeTransactions = coreOnline;
+  const readyForCrossChainTransactions = coreOnline && routes.length > 0;
   return {
     checkedAt: new Date().toISOString(),
     services,
     selected,
     routeCount: routes.length,
     onlineCrankers,
-    readyForTransactions: coreOnline && routes.length > 0 && onlineCrankers !== 0,
+    readyForNativeTransactions,
+    readyForCrossChainTransactions,
+    // Backward-compatible generic flag: native TSN actions may proceed when
+    // their core settlement dependencies are reachable.
+    readyForTransactions: readyForNativeTransactions,
   };
 }

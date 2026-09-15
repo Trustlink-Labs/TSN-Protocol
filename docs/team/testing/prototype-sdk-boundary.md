@@ -38,7 +38,14 @@ configured live Receiver/RPC and future live Node, and reads Cranker liveness
 from the Node's heartbeat-backed route response. The selected RPC source is
 also passed to SDK route and transaction helpers, so the UI does not report a
 healthy live gateway while quietly preparing transactions against a different
-RPC. A missing route or unavailable Cranker blocks signing in the prototype.
+RPC. Native TSN actions use that core readiness only. Cross-chain actions add
+the destination-route gate. A missing registered cross-chain route therefore
+does not block private TIN issuance, native TIN payments, or wallet transfers.
+A missing Cranker heartbeat also does not block authorization. Crankers are
+discovered when they accept or process authorized work, not by a public
+IP-based availability probe.
+The UI labels a null Cranker count as "discovery on demand" so users do not
+mistake privacy-preserving worker discovery for an outage.
 
 Private TIN issuance remains a service-authorized flow. The UI explains that
 boundary and does not fabricate a TIN or fall back to direct program creation.

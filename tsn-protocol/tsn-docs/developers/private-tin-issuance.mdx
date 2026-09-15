@@ -4,12 +4,10 @@ sidebarTitle: "Private TINs"
 description: "Build a privacy-aware payment experience with the TSN SDK without exposing TIN secrets to application servers or settlement operators."
 ---
 
-TSN applications use private-by-default TINs. The owner supplies a phone
-number as private lookup material, but the phone number is not published as a
-TIN field on chain. A real phone-ownership verification step must complete
-before the creation authorization is signed. The Solana program assigns the
-10-digit TIN during the creation transaction, so an application must not ask a
-creator to type an assigned TIN before creation.
+TSN applications use private-by-default TINs. The user supplies a connected
+wallet and display name; the Solana program generates the 10-digit TIN from
+its global sequence during creation. Phone verification, user-entered TINs,
+and random-secret-only issuance are not part of the current creation path.
 
 The TSN SDK produces the commitment and encrypted envelope needed for
 settlement coordination. The Node, Receiver, and generic Cranker receive
@@ -28,18 +26,19 @@ service boundaries.
 
 ## Creation sequence
 
-The owner-facing flow is:
+The intended creation boundary is:
 
-1. Normalize and verify ownership of the phone number with the configured verification provider.
-2. Prepare the encrypted identity and signed creation authorization locally.
+1. Connect the owner wallet and enter a display name.
+2. Let the SDK build the encrypted route payload and owner authorization.
 3. Submit the creation operation through the TSN service boundary.
 4. Let the Solana program assign the TIN during finalization.
-5. Show the assigned TIN to the owner only after the finalized on-chain record is read.
+5. Show the assigned TIN only after the finalized on-chain record is read.
 
-The phone number is a lookup secret, not the display name. Do not log it or
-send it to a Cranker. The current prototype UI intentionally blocks the create
-button until a real verification provider is connected; it does not simulate
-OTP ownership.
+The TIN is an identifier, not a private identity document. Do not log the
+encrypted envelope contents or expose decrypted identity data to a Cranker.
+The current UI accepts only wallet and display name, but it stops honestly
+until the SDK creation builder for the Node/Cranker path is available; it does
+not claim that a TIN was created before a real Solana finalization.
 
 ## Prepare private identity material locally after issuance
 
