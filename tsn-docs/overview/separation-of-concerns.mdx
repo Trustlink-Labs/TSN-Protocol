@@ -10,19 +10,17 @@ This separation yields four concrete benefits.
 
 ## Censorship resistance at the transport layer
 
-Because the Cranker cannot change the payment terms, Crankers compete on liveness and fee coverage, not on filtering or censoring recipients. If one Cranker refuses to submit, another can pick up the same authorized transaction and submit it. The authorization is the scarce resource; submission is a commodity serviceBecause the Cranker cannot change the payment terms, Crankers compete on liveness and fee coverage, not on filtering or censoring recipients. If one Cranker refuses to submit, another can pick up the same authorized transaction and submit it. The authorization is the scarce resource; submission is a commodity service.
+Because the Cranker cannot change the payment terms, Crankers compete on liveness and fee coverage, not on filtering or censoring recipients. If one Cranker refuses to submit, another can pick up the same authorized transaction and submit it. The authorization is the scarce resource; submission is a commodity service.
 
-## Safe operation under compromised transportSafe operation under compromised transport
+## Safe operation under compromised transport
 
-If a Node, Receiver, or Cranker is compromised, the attacker cannot redirect funds, change amounts, or alter the mint. The worst case is a liveness failure or a failed submission, both of which are recoverable. The private keys that matter for fund movement never reside in the transport layerIf a Node, Receiver, or Cranker is compromised, the attacker cannot redirect funds, change amounts, or alter the mint. The worst case is a liveness failure or a failed submission, both of which are recoverable. The private keys that matter for fund movement never reside in the transport layer.
+If a Node, Receiver, or Cranker is compromised, the attacker cannot redirect funds, change amounts, or alter the mint. The worst case is a liveness failure or a failed submission, both of which are recoverable. The private keys that matter for fund movement never reside in the transport layer.
 
-## Clear operational responsibilitiesClear operational responsibilities
+## Clear operational responsibilities
 
-Each role has a narrow, well-defined job. A Node operator knows they verify signatures and structure, nothing more. A Cranker operator knows they pay fees and submit exactly the authorized payload. A Receiver operator knows they store state and lease work. This clarity makes it easier to run infrastructure, onboard operators, and reason about incidentsEach role has a narrow, well-defined job. A Node operator knows they verify signatures and structure, nothing more. A Cranker operator knows they pay fees and submit exactly the authorized payload. A Receiver operator knows they store state and lease work. This clarity makes it easier to run infrastructure, onboard operators, and reason about incidents.
+Each role has a narrow, well-defined job. A Node operator knows they verify signatures and structure, nothing more. A Cranker operator knows they pay fees and submit exactly the authorized payload. A Receiver operator knows they store state and lease work. This clarity makes it easier to run infrastructure, onboard operators, and reason about incidents.
 
-## Reproducible reasoning for security reviewReproducible reasoning for security review
-
-When you audit a TSN deployment, you can inspect each layer independently. The authorization layer checks signatures and DNA against the Mother. The transport layer checks that the submitted transaction matches the authorized one exactly. The settlement layer checks the permit template, nullifier, and commitment on-chain. There is no hidden coupling between layers.
+## Reproducible reasoning for security review
 
 When you audit a TSN deployment, you can inspect each layer independently. The authorization layer checks signatures and DNA against the Mother. The transport layer checks that the submitted transaction matches the authorized one exactly. The settlement layer checks the permit template, nullifier, and commitment on-chain. There is no hidden coupling between layers.
 
