@@ -1,7 +1,7 @@
 ---
 title: "TSN Fail-Closed Design: Reject Before Any Token Moves"
 sidebarTitle: "Fail-Closed"
-description: "TSN fails closed: any failed check rejects the operation with no partial settlement. Learn the ordered checks from Receiver ingress through Solana program enforcement."
+description: "TSN fails closed: any failed check rejects the operation with no partial settlement. Walk the ordered checks from Receiver ingress through on-chain enforcement."
 ---
 
 TSN is designed to fail closed. Every check in the payment path is ordered so that a failure at any stage aborts the operation before tokens move. There are no fallback paths, no partial credits, and no trusted off-chain attestation that bypasses on-chain rules.
