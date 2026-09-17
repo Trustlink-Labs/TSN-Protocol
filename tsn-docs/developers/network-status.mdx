@@ -43,9 +43,9 @@ heartbeat-backed status response. Cranker liveness is operational information,
 not a client-side authorization gate: a signed intent can be accepted before a
 Cranker claims it, and a Cranker becomes observable when it accepts or
 processes authorized work. If the Node has no recent worker observation, the
-SDK returns `onlineCrankers: null`; applications should display this as
+SDK returns `onlineCrankers: null`. Applications should display this as
 "discovery on demand," not as "offline" or "not reported." Crankers are not
-located by IP address, and their public network address is not part of the
+located by IP address. Their public network address is not part of the
 application status model.
 
 `readyForNativeTransactions` requires the Node, Receiver, and RPC. It is used
