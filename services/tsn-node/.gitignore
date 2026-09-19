@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.fb_creds/
+*.service-account.json
+*firebase-adminsdk*.json
+__pycache__/
+*.pyc
+.mempool-store.json
+.tsn-node-test-store.json
+.venv/
+logs/
+keys/

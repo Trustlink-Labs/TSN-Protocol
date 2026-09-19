@@ -1,0 +1,131 @@
+---
+title: "Use a Private TIN in a TSN Payment App"
+sidebarTitle: "Private TINs"
+description: "Build a privacy-aware payment experience with the TSN SDK without exposing TIN secrets to application servers or settlement operators."
+---
+
+TSN applications use private-by-default TINs. The user supplies a connected
+wallet and display name; the Solana program generates the 10-digit TIN from
+its global sequence during creation. Phone verification, user-entered TINs,
+and random-secret-only issuance are not part of the current creation path.
+
+The TSN SDK owns application-facing protocol construction. The Node, Receiver,
+and generic Cranker receive authenticated protocol data rather than a
+plaintext identity document. A Cranker submits only verified work.
+
+## Application boundary
+
+```text
+Payment UI -> @trustlink/tsn-sdk -> TSN services -> generic Cranker
+```
+
+The application integrates through `@trustlink/tsn-sdk`. It does not import
+TCAP or TIN program clients directly, derive settlement PDAs, or assemble raw
+settlement instructions. Those responsibilities remain behind the SDK and
+service boundaries.
+
+## Creation sequence
+
+The program-defined creation flow is:
+
+1. Connect the owner wallet and enter a display name.
+2. Let the SDK build the encrypted route payload and owner authorization.
+3. Submit the creation operation through the TSN service boundary.
+4. Let the Solana program assign the TIN during finalization.
+5. Show the assigned TIN only after the finalized on-chain record is read.
+
+The TIN is an identifier, not a private identity document. Do not log encrypted
+envelope contents or expose decrypted identity data to a Cranker.
+
+## SDK submission flow
+
+Use the program-assigned builder. It generates the encrypted seed material,
+nonce, expiry, TCap commitments, and owner intent hash locally. The wallet
+signs that exact intent before any payload reaches the Node.
+
+```ts
+const prepared = buildProgramAssignedTinCreation({
+  ownerPubkey: wallet.publicKey,
+  displayName: "Daniel TrustLINK LABS",
+});
+
+const ownerSignature = await wallet.signMessage(prepared.intentHash);
+await submitProgramAssignedTinCreation({
+  nodeUrl: TSN_NODE_URL,
+  prepared,
+  ownerPubkey: wallet.publicKey,
+  ownerSignature,
+  displayName: "Daniel TrustLINK LABS",
+});
+```
+
+The Node validates the signed payload, the generic Cranker submits the
+`CreateTin` instruction, and Solana assigns the 10-digit TIN. The application
+reads and displays the assigned value only after finalization. No application
+code predicts a sequence value or asks the user to type a TIN.
+
+## Resolve a TIN and prepare a payment
+
+Resolve a TIN with the SDK after the owner authorizes local disclosure, then
+use the returned route commitment to prepare a payment authorization.
+
+```ts
+import {
+  createPaymentAuthorization,
+  resolveTinRoute,
+} from "@trustlink/tsn-sdk";
+
+const identity = await resolveTinRoute({
+  tin: recipientTin,
+  rpcUrl: TSN_RPC_URL,
+  programId: TIN_PROGRAM_ID,
+});
+
+const authorization = createPaymentAuthorization({
+  senderWallet: wallet.publicKey.toBase58(),
+  senderIdentity: `wallet:${wallet.publicKey.toBase58()}`,
+  receiverIdentity: `tin:${recipientTin}`,
+  recipientRouteCommitment: identity.tcapRelationshipCommitment,
+  recipientRouteVersion: identity.tcapRouteVersion,
+  tokenMintAddress: settlementMint,
+  amount,
+  senderFeeAmount,
+  totalTokenRequiredUi: amount + senderFeeAmount,
+  fundingMode: "wallet_only_v2",
+});
+```
+
+The wallet signs the authorization required by the SDK-generated intent. The
+Node validates the request and route, while the generic Cranker submits only
+the authorized protocol operation.
+
+## Build a wallet-to-wallet transfer
+
+Use the SDK to construct the unsigned transaction. The connected wallet signs
+it; no private key is passed to the SDK or Node.
+
+```ts
+import { buildTsnSplTokenTransferTransaction } from "@trustlink/tsn-sdk";
+import { Transaction } from "@solana/web3.js";
+
+const unsigned = await buildTsnSplTokenTransferTransaction({
+  senderWallet: wallet.publicKey.toBase58(),
+  recipientWallet,
+  tokenMintAddress: settlementMint,
+  amountUi: "1.00",
+  tokenDecimals: 6,
+  rpcUrl: TSN_RPC_URL,
+});
+
+await wallet.signTransaction(
+  Transaction.from(Buffer.from(unsigned.transactionBase64, "base64")),
+);
+```
+
+For a TIN payment, use `createPaymentAuthorization` and
+`buildPaymentAuthorizationIntentRequest` from the SDK instead. The SDK is the
+application interface; the TSN services coordinate settlement underneath it.
+
+For internal deployment, registry initialization, RPC configuration, and
+evidence procedures, use the team runbooks. Those operator instructions are
+intentionally not part of public developer documentation.

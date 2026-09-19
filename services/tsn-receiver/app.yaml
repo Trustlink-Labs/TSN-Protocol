@@ -1,0 +1,23 @@
+kind: wasmer.io/App.v0
+name: tsn-receiver
+owner: italianloader
+package: .
+app_id: da_nQgIotrU8Gxv
+annotations:
+  anybuild.run/config:
+    commands:
+      start: node server.mjs
+    edgejs_enable: true
+    edgejs_precompile: true
+    name: out
+    node_build_command: npx -y next-bundle@1.0.0 --build-command 'npm run build'
+    node_framework: next
+    node_install_inputs:
+    - package.json
+    node_package_manager: npm
+    node_package_name: '@trustlink/tsn-receiver'
+    node_remove_native_binaries: true
+    node_server: node
+  anybuild.run/provider: node
+  anybuild.run/version: 0.27.2
+  wasmer.io/version: 7.2.1

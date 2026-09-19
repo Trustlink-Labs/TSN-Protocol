@@ -1,0 +1,90 @@
+---
+title: "TSN SDK — Build signed settlement clients"
+sidebarTitle: "TSN SDK"
+description: "Use the TypeScript SDK to build intents, inspect service status, resolve private TIN routes, and validate cross-chain settlement data."
+---
+
+`@trustlink/tsn-sdk` is the application-facing TypeScript façade. It exports the client, authorization, TIN, cross-chain, wallet-transfer, receipt, recovery, and Solana helpers from `src/index.ts`.
+
+## Public modules and functions
+
+The exports below are grouped by source module. The linked source is authoritative for the complete parameter type and return shape.
+
+| Module | Public exports documented in source |
+| --- | --- |
+| `client` | `TsnHttpClient` with `post`, `get`, `patch`, `postIntent`, `listPendingIntentWork`, `updateIntentStatus`. |
+| `network-status` | `getTsnNetworkStatus`; `TsnNetworkStatus`, `TsnServiceStatus`, and option types. |
+| `payment-authorization` | `createSenderPaymentAuthorizationMessage`, `createPaymentAuthorizationNonce`, `createPaymentAuthorizationExpiry`, `createPaymentAuthorization`, `createCrossChainPaymentAuthorization`, `buildPaymentAuthorizationIntentRequest`, `submitPaymentAuthorizationToMempool`. |
+| `wallet-transfer` | `buildTsnSplTokenTransferTransaction`. |
+| `cross-chain` | `validateCrossChainRecipient`, `validateCreditcoinPayoutAuthorization`, `validateCreditcoinDestination`, `createTinExitReplayKey`, `assertVerifiedDestinationLiquidity`, `CreditcoinRouteClient`, `loadCrossChainUiSnapshot`, `TsnCrossChainClient`. |
+| `tins` | PDA helpers, serialization/builders, `createTinV1IdentityEnvelope`, encryption/decryption helpers, `resolveTIN`, and `resolveTinRoute`. |
+| Other exported modules | `contracts`, `canonical-message`, `mempool`, `quote`, `send-estimate`, `settlement-economics`, `program`, `token-registry`, `payment-authorization-server`, `payment-jobs`, `sponsored-settlement`, `tsn-exit`, `blockchain/*`, `gpru`, `tin-envelopes`, `tin-device-*`, `receipts`, `authorization`, `recovery`, `sessions`, and `device`. |
+
+## Network status
+
+```ts
+import { getTsnNetworkStatus } from "@trustlink/tsn-sdk";
+
+const status = await getTsnNetworkStatus({
+  local: {
+    node: "http://127.0.0.1:8000",
+    receiver: "http://127.0.0.1:3000",
+    rpc: "http://127.0.0.1:8787",
+  },
+  live: {
+    receiver: "https://tsn-receiver.example",
+    rpc: "https://tsn-rpc-gateway.vercel.app",
+  },
+});
+
+if (!status.readyForTransactions) throw new Error("TSN core services are unavailable");
+```
+
+The function probes local candidates before live candidates, reports route count and Cranker observations, and does not require a Cranker heartbeat for native intent creation. Cross-chain readiness additionally requires at least one registered ready destination.
+
+## Payment authorization
+
+```ts
+import {
+  createPaymentAuthorization,
+  buildPaymentAuthorizationIntentRequest,
+  submitPaymentAuthorizationToMempool,
+} from "@trustlink/tsn-sdk";
+
+const authorization = createPaymentAuthorization({
+  senderWallet,
+  senderIdentity,
+  receiverIdentity: `tin:${recipientTin}`,
+  recipientRouteCommitment,
+  recipientRouteVersion,
+  tokenMintAddress,
+  amount: 1,
+  senderFeeAmount: 0,
+  totalTokenRequiredUi: 1,
+});
+
+const request = buildPaymentAuthorizationIntentRequest({
+  ...authorization,
+  paymentId,
+  senderWallet,
+  senderIdentity,
+  receiverIdentity: `tin:${recipientTin}`,
+  tokenMintAddress,
+  amount: 1,
+  senderFeeAmount: 0,
+  totalTokenRequiredUi: 1,
+  signature,
+});
+
+await submitPaymentAuthorizationToMempool({ ...request, nodeUrl: process.env.TSN_NODE_URL! });
+```
+
+TODO: confirm the exact `submitPaymentAuthorizationToMempool` object type from the current exported declaration before adding field-level response tables to this page.
+
+## Private TIN resolution
+
+`createTinV1IdentityEnvelope`, `encryptTinSensitiveField`, `decryptTinSensitiveField`, `resolveTIN`, and `resolveTinRoute` are source-backed helpers for private identity material. The lookup secret is an input to the resolution flow; it is not a public on-chain display name.
+
+TODO: confirm the current resolver transport and returned identity fields from `tins.ts:1363-1630`; this page does not expose a guessed HTTP endpoint for a library-only function.
+
+Source: [`index.ts`](https://github.com/Trustlink-Labs/TSN-Protocol/blob/main/tsn-protocol/sdks/tsn-sdk/src/index.ts), [`network-status.ts:79-157`](https://github.com/Trustlink-Labs/TSN-Protocol/blob/main/tsn-protocol/sdks/tsn-sdk/src/network-status.ts#L79-L157), [`payment-authorization.ts:1-258`](https://github.com/Trustlink-Labs/TSN-Protocol/blob/main/tsn-protocol/sdks/tsn-sdk/src/payment-authorization.ts#L1-L258), [`tins.ts:1168-1630`](https://github.com/Trustlink-Labs/TSN-Protocol/blob/main/tsn-protocol/sdks/tsn-sdk/src/tins.ts#L1168-L1630), [`cross-chain.ts:1-450`](https://github.com/Trustlink-Labs/TSN-Protocol/blob/main/tsn-protocol/sdks/tsn-sdk/src/cross-chain.ts#L1-L450)
