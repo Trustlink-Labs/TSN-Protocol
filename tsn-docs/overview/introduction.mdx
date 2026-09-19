@@ -18,7 +18,7 @@ description: "TSN is an identity-first, intent-based, privacy-preserving settlem
 </Card>
 
   <Card title="Privacy-preserving" icon="lock">
-    TCAP records balance transitions as commitments and owner-decryptable snapshots. The public ledger reveals movement, not amounts or parties.
+    TCap records balance transitions as commitments and owner-decryptable snapshots. The public ledger reveals movement, not amounts or parties.
   </Card>
 </CardGroup>
 
@@ -39,7 +39,7 @@ That separation is enforced by cryptography and on-chain checks, not by trust in
 
 | Role                    | Owns                                               | Cannot do                                                |
 | ----------------------- | -------------------------------------------------- | -------------------------------------------------------- |
-| **Sender \+ TIN**       | Signs the payment intent under a portable identity | —                                                        |
+| **Sender + TIN** | Signs the payment intent under a portable identity | (root of authorization) |
 | **GPRU routing**        | Resolves route metadata privately, off-chain       | Change intent fields                                     |
 | **Mother authority**    | Governs settlement authorization on-chain          | Rewrite sender-signed terms                              |
 | **Node**                | Verifies signatures, sequence, expiry, and policy  | Sign as Mother or submit transactions                    |
@@ -56,24 +56,26 @@ Every role fails closed. A Node that cannot verify rejects. A Cranker that submi
     downstream.
   </Step>
   <Step title="Node verifies">
+    A Node checks signatures, TIN and GPRU bindings, sequence, expiry, and policy, then signs a short-lived Ed25519 permit binding the settlement slot, commitments, nullifier, selected Cranker vault, recipient, mint, amount, and lease. A Node cannot sign as Mother, mutate the intent, or submit the transaction itself, so it can only authorize an exact leased operation or reject.
+
     A stateless Node checks signatures, TIN and GPRU bindings, sequence, expiry,
     and policy. The Node holds no signing authority and can only accept or
     reject.
   </Step>
   <Step title="Receiver stores and leases the work">
-    The Receiver is durable infrastructure for verified work. It moves the job
-    through `RECEIVED → NODE_VERIFYING → VERIFIED → CRANKER_LEASED → SUBMITTED →
+    The Receiver is durable infrastructure for verified work. It moves the job through `RECEIVED → NODE_VERIFYING → VERIFIED → CRANKER_LEASED → SUBMITTED → CONFIRMED` under short leases and strict state versions. The Receiver is durable infrastructure for verified work. It moves the job through `RECEIVED → NODE_VERIFYING → VERIFIED → CRANKER_LEASED → SUBMITTED →
     CONFIRMED` under short leases and strict state versions.
   </Step>
-  <Step title="Cranker submits atomically on Solana">
-    The Cranker pays fees and submits `tsn_fund_epoch_treasury` and
-    `tsn_accept_intent` in one transaction. The on-chain program re-checks
-    stored state, signed fields, sequence, and nullifiers before it commits.
+  <Step title="Mother accepts the intent on-chain">
+    Mother submits `tsn_accept_intent`, which writes an `AcceptedIntentV1` PDA whose root is derived on-chain from the signed fields. This reserves the amount against the epoch treasury before any payout can be attempted.
   </Step>
-  <Step title="Epoch Treasury settles; TCAP records the delta">
-    The Epoch Treasury moves funds and tracks liability. TCAP writes a
-    commitment and an owner-decryptable snapshot so the recipient can reconcile
-    a private balance without exposing amounts on-chain.
+  <Step title="Cranker submits the payout atomically">
+    The Cranker pays fees and submits `tsn_fund_epoch_treasury` and `tsn_accept_intent` in one transaction. The on-chain program re-checks stored state, signed fields, sequence, and nullifiers before it commits.
+
+    The Cranker pays Solana fees and submits `tsn_execute_private_payout` with the Node's Ed25519 permit. The TSN Program re-checks the stored `AcceptedIntentV1` and `SettlementDna`, the signed fields, sequence, and nullifiers, then transfers from the epoch treasury and reimburses the cranker vault, atomically or not at all.
+  </Step>
+  <Step title="TCap records the private balance transition">
+    The recipient's Cranker submits `credit_tcap_tin_tip_v1`, which advances the `TCapTinTipV1` commitment and stores an owner-encrypted snapshot. The recipient reconciles a private balance without exposing amounts on-chain. The Epoch Treasury moves funds and tracks liability. TCAP writes a commitment and an owner-decryptable snapshot so the recipient can reconcile a private balance without exposing amounts on-chain.
   </Step>
 </Steps>
 
@@ -97,6 +99,47 @@ const intent = await signPaymentIntent({
 });
 
 await tsn.submit(intent); // Node -> Receiver -> Cranker -> Solana
+```
+
+```rust program.rs
+// On-chain: what the TSN program re-verifies at settle time.
+// Mother authorizes the intent via `tsn_accept_intent`, which writes
+// this AcceptedIntentV1 PDA. The root is derived from these fields
+// on-chain, so callers cannot choose an arbitrary root.
+#[account]
+pub struct AcceptedIntentV1 {
+    pub version: u16,
+    pub epoch_id: u64,
+    pub intent_commitment: [u8; 32],
+    pub amount: u64,
+    pub token_id: u32,
+    pub tip_root_commitment: [u8; 32],
+    pub settlement_commitment: [u8; 32],
+    pub asset_commitment: [u8; 32],
+    pub policy_commitment: [u8; 32],
+    pub gpru_scope_commitment: [u8; 32],
+    pub replay_nonce: [u8; 32],
+    pub nullifier: [u8; 32],
+    pub valid_after_slot: u64,
+    pub expires_at_slot: u64,
+    pub accepted_intent_root: [u8; 32],
+    pub status: AcceptedIntentStatus,
+    pub mother_escrow: Pubkey,
+    pub bump: u8,
+}
+
+// TCap tip-credit transition args, submitted by the Cranker via
+// `credit_tcap_tin_tip_v1` to advance the recipient's private balance.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub struct CreditTcapTinTipV1Args {
+    pub previous_commitment: [u8; 32],
+    pub new_commitment: [u8; 32],
+    pub sequence: u64,
+    pub token_id: u32,
+    pub policy_commitment: [u8; 32],
+    pub gpru_scope_commitment: [u8; 32],
+    pub nullifier: [u8; 32],
+}
 ```
 
 ```rust program.rs
@@ -128,7 +171,7 @@ pub struct ConfidentialSettlement {
 
 </CodeGroup>
 
-The intent above is what the sender approves. The `ConfidentialSettlement` struct is what the Solana program re-verifies at submit time. Nothing between the two can change a field without invalidating both.
+The intent above is what the sender approves. `AcceptedIntentV1` is what the TSN program re-verifies at accept time, and `CreditTcapTinTipV1Args` is what TCap re-verifies at credit time. Nothing between the two can change a field without invalidating both.
 
 ## Core primitives
 
@@ -157,8 +200,8 @@ The intent above is what the sender approves. The `ConfidentialSettlement` struc
   Treasury](/architecture/epoch-treasury).
 </Accordion>
 
-  <Accordion title="TCAP: confidential balance accounting" icon="lock">
-    The **Transfer Confidential Asset Protocol (TCAP)** records balance transitions as commitments and encrypted snapshots pinned to a `TCapTinTipV1` PDA. The live path is credit-only through `credit_tcap_tin_tip_v1`; debits and exits are proof-gated. See [TCAP](/architecture/tcap).
+  <Accordion title="TCap: confidential balance accounting" icon="lock">
+    The **Transfer Confidential Asset Protocol (TCap)** records balance transitions as commitments and encrypted snapshots pinned to a `TCapTinTipV1` PDA. The live path is credit-only through `credit_tcap_tin_tip_v1`; debits and exits are proof-gated and not yet enabled. See [TCap](/architecture/tcap).
   </Accordion>
 </AccordionGroup>
 
@@ -176,7 +219,7 @@ Follow the work on [GitHub](https://github.com/Trustlink-Labs) and [X](https://x
   </Card>
 
 <Card title="Architecture" icon="cubes" href="/overview/architecture">
-  See identity, authorization, verification, transport, settlement, and TCAP as
+  See identity, authorization, verification, transport, settlement, and TCap as one system on Solana. See identity, authorization, verification, transport, settlement, and TCAP as
   one system on Solana.
 </Card>
 
