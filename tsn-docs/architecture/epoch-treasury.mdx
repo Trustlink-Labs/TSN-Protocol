@@ -1,7 +1,7 @@
 ---
 title: "Epoch Treasury: Protocol Liability Accounting"
 sidebarTitle: "Epoch Treasury"
-description: "Learn how the Epoch Treasury records aggregate funding and settlement liability using opaque slots and why it is protocol-controlled accounting, not a user balance."
+description: "How the TSN Epoch Treasury tracks aggregate funding and liability, uses opaque EpochClaimSlot PDAs, and gates epoch close on zero pending liability."
 ---
 
 The Epoch Treasury is protocol-controlled accounting for aggregate funding and settlement liability. It is not a user balance container. Funding sends SPL tokens directly to the epoch's treasury token account, and the treasury only tracks the aggregate pending liability. No individual payment escrow, commitment PDA, payment vault, or claim slot is created during funding.
