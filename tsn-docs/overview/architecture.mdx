@@ -20,15 +20,15 @@ Settlement    Epoch Treasury, TCAP
 
 ## Identity layer
 
-The identity layer resolves human-meaningful payment identities without exposing them on-chain in plaintext. A **Transfer Identity Number (TIN)** is a 10-digit portable identity issued by the Transfer Identity Protocol (TIP). Routing is resolved off-chain through a **GPRU** scope, a non-custodial authorization and routing scope derived from the TIN privacy-receiving root, settlement commitment, epoch, and authorization scope. Only commitments and derived PDAs reach the Solana ledger.
+The identity layer resolves human-meaningful payment identities without exposing them on-chain in plaintext. A **Transfer Identity Number (TIN)** is a 10-digit portable identity issued by the Transfer Identity Protocol (TIP). Routing is resolved off-chain through a **GPRU** scope. A GPRU scope is a non-custodial authorization and routing scope derived from the TIN privacy-receiving root, settlement commitment, epoch, and authorization scope. Only commitments and derived PDAs reach the Solana ledger.
 
 ## Intent layer
 
-Payment intents are signed off-chain by the sender's wallet. Each intent binds recipient, amount, mint, nonce, and a validity window to the sender's TIN. Because the intent lives off-chain until authorization, sensitive terms are never exposed on-chain. Intents are the atomic unit of payment agreement in TSN.
+The sender's wallet signs payment intents off-chain. Each intent binds recipient, amount, mint, nonce, and a validity window to the sender's TIN. Because the intent lives off-chain until authorization, sensitive terms are never exposed on-chain. Intents are the atomic unit of payment agreement in TSN.
 
 ## Authorization layer
 
-The **Mother Escrow** is the root TSN authority and epoch controller: a PDA whose stored `authority` is a governed external keypair. Mother authorizes settlement and produces **Settlement DNA**, a one-time `SettlementDna` PDA materialized at an HMAC-SHA256 slot that binds payout parameters (settlement commitment, digest, nullifier, cranker vault, recipient, mint, amount, lease) to that opaque slot. A separate **permit signer** authorizes the actual private-settlement payout using domain-separated Ed25519 templates; it is governance-rotatable and signs only those templates.
+The **Mother Escrow** is the root TSN authority and epoch controller: a PDA whose stored `authority` is a governed external keypair. Mother authorizes settlement and produces **Settlement DNA**, a one-time `SettlementDna` PDA materialized at an HMAC-SHA256 slot. Settlement DNA binds payout parameters (settlement commitment, digest, nullifier, cranker vault, recipient, mint, amount, lease) to that opaque slot. A separate **permit signer** authorizes the actual private-settlement payout using domain-separated Ed25519 templates. It is governance-rotatable and signs only those templates.
 
 ## Transport layer
 
