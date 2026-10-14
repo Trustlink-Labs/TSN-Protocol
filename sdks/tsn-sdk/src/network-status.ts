@@ -1,4 +1,4 @@
-export type TsnServiceSource = "local" | "live" | "none";
+export type TsnServiceSource = "local" | "live" | "configured" | "none";
 export type TsnServiceState = "online" | "degraded" | "offline" | "unknown";
 
 export type TsnServiceStatus = {
@@ -86,9 +86,10 @@ function serviceCandidates(local: string | null | undefined, live: string | null
 }
 
 /**
- * Checks the TSN service dependencies and chooses local endpoints first.
- * Cranker liveness is read from the Node route response because the Cranker
- * is a worker, not an HTTP service exposed to applications.
+ * Checks the TSN service dependencies. Node, Receiver, and the RPC gateway
+ * prefer a reachable local endpoint, then fall back to the configured live
+ * endpoint. Cranker liveness is read from the Node route response because the
+ * Cranker is a worker, not an HTTP service exposed to applications.
  */
 export async function getTsnNetworkStatus(params: TsnNetworkStatusOptions = {}): Promise<TsnNetworkStatus> {
   const fetchImpl = (params.fetchImpl ?? globalThis.fetch).bind(globalThis) as typeof fetch;
@@ -109,7 +110,8 @@ export async function getTsnNetworkStatus(params: TsnNetworkStatusOptions = {}):
 
   for (const service of ["node", "receiver", "rpc"] as const) {
     let chosen: TsnServiceStatus | null = null;
-    for (const [source, base] of serviceCandidates(local[service], live[service])) {
+    const candidates = serviceCandidates(local[service], live[service]);
+    for (const [source, base] of candidates) {
       const target = service === "node"
         ? `${base}/settlement-networks`
         : service === "receiver"
