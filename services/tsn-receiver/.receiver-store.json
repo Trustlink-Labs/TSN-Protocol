@@ -1,24 +1,25 @@
 {
   "tsn_receiver_cranker_challenges": {
-    "7c83df424aaafedc0480fd0d1fd20d6a39df7df601dcd6fc7225fa34e466224d": {
+    "af10ca4acd5dbe63dc715001e5848954307612c7a7b0ff22a738fe30638c94d2": {
       "publicKey": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9",
-      "nonce": "fF3pbTwzul72oinc9d2TIOwayyUbV1rv5q5tnCplFL0",
-      "expiresAt": "2026-10-17T13:59:07.658Z",
-      "used": false
+      "nonce": "K6waeOHGzLG2s3E9FnKkTsak6PbA4UrtmA4pYVmRspI",
+      "expiresAt": "2026-10-18T17:07:47.551Z",
+      "used": true,
+      "usedAt": "2026-10-18T17:06:48.069Z"
     }
   },
   "tsn_receiver_cranker_rate_limits": {
-    "d749a2a23223d6c434daff16a8d02445179cf260f1c0e72a0ed92fbaa33c2312": {
+    "5fea78e406e008e10c6ff9be1d5fc2f703ababafb562f8aad9051d2ac49feb12": {
       "publicKey": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9",
-      "bucket": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9|29870756",
-      "count": 6,
-      "updatedAt": "2026-10-17T13:56:56.214Z"
+      "bucket": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9|29872385",
+      "count": 18,
+      "updatedAt": "2026-10-18T17:05:58.916Z"
     },
-    "1062d671a27f40ff5d50249ffacf32236d1d8d88eca1d2c112b3d831d57fb3c7": {
+    "d87498c3e31818ff6d86a6f86d1a4748c9dbdfb9019c6fdc8a917253ddfa1ad1": {
       "publicKey": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9",
-      "bucket": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9|29870757",
-      "count": 6,
-      "updatedAt": "2026-10-17T13:57:37.006Z"
+      "bucket": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9|29872386",
+      "count": 15,
+      "updatedAt": "2026-10-18T17:06:48.122Z"
     }
   },
   "tsn_receiver_work": {
@@ -1231,7 +1232,7 @@
   "tsn_receiver_state": {
     "6d17a1bece320dce49de1fc7045f2f37546cd6ee57081779eab757295595e619": {
       "key": "tsn:epoch",
-      "value": "{\"epoch_number\": 1, \"started_at\": \"2026-10-16T21:40:25.504093+00:00\"}"
+      "value": "{\"epoch_number\": 2, \"started_at\": \"2026-10-18T17:01:02.926973+00:00\"}"
     }
   },
   "tsn_receiver_state/0fe599e22c504175bfdaae6cab793f28179f1d272d7af57ff11c77b17cea1727/items": {
