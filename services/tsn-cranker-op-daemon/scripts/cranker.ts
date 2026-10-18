@@ -110,8 +110,8 @@ function verifyNodeAttestation(work: Work) {
       "ownerIntentMessage", "ownerSignatureMessageFormat", "expiry", "nonce", "lookupCommitment",
       "encryptedIdentityEnvelope", "encryptedTinRecovery", "encryptedMasterSeed", "encryptedMetadataHash",
       "routeVersion", "routeNonce", "tipRouteVersion",
-      "gpruPublicCommitment", "tipRootCommitment", "policyCommitment",
-      "gpruRouteVersion", "gpruRouteCommitment",
+      "gpruElgamalKeyVersion", "gpruElgamalPublicKey", "gpruElgamalKeyCommitment",
+      "policyCommitment",
     ],
   };
   const executionPayload = Object.fromEntries(
@@ -781,11 +781,10 @@ async function submitStagedTinV1Creation(params: {
     routeVersion: BigInt(String(payload.routeVersion)),
     routeNonce: hex32(payload.routeNonce, "routeNonce"),
     tipRouteVersion: 1,
-    gpruPublicCommitment: hex32(payload.gpruPublicCommitment, "gpruPublicCommitment"),
-    tipRootCommitment: hex32(payload.tipRootCommitment, "tipRootCommitment"),
+    gpruElgamalKeyVersion: Number(payload.gpruElgamalKeyVersion) as 1,
+    gpruElgamalPublicKey: hex32(payload.gpruElgamalPublicKey, "gpruElgamalPublicKey"),
+    gpruElgamalKeyCommitment: hex32(payload.gpruElgamalKeyCommitment, "gpruElgamalKeyCommitment"),
     policyCommitment: hex32(payload.policyCommitment, "policyCommitment"),
-    gpruRouteVersion: Number(payload.gpruRouteVersion) as 1,
-    gpruRouteCommitment: hex32(payload.gpruRouteCommitment, "gpruRouteCommitment"),
     expiryTs: BigInt(String(payload.expiry)),
   });
   const stageSig = await sendCrankerInstruction(
@@ -871,15 +870,18 @@ async function processTinOperation(
   if (Number(payload.tipRouteVersion) !== 1) {
     throw new Error("Cranker accepts only the current TIN GPRU route version");
   }
-  if (Number(payload.gpruRouteVersion) !== 1) {
-    throw new Error("Cranker accepts only GPRU route version 1");
+  if (Number(payload.gpruElgamalKeyVersion) !== 1) {
+    throw new Error("Cranker accepts only GPRU ElGamal key version 1");
   }
-  const gpruRouteCommitment = hex32(
-    payload.gpruRouteCommitment,
-    "gpruRouteCommitment",
-  );
-  if (Buffer.from(gpruRouteCommitment).equals(Buffer.alloc(32))) {
-    throw new Error("GPRU route commitment must be nonzero");
+  const gpruElgamalPublicKey = hex32(payload.gpruElgamalPublicKey, "gpruElgamalPublicKey");
+  const gpruElgamalKeyCommitment = hex32(payload.gpruElgamalKeyCommitment, "gpruElgamalKeyCommitment");
+  const expectedGpruElgamalKeyCommitment = createHash("sha256").update(Buffer.concat([
+    Buffer.from("TSN_GPRU_ELGAMAL_KEY_COMMITMENT_V1\0", "utf8"),
+    Buffer.from([1]),
+    Buffer.from(gpruElgamalPublicKey),
+  ])).digest();
+  if (!expectedGpruElgamalKeyCommitment.equals(Buffer.from(gpruElgamalKeyCommitment))) {
+    throw new Error("GPRU ElGamal public key does not match its commitment");
   }
   const programId = new PublicKey(
     process.env.TINS_PROGRAM_ID ||
@@ -917,11 +919,10 @@ async function processTinOperation(
     routeVersion: BigInt(String(payload.routeVersion)),
     routeNonce: hex32(payload.routeNonce, "routeNonce"),
     tipRouteVersion: 1,
-    gpruPublicCommitment: hex32(payload.gpruPublicCommitment, "gpruPublicCommitment"),
-    tipRootCommitment: hex32(payload.tipRootCommitment, "tipRootCommitment"),
+    gpruElgamalKeyVersion: 1,
+    gpruElgamalPublicKey,
+    gpruElgamalKeyCommitment,
     policyCommitment: hex32(payload.policyCommitment, "policyCommitment"),
-    gpruRouteVersion: Number(payload.gpruRouteVersion) as 1,
-    gpruRouteCommitment,
     intentHash,
     expiryTs: BigInt(String(payload.expiry)),
   });

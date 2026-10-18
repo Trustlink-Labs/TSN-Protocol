@@ -15,7 +15,7 @@ GPRU should use an additive encrypted-balance scheme with a zero-knowledge proof
 
 The implementation should use Solana's ZK ElGamal proof tooling as the initial cryptographic candidate rather than inventing a proof format. The official confidential-balance flow generates equality, ciphertext-validity, and range proofs on the client, verifies them through the ZK ElGamal Proof program, and supplies verified proof context to the state-changing instruction. GPRU must define its own account and transition contract around those primitives; Token-2022's account model is not automatically the TCAP reserve model.
 
-TIP route input for GPRU V1 is a `gpruRouteVersion` and `gpruRouteCommitment`, stored beside the existing TIP route commitments. The commitment is derived locally from the owner-held TIN master seed using the GPRU route domain; the seed itself is never included in the TIP account or sent to GPRU. The existing TIP root remains in place for this deployment stage. GPRU V1 must verify a proof tied to the route commitment before accepting a one-time transaction key; the commitment alone is not proof of ownership or route membership.
+The current TIP registry schema stores the TIP route version, policy commitment, and a versioned GPRU ElGamal public key plus its commitment. The SDK derives the ElGamal key from the owner-held TIN master seed with Solana's `@solana/zk-sdk`; only the public key and domain-separated commitment enter the registry. The old NaCl receiving key and stored TIP root fields are removed from the new schema. The Node derives the TCAP TIP root from the versioned GPRU key commitment when preparing the existing TCAP settlement path. The commitment binds the published key but is not itself proof of ownership, a balance proof, or proof of route membership.
 
 ## Credit and debit flow
 
@@ -49,7 +49,7 @@ The proof must establish that the prior encrypted state is valid, the successor 
 - Do not store a per-TIN plaintext `available` balance. Keep reserve-wide solvency accounting separate from each owner's encrypted balance. Internal TIN-to-TIN transfers conserve aggregate liabilities; public deposits and exits may change public aggregate accounting.
 - Do not put a stable owner wallet, TIN, TIP route, or recipient identifier in a public GPRU transfer record. Use one-time transaction outputs and nullifiers; a proof must establish membership of the prior encrypted state without publishing a predecessor pointer that links the owner's history.
 - The owner SDK derives the GPRU decryption key from owner-controlled recovery material and decrypts locally. The Node and Cranker receive only public keys, ciphertexts, proofs, and signed/verified transaction bindings; they do not receive decryption keys or plaintext balances.
-- The current `gpruPublicCommitment` is produced by the existing NaCl box key derivation. It must not be silently reused as a ZK ElGamal key. GPRU needs a separately domain-separated, versioned encryption key and public commitment.
+- The GPRU ElGamal key is distinct from the removed NaCl receiving key. Its version and domain-separated public-key commitment are checked consistently by TIP, the SDK, Node, and Cranker. GPRU still needs an on-chain proof contract before confidential balance transitions are enabled.
 - Sequence, policy, asset binding, validity window, and nullifier checks remain required alongside the proof. A valid range proof alone does not authorize a payment or prevent replay.
 
 ## Module boundaries
