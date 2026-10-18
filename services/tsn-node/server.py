@@ -100,6 +100,7 @@ TSN_RECEIVER_FALLBACK_URL = clean_env(os.environ.get(
     "https://tsn-receiver-kappa.vercel.app",
 ))
 TSN_RECEIVER_NODE_API_KEY = clean_env(os.environ.get("TSN_RECEIVER_NODE_API_KEY"))
+TSN_MOTHER_AUTHORITY_KEYPAIR_PATH = clean_env(os.environ.get("TSN_MOTHER_AUTHORITY_KEYPAIR_PATH"))
 TSN_NODE_ID = clean_env(os.environ.get("TSN_NODE_ID", "tsn-node-local"))
 TSN_NODE_VERIFICATION_SIGNING_KEY = clean_env(os.environ.get("TSN_NODE_VERIFICATION_SIGNING_KEY"))
 TSN_LOCAL_FLOW_LOGS = os.environ.get("TSN_LOCAL_FLOW_LOGS", "").strip().lower() in {"1", "true", "yes", "on"} or TSN_NODE_ID == "tsn-node-local"
@@ -448,7 +449,8 @@ def _sign_node_verification(
                 "ownerIntentMessage", "ownerSignatureMessageFormat", "expiry", "nonce",
                 "lookupCommitment", "encryptedIdentityEnvelope", "encryptedTinRecovery", "encryptedMasterSeed", "encryptedMetadataHash",
                 "routeVersion", "routeNonce",
-                "tcapRouteVersion", "tcapRelationshipCommitment", "tcapRelationshipReference", "tcapPolicyCommitment",
+                "tipRouteVersion", "gpruPublicCommitment", "tipRootCommitment", "policyCommitment",
+                "gpruRouteVersion", "gpruRouteCommitment",
             },
         }.get(str(work.get("kind") or ""), set())
         execution_payload = {name: verified_payload[name] for name in allowed if name in verified_payload}
@@ -1067,10 +1069,18 @@ def decode_private_tin_route_material(data: bytes) -> dict[str, Any]:
     take(32, "metadata hash")
     route_version = int.from_bytes(take(8, "route version"), "little")
     route_nonce = take(32, "route nonce")
-    tcap_route_version = take(1, "TCap route version")[0]
-    tcap_relationship_commitment = take(32, "TCap relationship commitment")
-    tcap_relationship_reference = take(32, "TCap relationship reference")
-    tcap_policy_commitment = take(32, "TCap policy commitment")
+    tip_route_version = take(1, "TIP route version")[0]
+    gpru_public_commitment = take(32, "GPRU public commitment")
+    tip_root_commitment = take(32, "TIP root commitment")
+    policy_commitment = take(32, "policy commitment")
+    # Older TIN V1 registries may have the historical 32-byte zero allocation tail.
+    # The new route extension is exactly 33 bytes, so old records remain readable.
+    if len(buffer) - offset >= 33:
+        gpru_route_version = take(1, "GPRU route version")[0]
+        gpru_route_commitment = take(32, "GPRU route commitment")
+    else:
+        gpru_route_version = 0
+        gpru_route_commitment = bytes(32)
     if version != 1 or status != 1 or any(buffer[offset:]):
         raise ValueError("unsupported private TIN account schema")
     if lookup_commitment == bytes(32) or route_version < 1:
@@ -1081,10 +1091,12 @@ def decode_private_tin_route_material(data: bytes) -> dict[str, Any]:
         "identityEnvelope": identity_envelope,
         "routeVersion": route_version,
         "routeNonce": route_nonce.hex(),
-        "tcapRouteVersion": tcap_route_version,
-        "tcapRelationshipCommitment": tcap_relationship_commitment.hex(),
-        "tcapRelationshipReference": tcap_relationship_reference.hex(),
-        "tcapPolicyCommitment": tcap_policy_commitment.hex(),
+        "tipRouteVersion": tip_route_version,
+        "gpruPublicCommitment": gpru_public_commitment.hex(),
+        "tipRootCommitment": tip_root_commitment.hex(),
+        "policyCommitment": policy_commitment.hex(),
+        "gpruRouteVersion": gpru_route_version,
+        "gpruRouteCommitment": gpru_route_commitment.hex(),
     }
 
 
@@ -1138,8 +1150,8 @@ async def read_tins_account_data(pubkey: Pubkey) -> Optional[bytes]:
 
 
 
-async def read_onchain_tin_tcap_relationship(tin: str) -> Optional[dict[str, Any]]:
-    """Resolve only the current private TIN V1 TCap commitments."""
+async def read_onchain_tin_tip_route(tin: str) -> Optional[dict[str, Any]]:
+    """Resolve only the current protocol-neutral private TIN V1 TIP route."""
     try:
         lookup_commitment = hashlib.sha256(
             b"TSN_TIN_V1_LOOKUP" + TINS_LOOKUP_SECRET.encode("utf-8") + str(tin).encode("utf-8")
@@ -1151,37 +1163,38 @@ async def read_onchain_tin_tcap_relationship(tin: str) -> Optional[dict[str, Any
         material = decode_private_tin_route_material(data)
         if not hmac.compare_digest(bytes.fromhex(material["lookupCommitment"]), lookup_commitment):
             return None
-        if int(material.get("tcapRouteVersion") or 0) != 1:
+        if int(material.get("tipRouteVersion") or 0) != 1:
             return None
-        gpru_commitment = _resolve_tin_gpru_commitment(
-            material["tcapRelationshipCommitment"], material["tcapRelationshipReference"]
+        gpru_public_commitment = _resolve_tin_gpru_public_commitment(
+            material["gpruPublicCommitment"], material["tipRootCommitment"]
         )
-        if not gpru_commitment:
+        if not gpru_public_commitment:
             return None
         return {
             "tin": str(tin),
             "ownerPubkeyHash": material["ownerPubkeyHash"],
-            "tcapRouteVersion": 1,
-            "tcapRelationshipCommitment": material["tcapRelationshipCommitment"],
-            "tcapRelationshipReference": material["tcapRelationshipReference"],
-            "gpruCommitment": gpru_commitment,
-            "tcapPolicyCommitment": material["tcapPolicyCommitment"],
+            "tipRouteVersion": 1,
+            "gpruPublicCommitment": gpru_public_commitment,
+            "tipRootCommitment": material["tipRootCommitment"],
+            "policyCommitment": material["policyCommitment"],
+            "gpruRouteVersion": material["gpruRouteVersion"],
+            "gpruRouteCommitment": material["gpruRouteCommitment"],
         }
     except (HTTPException, ValueError, TypeError, binascii.Error):
         return None
 
 
-def _resolve_tin_gpru_commitment(relationship_commitment: str, relationship_reference: str) -> Optional[str]:
+def _resolve_tin_gpru_public_commitment(gpru_public_commitment: str, tip_root_commitment: str) -> Optional[str]:
     """Return the public GPRU curve point only for the active field layout."""
     try:
-        commitment = bytes.fromhex(relationship_commitment)
-        reference = bytes.fromhex(relationship_reference)
+        commitment = bytes.fromhex(gpru_public_commitment)
+        reference = bytes.fromhex(tip_root_commitment)
     except (TypeError, ValueError):
         return None
     if len(commitment) != 32 or len(reference) != 32:
         return None
     current_tip_seed = hashlib.sha256(
-        b"TSN_TCAP_TIN_TIP_ROOT_COMMITMENT_V1\0" + commitment
+        b"TSN_TIP_ROOT_COMMITMENT_V1\0" + commitment
     ).digest()
     if hmac.compare_digest(current_tip_seed, reference):
         return commitment.hex()
@@ -1533,7 +1546,7 @@ def _canonical_tin_owner_intent_message(intent_hash: bytes) -> bytes:
         "REQUEST DETAILS\n"
         f"Intent reference: {intent_hash.hex()}\n"
         "\n"
-        "Protocol: Transfer Identity Network\n"
+        "Protocol: Transfer Identity Protocol (TIP)\n"
         "\n"
         "Version: 1\n"
         "\n"
@@ -1663,7 +1676,7 @@ def _assert_recipient_hash_matches_owner(recipient_hash: str, owner_pubkey_hash:
     normalized_recipient_hash = str(recipient_hash or "").strip().lower()
     normalized_owner_hash = str(owner_pubkey_hash or "").strip().lower()
     if not re.fullmatch(r"[0-9a-f]{64}", normalized_owner_hash):
-        raise HTTPException(422, "Recipient TIN route has an invalid owner hash")
+        raise HTTPException(422, "Recipient TIP route has an invalid owner hash")
     if not re.fullmatch(r"[0-9a-f]{64}", normalized_recipient_hash):
         raise HTTPException(400, "recipientHash must be a 32-byte hexadecimal owner hash")
     if not hmac.compare_digest(normalized_recipient_hash, normalized_owner_hash):
@@ -1778,12 +1791,12 @@ async def _verify_payment_authorization_from_signed_message(req: CreateIntentReq
             )
         except (RuntimeError, ValueError) as exc:
             raise HTTPException(409, f"destination route preflight failed: {exc}") from exc
-    route = await read_onchain_tin_tcap_relationship(recipient_tin)
+    route = await read_onchain_tin_tip_route(recipient_tin)
     if not route:
-        raise HTTPException(422, "Recipient TIN has no active TCAP route")
+        raise HTTPException(422, "Recipient TIN has no active TIP route")
     _assert_recipient_hash_matches_owner(req.recipientHash, str(route.get("ownerPubkeyHash") or ""))
-    recipient_route_commitment = str(route["tcapRelationshipCommitment"]).lower()
-    recipient_route_version = int(route["tcapRouteVersion"])
+    recipient_route_commitment = str(route["gpruPublicCommitment"]).lower()
+    recipient_route_version = int(route["tipRouteVersion"])
     return {
         "recipientTin": recipient_tin,
         "recipientRouteCommitment": recipient_route_commitment,
@@ -1835,22 +1848,26 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
     metadata_hash_bytes = _decode_hash32(encrypted_metadata_hash, "encrypted_metadata_hash")
     route_version = int(_field(payload, "route_version", "routeVersion", default=0))
     if route_version != 1:
-        raise HTTPException(422, "Current TIN V1 route version must be 1")
+        raise HTTPException(422, "Current TIN V1 registry version must be 1")
     route_nonce = _require_string(payload, "route_nonce", "routeNonce")
     route_nonce_bytes = _decode_hash32(route_nonce, "route_nonce")
     if not secrets.compare_digest(route_nonce_bytes, nonce_bytes):
-        raise HTTPException(422, "TIN V1 route nonce must match the signed operation nonce")
-    tcap_route_version = int(_field(payload, "tcap_route_version", "tcapRouteVersion", default=0))
-    if tcap_route_version != 1:
-        raise HTTPException(422, "Current TIN V1 requires TCap route version 1")
-    tcap_relationship_commitment = _decode_hash32(_field(payload, "tcap_relationship_commitment", "tcapRelationshipCommitment", default=""), "tcap_relationship_commitment")
-    tcap_relationship_reference = _decode_hash32(_field(payload, "tcap_relationship_reference", "tcapRelationshipReference", default=""), "tcap_relationship_reference")
-    tcap_policy_commitment = _decode_hash32(_field(payload, "tcap_policy_commitment", "tcapPolicyCommitment", default=""), "tcap_policy_commitment")
-    if any(value == bytes(32) for value in (tcap_relationship_commitment, tcap_relationship_reference, tcap_policy_commitment)):
-        raise HTTPException(422, "TIN V1 GPRU and TCap commitments must be nonzero")
-    expected_tip_root = hashlib.sha256(b"TSN_TCAP_TIN_TIP_ROOT_COMMITMENT_V1\0" + tcap_relationship_commitment).digest()
-    if not hmac.compare_digest(expected_tip_root, tcap_relationship_reference):
-        raise HTTPException(422, "TIN GPRU commitment does not match its blinded TCAP TIP seed")
+        raise HTTPException(422, "TIN V1 registry nonce must match the signed operation nonce")
+    tip_route_version = int(_field(payload, "tip_route_version", "tipRouteVersion", default=0))
+    if tip_route_version != 1:
+        raise HTTPException(422, "Current TIN V1 requires TIP route version 1")
+    gpru_public_commitment = _decode_hash32(_field(payload, "gpru_public_commitment", "gpruPublicCommitment", default=""), "gpru_public_commitment")
+    tip_root_commitment = _decode_hash32(_field(payload, "tip_root_commitment", "tipRootCommitment", default=""), "tip_root_commitment")
+    policy_commitment = _decode_hash32(_field(payload, "policy_commitment", "policyCommitment", default=""), "policy_commitment")
+    gpru_route_version = int(_field(payload, "gpru_route_version", "gpruRouteVersion", default=0))
+    gpru_route_commitment = _decode_hash32(_field(payload, "gpru_route_commitment", "gpruRouteCommitment", default=""), "gpru_route_commitment")
+    if any(value == bytes(32) for value in (gpru_public_commitment, tip_root_commitment, policy_commitment, gpru_route_commitment)):
+        raise HTTPException(422, "TIP route GPRU public, root, policy, and GPRU route commitments must be nonzero")
+    if gpru_route_version != 1:
+        raise HTTPException(422, "Current TIP creation requires GPRU route version 1")
+    expected_tip_root = hashlib.sha256(b"TSN_TIP_ROOT_COMMITMENT_V1\0" + gpru_public_commitment).digest()
+    if not hmac.compare_digest(expected_tip_root, tip_root_commitment):
+        raise HTTPException(422, "TIP GPRU public commitment does not match its TIP root commitment")
 
     expected_hash = hashlib.sha256(b"".join([
         b"TSN_TIN_V1_CREATE", owner_bytes, lookup_commitment_bytes,
@@ -1858,8 +1875,9 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
         _encode_u32_le(len(encrypted_identity_bytes)), encrypted_identity_bytes,
         _encode_u32_le(len(encrypted_master_seed_bytes)), encrypted_master_seed_bytes,
         metadata_hash_bytes,
-        route_version.to_bytes(8, "little", signed=False), route_nonce_bytes, bytes([tcap_route_version]),
-        tcap_relationship_commitment, tcap_relationship_reference, tcap_policy_commitment,
+        route_version.to_bytes(8, "little", signed=False), route_nonce_bytes, bytes([tip_route_version]),
+        gpru_public_commitment, tip_root_commitment, policy_commitment,
+        bytes([gpru_route_version]), gpru_route_commitment,
         _encode_signed_i64_le(expiry),
     ])).digest()
     if not secrets.compare_digest(expected_hash, intent_hash_bytes):
@@ -1895,15 +1913,17 @@ def _normalize_tin_operation_input(payload: dict[str, Any]) -> dict[str, Any]:
         "encryptedTinRecovery": encrypted_tin_recovery, "encryptedMasterSeed": encrypted_master_seed,
         "encryptedMetadataHash": encrypted_metadata_hash.lower(),
         "routeVersion": route_version, "routeNonce": route_nonce.lower(),
-        "tcapRouteVersion": tcap_route_version, "tcapRelationshipCommitment": tcap_relationship_commitment.hex(),
-        "tcapRelationshipReference": tcap_relationship_reference.hex(), "tcapPolicyCommitment": tcap_policy_commitment.hex(),
+        "tipRouteVersion": tip_route_version, "gpruPublicCommitment": gpru_public_commitment.hex(),
+        "tipRootCommitment": tip_root_commitment.hex(), "policyCommitment": policy_commitment.hex(),
+        "gpruRouteVersion": gpru_route_version, "gpruRouteCommitment": gpru_route_commitment.hex(),
         "displayNameStatus": "opaque_to_node", "displayNameReadableByNode": False,
         "envelopeChecks": {
             "ownerAuthorization": {"intentHashVerified": True, "signatureVerified": True},
             "encryptedIdentityEnvelope": {"present": True, "base64Decoded": True, "includedInOwnerIntentHash": True, "ciphertextOpenedByNode": False},
             "encryptedTinRecovery": {"present": True, "base64Decoded": True, "includedInOwnerIntentHash": True, "ciphertextOpenedByNode": False},
             "encryptedMasterSeed": {"present": True, "base64Decoded": True, "includedInOwnerIntentHash": True, "ciphertextOpenedByNode": False},
-            "gpruCommitment": {"present": True, "includedInOwnerIntentHash": True},
+            "gpruPublicCommitment": {"present": True, "includedInOwnerIntentHash": True},
+            "gpruRouteCommitment": {"present": True, "includedInOwnerIntentHash": True},
         },
     }
     return base
@@ -2090,29 +2110,54 @@ async def _simulate_owner_signed_tcap_deposit(transaction_base64: str) -> dict[s
         raise ValueError("Owner-signed TCAP deposit transaction is not valid base64") from exc
     if not wire or base64.b64encode(wire).decode("ascii") != transaction_base64:
         raise ValueError("Owner-signed TCAP deposit transaction encoding is invalid")
-    response = await solana_rpc(
-        "simulateTransaction",
-        [
-            base64.b64encode(wire).decode("ascii"),
-            {
-                "encoding": "base64",
-                "commitment": "confirmed",
-                "sigVerify": True,
-                "replaceRecentBlockhash": False,
-            },
-        ],
-    )
-    value = ((response.get("result") or {}).get("value"))
-    if not isinstance(value, dict):
-        raise ValueError("Solana RPC returned no TCAP deposit simulation result")
-    if value.get("err") is not None:
-        logs = value.get("logs") or []
-        detail = "; ".join(str(line) for line in logs[-8:])
-        raise ValueError(f"Deployed TCAP program rejected the signed deposit during simulation: {detail or value['err']}")
-    return {
-        "programSimulation": "PASSED",
-        "computeUnitsConsumed": value.get("units"),
-    }
+    params = [
+        base64.b64encode(wire).decode("ascii"),
+        {
+            "encoding": "base64",
+            "commitment": "confirmed",
+            "sigVerify": True,
+            "replaceRecentBlockhash": False,
+        },
+    ]
+    last_blockhash_error: Any = None
+    last_rpc_error: Exception | None = None
+    async with httpx.AsyncClient(timeout=12) as client:
+        for rpc_url in TSN_SOLANA_RPC_URLS:
+            try:
+                response = await client.post(rpc_url, json={
+                    "jsonrpc": "2.0", "id": 1, "method": "simulateTransaction", "params": params,
+                })
+                response.raise_for_status()
+                rpc_response = response.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                last_rpc_error = exc
+                continue
+            if rpc_response.get("error"):
+                last_rpc_error = RuntimeError(str(rpc_response["error"]))
+                continue
+            value = ((rpc_response.get("result") or {}).get("value"))
+            if not isinstance(value, dict):
+                last_rpc_error = ValueError("Solana RPC returned no TCAP deposit simulation result")
+                continue
+            simulation_error = value.get("err")
+            blockhash_not_found = (
+                simulation_error == "BlockhashNotFound"
+                or isinstance(simulation_error, dict) and "BlockhashNotFound" in simulation_error
+            )
+            if blockhash_not_found:
+                last_blockhash_error = simulation_error
+                continue
+            if simulation_error is not None:
+                logs = value.get("logs") or []
+                detail = "; ".join(str(line) for line in logs[-8:])
+                raise ValueError(f"Deployed TCAP program rejected the signed deposit during simulation: {detail or simulation_error}")
+            return {
+                "programSimulation": "PASSED",
+                "computeUnitsConsumed": value.get("units"),
+            }
+    if last_blockhash_error is not None:
+        raise ValueError("Signed deposit blockhash was not recognized by any configured Solana RPC endpoint; prepare and sign a fresh deposit transaction")
+    raise HTTPException(503, "Solana RPC is unavailable while simulating the signed TCAP deposit") from last_rpc_error
 
 
 def _read_solana_shortvec(data: bytes, offset: int) -> tuple[int, int]:
@@ -2126,6 +2171,170 @@ def _read_solana_shortvec(data: bytes, offset: int) -> tuple[int, int]:
             return value, offset
         shift += 7
     raise ValueError("Signed TCAP deposit has an invalid compact length")
+
+
+def _parse_solana_legacy_message(message: bytes) -> tuple[int, int, int, list[str], bytes, list[tuple[str, list[str], bytes]]]:
+    if len(message) < 3 or message[0] & 0x80:
+        raise ValueError("Mother signing accepts only legacy Solana transaction messages")
+    required_signatures, readonly_signed, readonly_unsigned = message[:3]
+    account_count, cursor = _read_solana_shortvec(message, 3)
+    if account_count == 0 or cursor + account_count * 32 + 32 > len(message):
+        raise ValueError("Mother signing transaction message has an invalid account list")
+    account_keys = [
+        str(Pubkey(message[cursor + index * 32:cursor + (index + 1) * 32]))
+        for index in range(account_count)
+    ]
+    cursor += account_count * 32
+    recent_blockhash = message[cursor:cursor + 32]
+    cursor += 32
+    instruction_count, cursor = _read_solana_shortvec(message, cursor)
+    instructions: list[tuple[str, list[str], bytes]] = []
+    for _ in range(instruction_count):
+        if cursor >= len(message):
+            raise ValueError("Mother signing transaction instructions are truncated")
+        program_index = message[cursor]
+        cursor += 1
+        account_index_count, cursor = _read_solana_shortvec(message, cursor)
+        if cursor + account_index_count > len(message):
+            raise ValueError("Mother signing transaction account indexes are truncated")
+        account_indexes = list(message[cursor:cursor + account_index_count])
+        cursor += account_index_count
+        data_length, cursor = _read_solana_shortvec(message, cursor)
+        if cursor + data_length > len(message):
+            raise ValueError("Mother signing transaction instruction data is truncated")
+        data = message[cursor:cursor + data_length]
+        cursor += data_length
+        if program_index >= len(account_keys) or any(index >= len(account_keys) for index in account_indexes):
+            raise ValueError("Mother signing transaction references an invalid account index")
+        instructions.append((account_keys[program_index], [account_keys[index] for index in account_indexes], data))
+    if cursor != len(message) or len(set(account_keys)) != len(account_keys):
+        raise ValueError("Mother signing transaction has trailing data or duplicate account keys")
+    return required_signatures, readonly_signed, readonly_unsigned, account_keys, recent_blockhash, instructions
+
+
+def _mother_authority_signing_key() -> SigningKey:
+    if not TSN_MOTHER_AUTHORITY_KEYPAIR_PATH:
+        raise HTTPException(503, "Mother Node signing is not configured")
+    key_path = Path(TSN_MOTHER_AUTHORITY_KEYPAIR_PATH).expanduser()
+    if not key_path.is_absolute():
+        key_path = _node_root / key_path
+    try:
+        secret = json.loads(key_path.read_text(encoding="utf-8"))
+        if not isinstance(secret, list) or len(secret) != 64 or any(
+            not isinstance(value, int) or value < 0 or value > 255 for value in secret
+        ):
+            raise ValueError("keypair must be a 64-byte Solana JSON keypair")
+        signing_key = SigningKey(bytes(secret[:32]))
+        if not hmac.compare_digest(bytes(signing_key.verify_key), bytes(secret[32:])):
+            raise ValueError("keypair public key does not match its private seed")
+        return signing_key
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise HTTPException(503, "Mother Node signing keypair is unavailable or invalid") from exc
+
+
+async def _assert_mother_authority_key_matches_chain(signing_key: SigningKey) -> str:
+    mother = get_mother_escrow_pda()
+    response = await solana_rpc("getAccountInfo", [str(mother), {"encoding": "base64", "commitment": "confirmed"}])
+    account = ((response.get("result") or {}).get("value"))
+    if not isinstance(account, dict) or str(account.get("owner") or "") != TSN_PROGRAM_ID:
+        raise HTTPException(503, "Mother Escrow is missing or not owned by the configured TSN program")
+    try:
+        data = base64.b64decode((account.get("data") or [""])[0], validate=True)
+    except (ValueError, TypeError, binascii.Error) as exc:
+        raise HTTPException(503, "Mother Escrow account data is invalid") from exc
+    expected_discriminator = hashlib.sha256(b"account:MotherEscrow").digest()[:8]
+    if len(data) < 40 or data[:8] != expected_discriminator:
+        raise HTTPException(503, "Mother Escrow account layout is invalid")
+    authority = data[8:40]
+    if not hmac.compare_digest(authority, bytes(signing_key.verify_key)):
+        raise HTTPException(403, "Mother Node key does not match the on-chain Mother authority")
+    return str(Pubkey(authority))
+
+
+def _verify_mother_signed_tcap_settlement_message(
+    message: bytes,
+    *,
+    operator: str,
+    authority: str,
+    transition: dict[str, Any],
+) -> bytes:
+    required_signatures, readonly_signed, readonly_unsigned, account_keys, recent_blockhash, instructions = _parse_solana_legacy_message(message)
+    if required_signatures != 2 or readonly_signed != 0 or len(account_keys) < required_signatures:
+        raise HTTPException(422, "Settlement transaction must have exactly Cranker and Mother writable signers")
+    if account_keys[0] != operator or account_keys[1] != authority:
+        raise HTTPException(403, "Settlement transaction signer order does not match its leased Cranker and Mother")
+    if not any(recent_blockhash):
+        raise HTTPException(422, "Settlement transaction has no recent blockhash")
+
+    tip_root = _tcap_credit_bytes32(transition.get("tipRootCommitment"), "tipRootCommitment")
+    authorization_digest = _tcap_credit_bytes32(transition.get("authorizationDigest"), "authorizationDigest")
+    try:
+        token_id = int(transition.get("tokenId"))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(422, "Node TCAP transition tokenId is invalid") from exc
+    if token_id <= 0 or token_id > 0xFFFFFFFF:
+        raise HTTPException(422, "Node TCAP transition tokenId is outside the u32 range")
+    args = b"".join((
+        authorization_digest,
+        _tcap_credit_u64(transition.get("validAfterSlot"), "validAfterSlot"),
+        _tcap_credit_u64(transition.get("expiresAtSlot"), "expiresAtSlot"),
+        _tcap_credit_bytes32(transition.get("previousCommitment"), "previousCommitment"),
+        _tcap_credit_bytes32(transition.get("newCommitment"), "newCommitment"),
+        _tcap_credit_u64(transition.get("sequence"), "sequence"),
+        token_id.to_bytes(4, "little"),
+        _tcap_credit_bytes32(transition.get("policyCommitment"), "policyCommitment"),
+        _tcap_credit_bytes32(transition.get("gpruScopeCommitment"), "gpruScopeCommitment"),
+        _tcap_credit_bytes32(transition.get("nullifier"), "nullifier"),
+    ))
+    tsn_program = Pubkey.from_string(TSN_PROGRAM_ID)
+    tcap_program = Pubkey.from_string(TCAP_PROGRAM_ID)
+    mother_escrow = get_mother_escrow_pda()
+    tip = Pubkey.from_string(str(transition.get("tip") or ""))
+    asset_entry = Pubkey.from_string(str(transition.get("assetEntry") or ""))
+    config = Pubkey.from_string(str(transition.get("tcapConfig") or ""))
+    tip_root_account = Pubkey(tip_root)
+    auth_signer = Pubkey.find_program_address(
+        [b"tsn:tcap-authorization:v1", authorization_digest], tsn_program,
+    )[0]
+    system_program = Pubkey.from_string("11111111111111111111111111111111")
+    register_instruction = (
+        TSN_PROGRAM_ID,
+        [
+            authority, str(mother_escrow), str(tcap_program), TSN_PROGRAM_ID,
+            str(config), str(asset_entry), str(tip_root_account), str(tip),
+            str(auth_signer), str(system_program),
+        ],
+        hashlib.sha256(b"global:tsn_register_tcap_credit_authorization_v2").digest()[:8] + args,
+    )
+    expected_instructions: list[tuple[str, list[str], bytes]] = []
+    expected_keys = {
+        operator, authority, str(mother_escrow), str(tcap_program), TSN_PROGRAM_ID,
+        str(config), str(asset_entry), str(tip_root_account), str(tip), str(auth_signer),
+        str(system_program),
+    }
+    if transition.get("initializeTip") is True:
+        initial = _tcap_credit_bytes32(transition.get("initialCommitment"), "initialCommitment")
+        cranker_pda = get_cranker_pda(Pubkey.from_string(operator))
+        initialize_data = (
+            hashlib.sha256(b"global:initialize_tcap_tin_tip_v1").digest()[:8]
+            + tip_root
+            + initial
+            + _tcap_credit_bytes32(transition.get("policyCommitment"), "policyCommitment")
+        )
+        expected_instructions.append((
+            TCAP_PROGRAM_ID,
+            [operator, str(mother_escrow), str(cranker_pda), str(tip), str(system_program)],
+            initialize_data,
+        ))
+        expected_keys.add(str(cranker_pda))
+    expected_instructions.append(register_instruction)
+    if instructions != expected_instructions or set(account_keys) != expected_keys:
+        raise HTTPException(403, "Settlement transaction does not exactly match the Node-verified TCAP transition")
+    writable_unsigned_count = len(account_keys) - required_signatures - readonly_unsigned
+    expected_writable_unsigned = {str(tip)}
+    if writable_unsigned_count < 0 or set(account_keys[required_signatures:required_signatures + writable_unsigned_count]) != expected_writable_unsigned:
+        raise HTTPException(422, "Settlement transaction has unexpected writable accounts")
+    return recent_blockhash
 
 
 def _parse_signed_tcap_deposit_instructions(transaction_base64: str) -> list[tuple[str, list[str], bytes]]:
@@ -2414,15 +2623,15 @@ async def _construct_node_owned_tcap_transition(request: CreateIntentRequest, ve
     if not funding:
         raise ValueError("Owner-signed TCAP reserve deposit transaction is missing")
     tin = str(verified_fields["recipientTin"])
-    relation = await read_onchain_tin_tcap_relationship(tin)
+    relation = await read_onchain_tin_tip_route(tin)
     if not relation:
-        raise ValueError("Recipient TIN has no active on-chain TCAP relationship")
-    if int(relation.get("tcapRouteVersion") or 0) != int(verified_fields["recipientRouteVersion"]):
+        raise ValueError("Recipient TIN has no active on-chain TIP route")
+    if int(relation.get("tipRouteVersion") or 0) != int(verified_fields["recipientRouteVersion"]):
         raise ValueError("Recipient route version differs from the signed authorization")
-    if not hmac.compare_digest(str(relation.get("tcapRelationshipCommitment") or "").lower(), str(verified_fields["recipientRouteCommitment"]).lower()):
+    if not hmac.compare_digest(str(relation.get("gpruPublicCommitment") or "").lower(), str(verified_fields["recipientRouteCommitment"]).lower()):
         raise ValueError("Recipient route commitment differs from the signed authorization")
-    root = _tcap_credit_bytes32(relation.get("tcapRelationshipReference"), "tipRootCommitment")
-    policy = _tcap_credit_bytes32(relation.get("tcapPolicyCommitment"), "policyCommitment")
+    root = _tcap_credit_bytes32(relation.get("tipRootCommitment"), "tipRootCommitment")
+    policy = _tcap_credit_bytes32(relation.get("policyCommitment"), "policyCommitment")
     instructions = _parse_signed_tcap_deposit_instructions(funding)
     if len(instructions) != 1:
         raise ValueError("TCAP reserve deposit must contain exactly one deposit instruction")
@@ -2450,7 +2659,7 @@ async def _construct_node_owned_tcap_transition(request: CreateIntentRequest, ve
     if not isinstance(tip_result, dict) or "value" not in tip_result:
         raise ValueError("Solana RPC returned no TCAP TIN TIP account state")
     tip_value = tip_result["value"]
-    initial_commitment = _tcap_credit_bytes32(relation.get("gpruCommitment"), "initialCommitment")
+    initial_commitment = _tcap_credit_bytes32(relation.get("gpruPublicCommitment"), "initialCommitment")
     initialize_tip = tip_value is None
     if initialize_tip:
         # The owner-derived GPRU commitment is the initial opaque TIP predecessor.
@@ -2524,24 +2733,24 @@ async def _verify_receiver_work(work: dict[str, Any]) -> dict[str, Any]:
         tin = str(signed_fields.get("Recipient TIN") or "")
         if not re.fullmatch(r"\d{10}", tin):
             raise ValueError("Funding authorization does not contain a valid TIN")
-        relation = await read_onchain_tin_tcap_relationship(tin)
+        relation = await read_onchain_tin_tip_route(tin)
         if not relation:
-            raise ValueError("TIN has no active on-chain TCAP relationship")
+            raise ValueError("TIN has no active on-chain TIP route")
         transition = await _construct_node_owned_tcap_transition(request, {
             "recipientTin": tin,
-            "recipientRouteCommitment": str(relation["tcapRelationshipCommitment"]).lower(),
-            "recipientRouteVersion": int(relation["tcapRouteVersion"]),
+            "recipientRouteCommitment": str(relation["gpruPublicCommitment"]).lower(),
+            "recipientRouteVersion": int(relation["tipRouteVersion"]),
         })
         if not hmac.compare_digest(
             str(transition.get("tipRootCommitment") or "").lower(),
-            str(relation.get("tcapRelationshipReference") or "").lower(),
+            str(relation.get("tipRootCommitment") or "").lower(),
         ):
-            raise ValueError("Credit transition TIP root differs from the resolved TIN route reference")
+            raise ValueError("Credit transition TIP root differs from the resolved TIP route reference")
         if not hmac.compare_digest(
             str(transition.get("policyCommitment") or "").lower(),
-            str(relation.get("tcapPolicyCommitment") or "").lower(),
+            str(relation.get("policyCommitment") or "").lower(),
         ):
-            raise ValueError("Credit transition policy differs from the resolved TIN route")
+            raise ValueError("Credit transition policy differs from the resolved TIP route")
         tip = _validate_tcap_credit_digest(transition)
         tip_exists = await _assert_tcap_tip_predecessor(transition, tip, allow_missing=True)
         if not tip_exists and not transition.get("initializeTip"):
@@ -2568,6 +2777,8 @@ async def _verify_receiver_work(work: dict[str, Any]) -> dict[str, Any]:
             "newCommitment": str(transition["newCommitment"]).lower(),
             "sequence": str(transition["sequence"]),
             "tokenId": int(transition["tokenId"]),
+            "amountBaseUnits": str(funding_evidence["amountBaseUnits"]),
+            "mint": str(funding_evidence["mint"]),
             "policyCommitment": str(transition["policyCommitment"]).lower(),
             "gpruScopeCommitment": str(transition["gpruScopeCommitment"]).lower(),
             "nullifier": str(transition["nullifier"]).lower(),
@@ -2586,6 +2797,7 @@ async def _verify_receiver_work(work: dict[str, Any]) -> dict[str, Any]:
                 "fundingSignature": funding_evidence["signature"],
                 "fundingSlot": funding_evidence["slot"],
                 "amountBaseUnits": funding_evidence["amountBaseUnits"],
+                "mint": funding_evidence["mint"],
             },
             "verificationType": "TSN_TCAP_V2_DEPOSIT_CONFIRMED_AND_GPRU_CREDIT_READY",
         }
@@ -2825,6 +3037,47 @@ async def create_settlement_authorization(body: dict[str, Any]) -> dict[str, Any
         transition = settlement_verified.get("tcapCreditTransition")
         if not isinstance(transition, dict):
             raise HTTPException(422, "Verified settlement is missing the TCAP V2 transition")
+        verified_amount = settlement_verified.get("amountBaseUnits")
+        transition_amount = transition.get("amountBaseUnits") or verified_amount
+        try:
+            amount_base_units = int(str(transition_amount or "0"))
+        except (TypeError, ValueError):
+            raise HTTPException(422, "Verified settlement has an invalid TCAP credit amount")
+        if amount_base_units <= 0:
+            raise HTTPException(422, "Verified settlement is missing the TCAP credit amount")
+        if verified_amount is not None:
+            try:
+                confirmed_amount_base_units = int(str(verified_amount))
+            except (TypeError, ValueError):
+                raise HTTPException(422, "Confirmed TCAP deposit evidence has an invalid amount")
+            if confirmed_amount_base_units != amount_base_units:
+                raise HTTPException(409, "Verified TCAP transition amount differs from confirmed deposit evidence")
+        verified_mint = str(
+            settlement_verified.get("mint")
+            or funding_private.get("tokenMintAddress")
+            or ""
+        ).strip()
+        transition_mint = str(transition.get("mint") or verified_mint).strip()
+        if not verified_mint or not transition_mint:
+            raise HTTPException(422, "Verified settlement is missing the confirmed TCAP deposit mint")
+        if transition_mint != verified_mint:
+            raise HTTPException(409, "Verified TCAP transition mint differs from confirmed deposit evidence")
+        required_transition_fields = (
+            "tipRootCommitment", "tip", "previousCommitment", "newCommitment", "sequence", "tokenId",
+            "policyCommitment", "gpruScopeCommitment", "nullifier", "validAfterSlot", "expiresAtSlot",
+            "authorizationDigest",
+        )
+        missing_transition_fields = [name for name in required_transition_fields if transition.get(name) is None]
+        if transition.get("initializeTip") and not transition.get("initialCommitment"):
+            missing_transition_fields.append("initialCommitment")
+        if missing_transition_fields:
+            raise HTTPException(422, f"Verified TCAP transition is missing fields: {', '.join(missing_transition_fields)}")
+        transition_with_amount = {**transition, "amountBaseUnits": str(amount_base_units)}
+        deposit_accounts = transition.get("depositAccounts")
+        if not isinstance(deposit_accounts, dict):
+            deposit_accounts = {}
+        asset_entry = str(transition.get("assetEntry") or deposit_accounts.get("assetEntry") or "").strip()
+        tcap_config = str(transition.get("tcapConfig") or deposit_accounts.get("config") or "").strip()
         execution_transition = {
             "tipRootCommitment": str(transition["tipRootCommitment"]).lower(),
             "tip": str(transition["tip"]),
@@ -2834,21 +3087,21 @@ async def create_settlement_authorization(body: dict[str, Any]) -> dict[str, Any
             "newCommitment": str(transition["newCommitment"]).lower(),
             "sequence": str(transition["sequence"]),
             "tokenId": int(transition["tokenId"]),
-            "amount": str(transition["amountBaseUnits"]),
-            "amountBaseUnits": str(transition["amountBaseUnits"]),
-            "mint": str(transition["mint"]),
+            "amount": str(amount_base_units),
+            "amountBaseUnits": str(amount_base_units),
+            "mint": verified_mint,
             "policyCommitment": str(transition["policyCommitment"]).lower(),
             "gpruScopeCommitment": str(transition["gpruScopeCommitment"]).lower(),
             "nullifier": str(transition["nullifier"]).lower(),
             "validAfterSlot": str(transition["validAfterSlot"]),
             "expiresAtSlot": str(transition["expiresAtSlot"]),
             "authorizationDigest": str(transition["authorizationDigest"]).lower(),
-            "assetEntry": str((transition.get("depositAccounts") or {}).get("assetEntry") or ""),
-            "tcapConfig": str((transition.get("depositAccounts") or {}).get("config") or ""),
+            "assetEntry": asset_entry,
+            "tcapConfig": tcap_config,
         }
         if not all(execution_transition[name] for name in ("assetEntry", "tcapConfig")):
             raise HTTPException(422, "Verified TCAP deposit is missing its asset entry or config account")
-        tip = _validate_tcap_credit_digest(transition)
+        tip = _validate_tcap_credit_digest(transition_with_amount)
         _validate_tcap_credit_digest(execution_transition)
         lease_expires_at = parse_iso(str(settlement_lease.get("expiresAt") or ""))
         expires_at_ts = min(int(time.time()) + PERMIT_TTL_SECS, int(lease_expires_at.timestamp()))
@@ -2864,6 +3117,41 @@ async def create_settlement_authorization(body: dict[str, Any]) -> dict[str, Any
             "transition": execution_transition,
         }
     raise HTTPException(409, "Legacy PRU payout settlement is retired; only verified TCAP V2 TIN credits are accepted")
+
+
+@app.post("/internal/settlement-authorizations/signature", dependencies=[Depends(require_worker_api_key)])
+async def sign_settlement_transaction(body: dict[str, Any]) -> dict[str, Any]:
+    """Mother Node co-signs only the exact transaction for a leased settlement."""
+    settlement_id = str(body.get("workId") or "").strip()
+    operator = str(body.get("crankerPubkey") or "").strip()
+    encoded_message = str(body.get("messageBase64") or "").strip()
+    if not settlement_id or not operator or not encoded_message:
+        raise HTTPException(422, "workId, crankerPubkey, and messageBase64 are required")
+    if len(encoded_message) > 16_384:
+        raise HTTPException(413, "Settlement transaction message is too large")
+    try:
+        message = base64.b64decode(encoded_message, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise HTTPException(422, "Settlement transaction message is invalid base64") from exc
+    if not message or base64.b64encode(message).decode("ascii") != encoded_message:
+        raise HTTPException(422, "Settlement transaction message encoding is not canonical")
+
+    authorization = await create_settlement_authorization({"workId": settlement_id, "crankerPubkey": operator})
+    transition = authorization.get("transition")
+    if not isinstance(transition, dict):
+        raise HTTPException(422, "Node settlement authorization has no verified TCAP transition")
+    signing_key = _mother_authority_signing_key()
+    authority = await _assert_mother_authority_key_matches_chain(signing_key)
+    recent_blockhash = _verify_mother_signed_tcap_settlement_message(
+        message, operator=operator, authority=authority, transition=transition,
+    )
+    blockhash_status = await solana_rpc("isBlockhashValid", [
+        encode_base58(recent_blockhash), {"commitment": "confirmed"},
+    ])
+    if not bool(((blockhash_status.get("result") or {}).get("value"))):
+        raise HTTPException(409, "Cranker transaction blockhash is no longer valid; rebuild and request a fresh Mother signature")
+    signature = signing_key.sign(message).signature
+    return {"authority": authority, "signatureBase64": base64.b64encode(signature).decode("ascii")}
 
 # Allow frontend to call this API from any origin
 app.add_middleware(
@@ -2988,6 +3276,23 @@ async def post_intent(req: CreateIntentRequest) -> PublicMempoolIntent:
         postedAt=now,
         updatedAt=str(received.get("updatedAt") or now),
     )
+
+
+@app.get("/network/recent-blockhash")
+async def get_network_recent_blockhash() -> dict[str, Any]:
+    """Return a sender-signable blockhash from the RPC this Node uses for verification."""
+    response = await solana_rpc("getLatestBlockhash", [{"commitment": "confirmed"}])
+    result = response.get("result") or {}
+    value = result.get("value") or {}
+    blockhash = str(value.get("blockhash") or "")
+    last_valid_block_height = value.get("lastValidBlockHeight")
+    if not blockhash or not isinstance(last_valid_block_height, int):
+        raise HTTPException(503, "Solana RPC returned an invalid recent blockhash")
+    return {
+        "recentBlockhash": blockhash,
+        "lastValidBlockHeight": last_valid_block_height,
+        "contextSlot": (result.get("context") or {}).get("slot"),
+    }
 
 
 @app.get("/tin-resolution/{tin}")

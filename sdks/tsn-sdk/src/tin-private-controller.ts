@@ -1,6 +1,6 @@
 import nacl from "tweetnacl";
 import { PublicKey, type Connection } from "@solana/web3.js";
-import { deriveTinPrivacyReceivingKeyPair } from "./gpru.js";
+import { deriveGpruRouteCommitment, deriveTinPrivacyReceivingKeyPair, GPRU_ROUTE_VERSION_V1 } from "./gpru.js";
 
 import {
   computePruConfigurationHash,
@@ -144,7 +144,9 @@ export async function createTinV1OwnerSeedEnvelope(params: {
     return {
       resourceCommitment: access.resourceCommitment,
       encryptedMasterSeed: encodeTinEnvelope(envelope),
-      gpruCommitment: new Uint8Array(tinPrivacyReceivingKeyPair.publicKey),
+      gpruPublicCommitment: new Uint8Array(tinPrivacyReceivingKeyPair.publicKey),
+      gpruRouteVersion: GPRU_ROUTE_VERSION_V1,
+      gpruRouteCommitment: deriveGpruRouteCommitment(masterSeed),
     };
   } finally {
     dataKey.fill(0);
@@ -153,9 +155,13 @@ export async function createTinV1OwnerSeedEnvelope(params: {
   }
 }
 
-function buildOwnerSeedAccessMessage(envelope: TinMasterSeedEnvelope, displayName: string): Uint8Array {
+function buildOwnerSeedAccessMessage(
+  envelope: TinMasterSeedEnvelope,
+  ownerPublicKey: string,
+  displayName: string,
+): Uint8Array {
   return buildTinV1OwnerEncryptionMessage({
-    ownerPublicKey: new PublicKey(envelope.ownerPublicKey).toBase58(),
+    ownerPublicKey: new PublicKey(ownerPublicKey).toBase58(),
     displayName,
     resourceCommitment: envelope.resourceCommitment,
   });
@@ -430,7 +436,7 @@ export async function rewrapTinPrivateIdentityForWalletOwner(params: {
     });
     const deviceKeyEnvelope = await params.thresholdProvider.releaseKey({
       tin: envelope.tin,
-      ownerPublicKey: envelope.ownerPublicKey,
+      ownerPublicKey: params.ownerWallet.publicKey,
       routeVersion: envelope.routeVersion,
       pruConfigurationHash: envelope.pruConfigurationHash,
       deviceSessionBinding: authorization.deviceSessionBinding,
@@ -456,7 +462,7 @@ export async function rewrapTinPrivateIdentityForWalletOwner(params: {
       dataKey,
       context: {
         tin: envelope.tin,
-        ownerPublicKey: envelope.ownerPublicKey,
+        ownerPublicKey: params.ownerWallet.publicKey,
         routeVersion: envelope.routeVersion,
         pruConfigurationHash: envelope.pruConfigurationHash,
       },
@@ -547,7 +553,7 @@ export async function unlockTinPrivateRoute(params: {
     });
     const deviceKeyEnvelope = await params.thresholdProvider.releaseKey({
       tin: envelope.tin,
-      ownerPublicKey: envelope.ownerPublicKey,
+      ownerPublicKey: params.ownerWallet.publicKey,
       routeVersion: envelope.routeVersion,
       pruConfigurationHash: envelope.pruConfigurationHash,
       deviceSessionBinding: authorization.deviceSessionBinding,
@@ -573,7 +579,7 @@ export async function unlockTinPrivateRoute(params: {
       dataKey,
       context: {
         tin: envelope.tin,
-        ownerPublicKey: envelope.ownerPublicKey,
+        ownerPublicKey: params.ownerWallet.publicKey,
         routeVersion: envelope.routeVersion,
         pruConfigurationHash: envelope.pruConfigurationHash,
       },
@@ -639,7 +645,11 @@ export async function withTinOwnerMasterSeed<T>(params: {
   }
   let accessMessage: Uint8Array;
   if (envelope.tin === "tin-v1") {
-    accessMessage = buildOwnerSeedAccessMessage(envelope, params.displayName);
+    accessMessage = buildOwnerSeedAccessMessage(
+      envelope,
+      params.ownerWallet.publicKey,
+      params.displayName,
+    );
     const expectedAccessHash = await sha256Hex(accessMessage);
     if (expectedAccessHash !== envelope.accessControlHash.toLowerCase()) {
       throw new Error("TIN_MASTER_SEED_REAUTHORIZATION_REQUIRED");
@@ -647,7 +657,7 @@ export async function withTinOwnerMasterSeed<T>(params: {
   } else {
     accessMessage = serializeTinMasterSeedWalletAuthorization({
       tin: envelope.tin,
-      ownerPublicKey: envelope.ownerPublicKey,
+      ownerPublicKey: params.ownerWallet.publicKey,
       routeVersion: envelope.routeVersion,
       pruConfigurationHash: envelope.pruConfigurationHash,
       resourceCommitment: envelope.resourceCommitment,
@@ -669,7 +679,7 @@ export async function withTinOwnerMasterSeed<T>(params: {
       dataKey,
       context: {
         tin: envelope.tin,
-        ownerPublicKey: envelope.ownerPublicKey,
+        ownerPublicKey: params.ownerWallet.publicKey,
         routeVersion: envelope.routeVersion,
         pruConfigurationHash: envelope.pruConfigurationHash,
       },
@@ -709,7 +719,7 @@ export async function loadTinPrivateTokenBalances(params: {
   onProgress?: (message: string) => void;
 }) {
   params.onProgress?.(
-    "Unlocking the TIN route with your wallet authorization...",
+    "Unlocking the TIP route associated with this TIN using your wallet authorization...",
   );
   const route = await unlockTinPrivateRoute(params);
   const activePrus = route.prus.filter((pru) => pru.state !== "SWEPT");

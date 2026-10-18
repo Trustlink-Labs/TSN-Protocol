@@ -56,8 +56,9 @@ const INTERNAL_KEYS: Record<WorkKind, Set<string>> = {
     "ownerIntentHash", "ownerIntentMessage", "nonce", "expiry",
     "lookupCommitment", "lookupIssuanceProof", "encryptedIdentityEnvelope",
     "encryptedTinRecovery", "encryptedMasterSeed", "encryptedMetadataHash",
-    "routeVersion", "routeNonce", "tcapRouteVersion",
-    "tcapRelationshipCommitment", "tcapRelationshipReference", "tcapPolicyCommitment",
+    "routeVersion", "routeNonce", "tipRouteVersion",
+    "gpruPublicCommitment", "tipRootCommitment", "policyCommitment",
+    "gpruRouteVersion", "gpruRouteCommitment",
   ]),
 };
 
@@ -191,8 +192,9 @@ export function crankerExecutionPayload(kind: WorkKind, payload: Record<string, 
       ? new Set([
           "intentId", "intentType", "ownerPubkey", "ownerSignature", "ownerIntentHash", "ownerIntentMessage", "ownerSignatureMessageFormat", "expiry",
           "nonce", "lookupCommitment", "encryptedIdentityEnvelope", "encryptedTinRecovery", "encryptedMasterSeed", "encryptedMetadataHash",
-          "routeVersion", "routeNonce", "tcapRouteVersion",
-          "tcapRelationshipCommitment", "tcapRelationshipReference", "tcapPolicyCommitment",
+          "routeVersion", "routeNonce", "tipRouteVersion",
+          "gpruPublicCommitment", "tipRootCommitment", "policyCommitment",
+          "gpruRouteVersion", "gpruRouteCommitment",
         ])
       : new Set<string>();
   const filtered = Object.fromEntries(Object.entries(payload).filter(([key]) => allowed.has(key)));
