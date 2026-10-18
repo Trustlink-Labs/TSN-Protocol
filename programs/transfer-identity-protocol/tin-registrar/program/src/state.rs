@@ -92,7 +92,7 @@ impl TinV1OwnerRecoveryAccount {
 }
 
 impl TinV1Account {
-    pub const VERSION: u8 = 2;
+    pub const VERSION: u8 = 1;
     pub const STATUS_ACTIVE: u8 = 1;
 
     pub fn space(identity_len: usize, seed_len: usize) -> usize {

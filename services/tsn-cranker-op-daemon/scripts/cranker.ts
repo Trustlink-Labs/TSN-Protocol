@@ -58,6 +58,7 @@ const NODE_ATTESTATION_FIELDS = [
   "evidenceCommitment", "executionPayloadCommitment", "verificationType", "leaseId", "leaseVersion",
   "nodeId", "keyId", "signedAt",
 ] as const;
+const TIN_V1_REGISTRY_SCHEMA_VERSION = 1;
 
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
@@ -998,10 +999,10 @@ async function processTinOperation(
   const createdAccount = await connection.getAccountInfo(registry, "confirmed");
   if (!createdAccount || !createdAccount.owner.equals(programId))
     throw new Error("CreateTinV1 confirmed but the registry account was not found under the TIN program");
-  if (createdAccount.data.length < 40 || createdAccount.data[0] !== 1 || createdAccount.data[2] !== 1
+  if (createdAccount.data.length < 40 || createdAccount.data[0] !== TIN_V1_REGISTRY_SCHEMA_VERSION || createdAccount.data[2] !== 1
       || !createdAccount.data.subarray(8, 40).equals(lookupCommitment))
-    throw new Error("CreateTinV1 registry account failed the V1 version, status, or lookup commitment check");
-  crankerLog(`TIN registry verified workId=${work.id} registry=${registry.toBase58()} version=1 status=active accountBytes=${createdAccount.data.length}`);
+    throw new Error("CreateTinV1 registry account failed the schema version, status, or lookup commitment check");
+  crankerLog(`TIN registry verified workId=${work.id} registry=${registry.toBase58()} schemaVersion=${TIN_V1_REGISTRY_SCHEMA_VERSION} status=active accountBytes=${createdAccount.data.length}`);
   await report(signer, work, "CONFIRMED", {
     stage: "TIN_V1_REGISTRY_CREATED",
     signature,
