@@ -4,8 +4,6 @@ sidebarTitle: "Introduction"
 description: "TSN is an identity-first, intent-based, privacy-preserving settlement layer for stablecoin and digital asset transfers, built on Solana by TrustLink Labs."
 ---
 
-# Transfer Settlement Network
-
 **Transfer Settlement Network (TSN)** is an identity-first, intent-based, privacy-preserving settlement layer for stablecoin and digital asset transfers, built on Solana by [**TrustLink Labs**](https://trust-link-tsn.mintlify.site/about/trustlink-labs). TSN is TrustLink Labs' implementation of the **Decentralized Settlement Protocol (DESP)**. The Mother Node verifies and reserves work, and the TSN Program enforces Mother DNA commitments and vault reimbursement on-chain. Independent Cranker Nodes pay Solana fees and submit exact authorized transactions. Senders authorize payments against a portable identity, not a raw public key. No operator between the sender and Solana can change what the sender signed.
 
 ## Protocol boundaries
@@ -22,15 +20,22 @@ The current TCAP credit instruction advances opaque tip state using its commitme
 
 The GPRU source contains a one-time ElGamal DNA key derivation primitive, a Node native adapter, and an SDK recovery helper. The deployable GPRU program, on-chain balance proof verification, and atomic GPRU-to-TCAP integration are not deployed.
 
-## Protocol layers
+## Protocol components
 
-| Layer | Responsibility |
-| --- | --- |
-| **TIP** | Transfer Identity Protocol; manages transfer identities and route metadata. |
-| **TIN** | Transfer Identity Number; one 10-digit identity within TIP. |
-| **GPRU** | Guarded Privacy Routing Unit; transaction DNA, one-time ElGamal outputs, and proof-verified confidential state transitions. |
-| **TSN** | Verifies signed work, coordinates settlement, and authorizes immutable execution. |
-| **TCAP** | Transfer Confidential Asset Protocol; governs approved assets, reserves, and liability accounting. |
+<CardGroup cols={2}>
+  <Card title="TIP and TIN" icon="fingerprint" href="/layers/tin">
+    TIP is the Transfer Identity Protocol. It manages transfer identities and route metadata; a TIN is one 10-digit identity within TIP.
+  </Card>
+  <Card title="GPRU" icon="key" href="/layers/gpru">
+    Guarded Privacy Routing Unit source defines transaction DNA and versioned ElGamal key derivation. Its proof-verified balance transition is not part of the deployed flow.
+  </Card>
+  <Card title="TSN" icon="diagram-project" href="/layers/tsn">
+    Verifies signed work, coordinates settlement, and authorizes exact execution through permissioned Cranker Nodes.
+  </Card>
+  <Card title="TCAP" icon="vault" href="/layers/tcap">
+    Transfer Confidential Asset Protocol governs approved assets, reserves, and liability accounting. Confidential debit and exit remain proof-gated.
+  </Card>
+</CardGroup>
 
 ## TIN credit flow
 
@@ -41,6 +46,9 @@ Homomorphic arithmetic is the balance-state objective: credits and debits update
 ## Where to go next
 
 <CardGroup cols={2}>
+  <Card title="Build with the TSN SDK" icon="code" href="/sdk">
+    Start with the SDK overview, quickstart, integration guides, and source-backed API reference.
+  </Card>
   <Card title="How It Works" icon="hand-pointer" href="/how-it-works/how-a-payment-feels">
     Sender, Receiver, Node, Cranker, GPRU, and recipient roles in a TIN credit.
   </Card>
@@ -52,6 +60,9 @@ Homomorphic arithmetic is the balance-state objective: credits and debits update
   </Card>
   <Card title="Run a Cranker" icon="gears" href="/operators/tsn-cranker">
     The operator role for leasing and submitting authorized work.
+  </Card>
+  <Card title="Current Technology" icon="server" href="/about/current-technology">
+    Devnet deployments, source capabilities, and protocol status boundaries.
   </Card>
 </CardGroup>
 

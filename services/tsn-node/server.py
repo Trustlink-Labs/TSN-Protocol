@@ -1075,7 +1075,7 @@ def decode_private_tin_route_material(data: bytes) -> dict[str, Any]:
     gpru_elgamal_public_key = take(32, "GPRU ElGamal public key")
     gpru_elgamal_key_commitment = take(32, "GPRU ElGamal key commitment")
     policy_commitment = take(32, "policy commitment")
-    if version != 2 or status != 1 or any(buffer[offset:]):
+    if version != 1 or status != 1 or any(buffer[offset:]):
         raise ValueError("unsupported private TIN account schema")
     if lookup_commitment == bytes(32) or route_version < 1:
         raise ValueError("private TIN account commitments are incomplete")
@@ -1093,8 +1093,8 @@ def decode_private_tin_route_material(data: bytes) -> dict[str, Any]:
     }
 
 
-async def resolve_tin_display_identity(tin: str) -> Optional[dict[str, Any]]:
-    """Resolve the owner-provided name and owner hash; keep route material in Node."""
+async def resolve_tin_identity_for_verification(tin: str) -> Optional[dict[str, Any]]:
+    """Open the private identity envelope for Node-side work verification."""
     try:
         material = decode_private_tin_route_material(await read_tins_account_data(get_private_tin_pda(tin)) or b"")
         envelope = bytes(material["identityEnvelope"])
@@ -1738,7 +1738,7 @@ async def _verify_payment_authorization_from_signed_message(req: CreateIntentReq
         signed_credentials_json = fields.get("Recipient Verified Credentials")
         if signed_display_name is None or signed_display_name_source is None or signed_credentials_json is None:
             raise HTTPException(400, "Payment authorization must sign the resolved recipient identity")
-        resolved_identity = await resolve_tin_display_identity(recipient_tin)
+        resolved_identity = await resolve_tin_identity_for_verification(recipient_tin)
         if resolved_identity is None:
             raise HTTPException(422, "Recipient TIN identity could not be resolved by Node")
         resolved_display_name = str(resolved_identity.get("displayName") or "").strip() or "(not provided)"
@@ -3333,20 +3333,6 @@ async def get_network_recent_blockhash() -> dict[str, Any]:
         "contextSlot": (result.get("context") or {}).get("slot"),
     }
 
-
-@app.get("/tin-resolution/{tin}")
-async def get_tin_resolution(tin: str = ApiPath(..., min_length=10, max_length=10)) -> dict[str, Any]:
-    if not re.fullmatch(r"\d{10}", tin):
-        raise HTTPException(422, "TIN must contain exactly 10 digits")
-    identity = await resolve_tin_display_identity(tin)
-    if identity is None:
-        raise HTTPException(404, "TIN could not be resolved")
-    display_name = str(identity.get("displayName") or "").strip()
-    return {
-        "tin": tin,
-        **identity,
-        "displayNameSource": "owner-provided" if display_name else "not provided",
-    }
 
 @app.get(
     "/intents",
