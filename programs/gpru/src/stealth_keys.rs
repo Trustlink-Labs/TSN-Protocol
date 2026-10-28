@@ -146,6 +146,27 @@ pub fn derive_node_dna_key_v1(
     })
 }
 
+/// Create a separate ephemeral Diffie-Hellman shared point for encrypting a
+/// GPRU transaction record to the registered scan key. This deliberately uses
+/// fresh randomness and does not expose the shared point in the DNA proof.
+pub fn derive_node_record_shared_point_v1(
+    scan_public_key: &[u8; 32],
+    randomness: &[u8; 64],
+) -> Result<([u8; 32], [u8; 32]), ()> {
+    let scan_point = decode_point(scan_public_key)?;
+    if scan_point == RistrettoPoint::default() {
+        return Err(());
+    }
+    let scalar = Scalar::from_bytes_mod_order_wide(randomness);
+    if scalar == Scalar::zero() {
+        return Err(());
+    }
+    let generator = elgamal_generator();
+    let ephemeral_public_key = (scalar * generator).compress().to_bytes();
+    let shared_point = (scalar * scan_point).compress().to_bytes();
+    Ok((ephemeral_public_key, shared_point))
+}
+
 /// Verify the public derivation proof and recompute the DNA-specific key.
 /// This function is suitable for the GPRU on-chain instruction; it never
 /// requires the Node's ephemeral scalar or the owner's scan secret.

@@ -2690,7 +2690,14 @@ async def _construct_node_owned_tcap_transition(request: CreateIntentRequest, ve
             raise ValueError("TCAP TIN TIP account layout is invalid")
         previous = tip_raw[10:42]
         sequence = int.from_bytes(tip_raw[42:50], "little") + 1
-    nullifier = hashlib.sha256(b"TSN_TCAP_CREDIT_NULLIFIER_V2" + funding.encode()).digest()
+    # The canonical base64 wire carries the exact owner-signed funding bytes.
+    # Bind the authorization to it without a separate spent-funding account;
+    # TCAP receives this commitment as the transition nullifier and advances
+    # it atomically with the TIP predecessor and sequence.
+    funding_commitment = hashlib.sha256(
+        b"TSN_TCAP_CREDIT_NULLIFIER_V2" + funding.encode()
+    ).digest()
+    nullifier = funding_commitment
     dna_key = derive_node_dna_elgamal_key(bytes.fromhex(str(relation["gpruElgamalPublicKey"])))
     dna = bytes(dna_key["dna"])
     ephemeral_public_key = bytes(dna_key["ephemeralPublicKey"])

@@ -1,25 +1,24 @@
 {
   "tsn_receiver_cranker_challenges": {
-    "67de8b3dcd396d8ba6e5a658da0e6b10aeeac611e347f0304ca8c616c57b0855": {
+    "3da8a5855dd5ed3a0f6d3fc76f1d5617bcdec7fd5a47df4042f6bd0a889d9c7c": {
       "publicKey": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9",
-      "nonce": "xAI8lbWjrN6mG7bgGMIV9M7zU680tLvHw4VUVALpw_k",
-      "expiresAt": "2026-10-24T17:36:34.982Z",
-      "used": true,
-      "usedAt": "2026-10-24T17:35:35.340Z"
+      "nonce": "GVkRTXEUuaKSrjcqckDI5Np38rF-4uOrDfSL_eYXbDk",
+      "expiresAt": "2026-10-24T18:03:35.096Z",
+      "used": false
     }
   },
   "tsn_receiver_cranker_rate_limits": {
-    "e7f559d441d90452a608f0cb7641275fc8557fe43b2512d04fef976a06086e97": {
+    "23333d90a0ec1c8ec70a43bdd9d0a9d00fd79be46d672e556336855751683330": {
       "publicKey": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9",
-      "bucket": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9|29881054",
-      "count": 21,
-      "updatedAt": "2026-10-24T17:34:59.642Z"
+      "bucket": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9|29881081",
+      "count": 16,
+      "updatedAt": "2026-10-24T18:01:56.129Z"
     },
-    "29dafe4add49ba7b4abe815f1c97cec16b556b9a49000e87f9e503aef033423d": {
+    "dd69d6d6ffd0c952684e0034ffc9d37a5c1cec31284ed278b9be784be040cafb": {
       "publicKey": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9",
-      "bucket": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9|29881055",
-      "count": 9,
-      "updatedAt": "2026-10-24T17:35:35.372Z"
+      "bucket": "ATo2C5pesfsauFMKqXw2sXHD1v3PXb1wxqrnMLxFLCD9|29881082",
+      "count": 11,
+      "updatedAt": "2026-10-24T18:02:32.586Z"
     }
   },
   "tsn_receiver_work": {
@@ -1746,6 +1745,196 @@
       "verification": null,
       "result": null,
       "authorization": null
+    },
+    "75a49949-4e00-481d-b025-ba5f11c45344": {
+      "id": "75a49949-4e00-481d-b025-ba5f11c45344",
+      "kind": "AUTHORIZED_FUNDING",
+      "status": "CONFIRMED",
+      "stateVersion": 5,
+      "payloadCommitment": "ca0fa6a2d68111c837fcf3a7f1d600ae93ad5c9712c8e926ec1c54e9283f7076",
+      "payload": {
+        "paymentId": "75a49949-4e00-481d-b025-ba5f11c45344",
+        "recipientHash": "742702c0d2490a35fba4f4cd4951a05810b18b96b292bb1882c7461dbcf99c2d",
+        "nodeEncryptedPayload": {
+          "version": 1,
+          "iv": "uyb1g5XpT3TRwhcT",
+          "ciphertext": "CY3AJwdn3PtDAac9Kzkr5pq2rb81Q1NtQQreOvmuzebbDIUYjR9NOw2b3ZdOAuRh0s71hmlZ_YNEGbDgEO13mYizEqOa9Sk5sgSm-4Vo1b2yeukINGxLWx6B0oX3AKiE_32Uh2XD71iOKVB4I6W5lmRmJdXFVZRX1JRTl4S49sGsnT-8ZhlsRg43Dd5EaJ8jo_J_CA1Ra8sRpg478Q0854iAQtb78STwSV7xzK2guvfYjCJM7FMkJhGXudSh52HZ9xoasd2SjKAV42bWDNJNhGR46euAgVfBnuHDl9LV5lmLHeqVUjPGUn_HgbolIGgtbcizhdrt0asJBkzJ2PGoWyPpyy1s6jbTzSTZUeJp5DyZiMt0PM4hFc-uYDhoW4U2Oe_p-DhSxq__LYaSrj-XyMo2nOrO91Jd1R5Vb7-5LVMjO7j7u1X9RQZcpSj_rII4gVdjPiu6AHxL4nbSLahZ1HTdHcmimgMkTN57el6Otp0tUm47lNAyCCQ_dpXWIgmLRSxLOBOfNjRFELizQNvbs2e3VMpHjGYT0SDtlJCwGBJbQ1_17Kovao6I3GPF6vIS8lFykJgLH3c5TNP3toKkYsVaKs29GAquJ_7jfqKK_9BBE5WX25wjdXJkEfJnVCrMQfYYTDzaW9QqeR5uhgdvy5TR10h7MIHUFuxYli6qOEs0XrXNKxonqyY-BH_oA2OCaeUDrvD2tRD5NYHPVypmyrLTiiV6D8oMxAoRhcRQQsXQjdNt6uRXOQUtY39pc0lW9Xo7X2PFay3N6JYEJDQJyiXRd1DWrCkenkORdjmr4LC-N1Ep3iFQeM4DaeqqgzxtXtkNFpGzBrQot839HAxBNXW7HRa1N6NM6vghhL5xFmGofwF-RBBhI5MCkW50l_7ahAM3PKZVUDx6vSC3DagKfJXaFZplJCIoDHbhSMQlhhGQhjBhWEoyre5u5paaiMfycUoMASHV9U2VxUPUkmRtpANmFH-ficSBARd0EMj5dvqnCVGa9nrAV5ZgrGNBtqvrLZE9x_5uCh3oFCPeLveKNCqWLjG2DUaQgV14kytjyw2Sn8Eo3jMyJtesHsOtfxLo-dL2SLc9ZOle11pF_oU0wgiRuHvjq4ei5_vqhjwOyBuBINmmeTdcgICza53gvSEjcqUDdc0FaUrEYTof9kS6BhCyRolFSuJGYtn81qeiBnjN1NwKLFbatcwx7SBEGNrl2tH0b2ps2OlzCm7WP4-gvB-4QKoDpHGdxT4dmlnwUad7NhNJ-TATh4fnKt-aRqfFw1NYkr9CUv2UqDuBzoQFsWVVapQkumfuGXCcBWWloQig3emKNmW0TnuQZ1ZmcmZxVnxdlb-_RLL6ivNVRjtF1cN-6av9DoBBZzIOLyImovV4uBDgSODtxjbUziena6aEIxggVZhqjTHBYy6LNinm3sLAxcFIJV2ixwFurjLsN4G-PU9ztLcU8SX-XeOLcZc_6KjS5lLjnLePvJ13Usiz79By2dm8r-nkonOyrZVAZAbN7G56KMJGoXdx3QF1JVmrUKI1U0Zfs1tDq-cfbiMjkNQ1DC9hedhZHGiFrXwvtWPiFrJEyoZ7fceD0bDigl8fcoPgiDmhRwqQPYuG4lRUgrahhSAa9kFIXkgf1MLhkTgMLP_e5xb4EsEzp9t7b_l3ugnYy1saLY1qjP515laPi7IT23D3GqVe2Fv9jFKxalbFGLCV2WVg7QzLhfzKpafrMjqN-PD8X5reeXWnAw_he_Lz8WGjvAaSjhkUUt03LSYJF735_M0ux-_9rXvNIsbd0fij2gsZj8xuMmmyepY-2jrkkQLMiZ9vwd3e9vDgAYQTLxg6qwJdhCU0SrdSJPwHXgVuNIh59oTO29l-MRI9eBh22BV3WbScIzoKx5uDgDHn8Q9noURahCbO2mrt3kSDvJpdIgvYjBBu4yR0tCEwtllmuwb4nt44abNKW8Ioq2XHOnFdDzKk3k1O8U6sRQYLuMNmXtM5XHad-6SgUmCzi_l70rEUqSlyXoTxtoUPWoAr7lpcNkZ1YtcuzcuUKN1tynGDVsQZrFHHaw0cGqT-PSs2sxiKTVYrmsrni1La9a4LQkH52KO-cZ4eoRscua7FCU6L2pfVKt5INk9AggqUlYGC4JajsRJW1lSVFQFuHdvbtlxuypJD4pFf5xfQCgUxfEsMC6GFLP0NWaNCPMdYQKFi81iivyJmnQs9Bvtcne7rX6j6hzmLaNkUFgajdQPZwEnaYGAwjwEjoRLZt_lx5JZCyzr2euNb00r8bBiqXHjnWJM",
+          "tag": "C604XRUdEA75xByVM8Vadw"
+        }
+      },
+      "receivedAt": "2026-10-24T17:37:51.472Z",
+      "updatedAt": "2026-10-24T17:38:08.580Z",
+      "nodeLease": null,
+      "crankerLease": null,
+      "verification": {
+        "verificationType": "TSN_TCAP_V2_GPRU_CREDIT_INTENT",
+        "nodeAttestation": {
+          "version": 1,
+          "algorithm": "Ed25519",
+          "workId": "75a49949-4e00-481d-b025-ba5f11c45344",
+          "workKind": "AUTHORIZED_FUNDING",
+          "decision": "VERIFIED",
+          "inputPayloadCommitment": "ca0fa6a2d68111c837fcf3a7f1d600ae93ad5c9712c8e926ec1c54e9283f7076",
+          "evidenceCommitment": "b51c20ac04e0368f2cac41b22bef6321f3f7a4c6d07da50e0392625f87fa34a7",
+          "executionPayloadCommitment": "b3021a23174331e919e05a7c608f5bfbff2ebf2d6f7e3c9c194af4fe047d56d4",
+          "verificationType": "TSN_TCAP_V2_GPRU_CREDIT_INTENT",
+          "leaseId": "75a49949-4e00-481d-b025-ba5f11c45344",
+          "leaseVersion": 2,
+          "nodeId": "tsn-node-local",
+          "keyId": "658161d5d4f0990d57f68045",
+          "signedAt": "2026-10-24T17:38:01.003044Z",
+          "signatureBase64": "Iv5Sz3LUrnO3Kpkbyl366D7jux/wrqNF+ELAprp9ljDunTOclI/12RRmdagX1r2fQExmVERzzVONJ+qpbhm6Dg==",
+          "signerPublicKeyBase64": "Nu7wROCYw0PtLolAspC4CG/jeNiSGi41W1AkDiiibVg="
+        },
+        "payloadDelta": {
+          "addedFields": {
+            "tokenMintAddress": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+            "amount": 1
+          },
+          "changedFields": {},
+          "removedFields": [
+            "recipientHash",
+            "nodeEncryptedPayload"
+          ]
+        }
+      },
+      "result": {
+        "signature": "4X2KxwLLTwREDsPamC6KvRVZpPMreJSkmCi883RAqksmYPwiozQUpbH7NkczN1cDeXMpaHWKwoDin4QKoVxapa8C",
+        "stage": "TCAP_DEPOSIT_ASSET_V2_CONFIRMED"
+      },
+      "authorization": null
+    },
+    "settlement-e132444e334e3906fbbe7d89e7648168": {
+      "id": "settlement-e132444e334e3906fbbe7d89e7648168",
+      "kind": "SETTLEMENT",
+      "status": "FAILED",
+      "stateVersion": 6,
+      "payloadCommitment": "72a06691a581b93a57309e7281942e8e36de1a5b3e61b3503ee8a2ed07a6f107",
+      "payload": {
+        "paymentId": "75a49949-4e00-481d-b025-ba5f11c45344",
+        "intentId": "75a49949-4e00-481d-b025-ba5f11c45344",
+        "source": "tsn-receiver-at-ingress"
+      },
+      "receivedAt": "2026-10-24T17:37:51.477Z",
+      "updatedAt": "2026-10-24T17:38:37.740Z",
+      "nodeLease": null,
+      "crankerLease": null,
+      "verification": {
+        "verificationType": "TSN_TCAP_V2_DEPOSIT_CONFIRMED_AND_GPRU_CREDIT_READY",
+        "receiverLease": {
+          "source": "tsn-receiver",
+          "workId": "settlement-e132444e334e3906fbbe7d89e7648168",
+          "kind": "SETTLEMENT",
+          "stateVersion": 2,
+          "payloadCommitment": "72a06691a581b93a57309e7281942e8e36de1a5b3e61b3503ee8a2ed07a6f107"
+        },
+        "nodeAttestation": {
+          "version": 1,
+          "algorithm": "Ed25519",
+          "workId": "settlement-e132444e334e3906fbbe7d89e7648168",
+          "workKind": "SETTLEMENT",
+          "decision": "VERIFIED",
+          "inputPayloadCommitment": "72a06691a581b93a57309e7281942e8e36de1a5b3e61b3503ee8a2ed07a6f107",
+          "evidenceCommitment": "fd1135146168849dc8724a63f51d6b5775d63187233dd0d9d97f09f7682116d4",
+          "executionPayloadCommitment": "0c5a29b2a23472111e5945b0863503294ed8094a083b56aaec16658d94858d0b",
+          "verificationType": "TSN_TCAP_V2_DEPOSIT_CONFIRMED_AND_GPRU_CREDIT_READY",
+          "leaseId": "settlement-e132444e334e3906fbbe7d89e7648168",
+          "leaseVersion": 2,
+          "nodeId": "tsn-node-local",
+          "keyId": "658161d5d4f0990d57f68045",
+          "signedAt": "2026-10-24T17:38:22.610662Z",
+          "signatureBase64": "E+anmXbxWu3YK71APN1MpkiXfhjJHWQnOALNDpBym0Az6v3mKsfZg2p4zsaeqEQIWRNaSm7wEwSQe/4GVIufDg==",
+          "signerPublicKeyBase64": "Nu7wROCYw0PtLolAspC4CG/jeNiSGi41W1AkDiiibVg="
+        },
+        "payloadDelta": {
+          "addedFields": {
+            "tcapCreditTransition": {
+              "tipRootCommitment": "79bb2a1801dd7448c2ee31476cc90398565b5cd537b098932bf18755476e0806",
+              "tip": "Gea9gQo4fg2t1auD8kP2AJU7ANZHvNPF649aJVa6w4Aa",
+              "initializeTip": true,
+              "initialCommitment": "8287296b89aa7b2878b8fa9bea5deab75980fe3683f0daccdb9e8c387890f918",
+              "previousCommitment": "8287296b89aa7b2878b8fa9bea5deab75980fe3683f0daccdb9e8c387890f918",
+              "newCommitment": "6e0693e56889b220d32a58931f1e028ed1f37801dd4244c0f9a7e8f51d46a813",
+              "sequence": "1",
+              "tokenId": 1,
+              "amountBaseUnits": "1000000",
+              "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+              "policyCommitment": "ccc506cc482a836b3dd14becf15b121ee1e0cafdb2cd5b075fb83e1737c4e446",
+              "gpruScopeCommitment": "564fbcf30059326686e4891d570aee76f14efba1c430fd9fbb588668ae35a9e6",
+              "nullifier": "59190ebd53af66d4a653367bca78b2f75d31824c4ca4621046201f9c93b5924d",
+              "validAfterSlot": "514685997",
+              "expiresAtSlot": "514686147",
+              "authorizationDigest": "f681f78f87c6dc21610e1d56d1c07a0e2f603cabcde864fefa3bc7b54bece04a",
+              "tipRegistry": "BRmuREiZsNmzk9PmVLQjHr3KrTa2QWN2Pvnna1PBrPES",
+              "dnaKeyCommitment": "90e4d99af800eda2cea86f22170ce3d361ab799331e82fbc231b81e6f4cc48df",
+              "dna": "e212a06718f199f9e922e1acf7246e9d7265216d08a793a8f6bfaa268d716641",
+              "ephemeralPublicKey": "4a622051a5dd7ca42e8c922d463099aafdce34e1e8b7bb95ab42ab464f1d4577",
+              "oneTimePublicKey": "0a275efc5bb469ad88c74dd6d5c1ed88661268cb40582d94c4a7dd481a3ec971",
+              "derivationProof": {
+                "sharedPoint": "9062d90675dbabe3fb42adaf9a1a46e3f0336299bede840e6108d8559f305261",
+                "generatorCommitment": "1a697a51bdb17061606535b37921294dbba6782ffe3c11cf119c97c7ed77e21c",
+                "scanCommitment": "1ca19d170626e59ddb050336e69174b3945d85747b18d6595ad1c716d62f9c33",
+                "response": "8a0b906b36433b1bef24697798f77d246505950c6d235862c1ec73092fe9ac00"
+              },
+              "assetEntry": "AVWxnem32oZGoSKEfiufcLFb1CZ5V9HbWqD9hNbeST67",
+              "tcapConfig": "52vjTMjqRoCjTLvPKPqKh2QjfVjcskiAkfhHdjw34xwa"
+            },
+            "fundingSignature": "4X2KxwLLTwREDsPamC6KvRVZpPMreJSkmCi883RAqksmYPwiozQUpbH7NkczN1cDeXMpaHWKwoDin4QKoVxapa8C",
+            "fundingSlot": 514685950,
+            "amountBaseUnits": "1000000",
+            "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
+          },
+          "changedFields": {},
+          "removedFields": [
+            "paymentId",
+            "intentId",
+            "source"
+          ]
+        }
+      },
+      "result": {
+        "reason": "Simulation failed. \nMessage: Transaction simulation failed: Error processing Instruction 1: Program failed to complete. \nLogs: \n[\n  \"Program tCaP5R8LZFL1ridm3JCAtiqFzNnZCQYj3Hb7kw42YZF consumed 17380 of 400000 compute units\",\n  \"Program tCaP5R8LZFL1ridm3JCAtiqFzNnZCQYj3Hb7kw42YZF success\",\n  \"Program TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V invoke [1]\",\n  \"Program log: Instruction: TsnRegisterTcapCreditAuthorizationV2\",\n  \"Program 6XsdcNRG7SkSceLduXmEvbrpCqgHfM6oj12Qx49o1hVR invoke [2]\",\n  \"Program log: Instruction: VerifyDnaKeyProofV1\",\n  \"Program 6XsdcNRG7SkSceLduXmEvbrpCqgHfM6oj12Qx49o1hVR consumed 362492 of 362492 compute units\",\n  \"Program 6XsdcNRG7SkSceLduXmEvbrpCqgHfM6oj12Qx49o1hVR failed: exceeded CUs meter at BPF instruction\",\n  \"Program TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V consumed 382620 of 382620 compute units\",\n  \"Program TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V failed: Program failed to complete\"\n]. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."
+      },
+      "authorization": {
+        "kind": "TSN_TCAP_GPRU_CREDIT_AUTHORIZATION_V2",
+        "authorizationVersion": 2,
+        "leaseId": "settlement-e132444e334e3906fbbe7d89e7648168",
+        "leaseVersion": 4,
+        "leaseExpiresAt": "2026-10-24T17:39:23.433Z",
+        "expiresAtTs": 1792863563,
+        "transition": {
+          "tipRootCommitment": "79bb2a1801dd7448c2ee31476cc90398565b5cd537b098932bf18755476e0806",
+          "tip": "Gea9gQo4fg2t1auD8kP2AJU7ANZHvNPF649aJVa6w4Aa",
+          "initializeTip": true,
+          "initialCommitment": "8287296b89aa7b2878b8fa9bea5deab75980fe3683f0daccdb9e8c387890f918",
+          "previousCommitment": "8287296b89aa7b2878b8fa9bea5deab75980fe3683f0daccdb9e8c387890f918",
+          "newCommitment": "6e0693e56889b220d32a58931f1e028ed1f37801dd4244c0f9a7e8f51d46a813",
+          "sequence": "1",
+          "tokenId": 1,
+          "amount": "1000000",
+          "amountBaseUnits": "1000000",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "policyCommitment": "ccc506cc482a836b3dd14becf15b121ee1e0cafdb2cd5b075fb83e1737c4e446",
+          "gpruScopeCommitment": "564fbcf30059326686e4891d570aee76f14efba1c430fd9fbb588668ae35a9e6",
+          "nullifier": "59190ebd53af66d4a653367bca78b2f75d31824c4ca4621046201f9c93b5924d",
+          "validAfterSlot": "514685997",
+          "expiresAtSlot": "514686147",
+          "authorizationDigest": "f681f78f87c6dc21610e1d56d1c07a0e2f603cabcde864fefa3bc7b54bece04a",
+          "tipRegistry": "BRmuREiZsNmzk9PmVLQjHr3KrTa2QWN2Pvnna1PBrPES",
+          "dnaKeyCommitment": "90e4d99af800eda2cea86f22170ce3d361ab799331e82fbc231b81e6f4cc48df",
+          "dna": "e212a06718f199f9e922e1acf7246e9d7265216d08a793a8f6bfaa268d716641",
+          "ephemeralPublicKey": "4a622051a5dd7ca42e8c922d463099aafdce34e1e8b7bb95ab42ab464f1d4577",
+          "oneTimePublicKey": "0a275efc5bb469ad88c74dd6d5c1ed88661268cb40582d94c4a7dd481a3ec971",
+          "derivationProof": {
+            "sharedPoint": "9062d90675dbabe3fb42adaf9a1a46e3f0336299bede840e6108d8559f305261",
+            "generatorCommitment": "1a697a51bdb17061606535b37921294dbba6782ffe3c11cf119c97c7ed77e21c",
+            "scanCommitment": "1ca19d170626e59ddb050336e69174b3945d85747b18d6595ad1c716d62f9c33",
+            "response": "8a0b906b36433b1bef24697798f77d246505950c6d235862c1ec73092fe9ac00"
+          },
+          "assetEntry": "AVWxnem32oZGoSKEfiufcLFb1CZ5V9HbWqD9hNbeST67",
+          "tcapConfig": "52vjTMjqRoCjTLvPKPqKh2QjfVjcskiAkfhHdjw34xwa"
+        }
+      }
     }
   },
   "tsn_receiver_state": {
@@ -1794,6 +1983,10 @@
     "2b313d7426eaae217f077e49029d81fc6db9a530701adad2acd9613531b5ae63": {
       "field": "99e4ef5772ac63792cd42c483a72864b7b09ba65ca49de8d6074d1ef08ce2c02",
       "value": "{\"domain\":\"...d772e0a4\",\"action\":\"Payment Intent\",\"senderPublicKey\":\"Bm9wqMgaYBHZjeULtV7ZhgDjsDaTeeVDbPJ6J2AAzZpa\",\"nonce\":\"b4216a1af27077b917ff3159d0f489ea\",\"usedAt\":\"2026-10-24T17:33:59.510116+00:00\"}"
+    },
+    "c1df6be0d0b91d75c6bc5c063f7eee65cff0d4a45e11b70d3b7cb77e24f04aa1": {
+      "field": "c73417087d75fe8c71c82c046085ced5383360a181e3f1ca5cd355693bf33093",
+      "value": "{\"domain\":\"...d772e0a4\",\"action\":\"Payment Intent\",\"senderPublicKey\":\"Bm9wqMgaYBHZjeULtV7ZhgDjsDaTeeVDbPJ6J2AAzZpa\",\"nonce\":\"cf2173e55c25005dc6e164c6b5fe4bbc\",\"usedAt\":\"2026-10-24T17:37:53.200946+00:00\"}"
     }
   },
   "tsn_receiver_state/4ade1b026459fd5a7b132465cae4784c258f40b2c5a4a44a396450f59eff15e1/items": {

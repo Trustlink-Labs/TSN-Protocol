@@ -26,6 +26,9 @@ pub struct RegisterTcapCreditAuthorizationV2Args {
     pub token_id: u32,
     pub policy_commitment: [u8; 32],
     pub gpru_scope_commitment: [u8; 32],
+    /// Node-derived commitment to the exact signed reserve-funding transaction.
+    /// It is included in the authorization digest and forwarded to TCAP's
+    /// atomic state transition; TSN does not create a per-funding spent PDA.
     pub nullifier: [u8; 32],
     pub dna_key_commitment: [u8; 32],
     pub dna: [u8; 32],
