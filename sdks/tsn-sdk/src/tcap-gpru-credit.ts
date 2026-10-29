@@ -1,4 +1,4 @@
-import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, SYSVAR_INSTRUCTIONS_PUBKEY, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { sha256 } from "@noble/hashes/sha2";
 import { utf8ToBytes } from "@noble/hashes/utils";
@@ -8,7 +8,7 @@ import { buildTcapDepositAssetV2Instruction } from "./tcap-one-time-credit.js";
 export const GPRU_TCAP_PROGRAM_ID = new PublicKey("tCaP5R8LZFL1ridm3JCAtiqFzNnZCQYj3Hb7kw42YZF");
 const TCAP_ID = GPRU_TCAP_PROGRAM_ID;
 const TSN_ID = new PublicKey("TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V");
-const GPRU_ID = new PublicKey("6XsdcNRG7SkSceLduXmEvbrpCqgHfM6oj12Qx49o1hVR");
+export const GPRU_PROGRAM_ID = new PublicKey("6XsdcNRG7SkSceLduXmEvbrpCqgHfM6oj12Qx49o1hVR");
 const digest = (...parts: Uint8Array[]) => Buffer.from(sha256(Buffer.concat(parts.map((part) => Buffer.from(part)))));
 const bytes32 = (value: string, label: string) => {
   if (!/^[0-9a-f]{64}$/i.test(value)) throw new Error(`${label} must be 32-byte hex`);
@@ -69,15 +69,21 @@ export function buildTcapGpruWalletDepositTransaction(fields: {
 
 export { Transaction as TcapGpruTransaction };
 
-/** Exact Mother-authorized TSN CPI wrapper for TCAP credit_tcap_tin_tip_v2. */
+/** Mother-authorized memo credit, fenced by TCAP's shared settlement root. */
 export function buildTsnRegisterTcapCreditAuthorizationV2Instruction(fields: {
-  authority: PublicKey; motherEscrow: PublicKey; tcapProgramId?: PublicKey; tipRootCommitment: string; tip: PublicKey;
+  authority: PublicKey; motherEscrow: PublicKey; tcapProgramId?: PublicKey; commitmentRoot: PublicKey;
   assetEntry: PublicKey; config: PublicKey; authorizationDigest: string; validAfterSlot: string | bigint;
   expiresAtSlot: string | bigint; previousCommitment: string; newCommitment: string;
-  sequence: string | bigint; tokenId: number; policyCommitment: string;
-  gpruScopeCommitment: string; nullifier: string; tipRegistry: PublicKey;
+  sequence: string | bigint; previousTcapRoot: string; tcapRootSequence: string | bigint;
+  tokenId: number; policyCommitment: string;
+  gpruScopeCommitment: string; memoCommitment: string; nullifier: string; tipRegistry: PublicKey;
   dnaKeyCommitment: string; dna: string; ephemeralPublicKey: string; oneTimePublicKey: string;
   derivationProof: { sharedPoint: string; generatorCommitment: string; scanCommitment: string; response: string };
+  amountBaseUnits: string | bigint;
+  previousBalanceCiphertext: string;
+  balanceCiphertext: string;
+  initialBalanceCiphertext: string;
+  initialBalanceProof: { generatorCommitment: string; keyCommitment: string; response: string };
 }) {
   const auth = bytes32(fields.authorizationDigest, "authorizationDigest");
   const [signer] = PublicKey.findProgramAddressSync([Buffer.from("tsn:tcap-authorization:v1"), auth], TSN_ID);
@@ -85,14 +91,32 @@ export function buildTsnRegisterTcapCreditAuthorizationV2Instruction(fields: {
     discriminator("tsn_register_tcap_credit_authorization_v2"), auth,
     u64(fields.validAfterSlot), u64(fields.expiresAtSlot),
     bytes32(fields.previousCommitment, "previousCommitment"), bytes32(fields.newCommitment, "newCommitment"),
-    u64(fields.sequence), u32(fields.tokenId), bytes32(fields.policyCommitment, "policyCommitment"),
-    bytes32(fields.gpruScopeCommitment, "gpruScopeCommitment"), bytes32(fields.nullifier, "nullifier"),
+    u64(fields.sequence), bytes32(fields.previousTcapRoot, "previousTcapRoot"), u64(fields.tcapRootSequence),
+    u32(fields.tokenId), bytes32(fields.policyCommitment, "policyCommitment"),
+    bytes32(fields.gpruScopeCommitment, "gpruScopeCommitment"),
+    bytes32(fields.memoCommitment, "memoCommitment"), bytes32(fields.nullifier, "nullifier"),
     bytes32(fields.dnaKeyCommitment, "dnaKeyCommitment"), bytes32(fields.dna, "dna"),
     bytes32(fields.ephemeralPublicKey, "ephemeralPublicKey"), bytes32(fields.oneTimePublicKey, "oneTimePublicKey"),
     bytes32(fields.derivationProof.sharedPoint, "derivationProof.sharedPoint"),
     bytes32(fields.derivationProof.generatorCommitment, "derivationProof.generatorCommitment"),
     bytes32(fields.derivationProof.scanCommitment, "derivationProof.scanCommitment"),
     bytes32(fields.derivationProof.response, "derivationProof.response"),
+    u64(fields.amountBaseUnits),
+    (() => {
+      if (!/^[0-9a-f]{128}$/i.test(fields.previousBalanceCiphertext)) throw new Error("previousBalanceCiphertext must be 64-byte hex");
+      return Buffer.from(fields.previousBalanceCiphertext, "hex");
+    })(),
+    (() => {
+      if (!/^[0-9a-f]{128}$/i.test(fields.balanceCiphertext)) throw new Error("balanceCiphertext must be 64-byte hex");
+      return Buffer.from(fields.balanceCiphertext, "hex");
+    })(),
+    (() => {
+      if (!/^[0-9a-f]{128}$/i.test(fields.initialBalanceCiphertext)) throw new Error("initialBalanceCiphertext must be 64-byte hex");
+      return Buffer.from(fields.initialBalanceCiphertext, "hex");
+    })(),
+    bytes32(fields.initialBalanceProof.generatorCommitment, "initialBalanceProof.generatorCommitment"),
+    bytes32(fields.initialBalanceProof.keyCommitment, "initialBalanceProof.keyCommitment"),
+    bytes32(fields.initialBalanceProof.response, "initialBalanceProof.response"),
   ]);
   const tcapProgramId = fields.tcapProgramId ?? TCAP_ID;
   const [canonicalConfig] = PublicKey.findProgramAddressSync([Buffer.from("tcap:global-config:v1")], tcapProgramId);
@@ -104,11 +128,11 @@ export function buildTsnRegisterTcapCreditAuthorizationV2Instruction(fields: {
     { pubkey: TSN_ID, isSigner: false, isWritable: false },
     { pubkey: fields.config, isSigner: false, isWritable: false },
     { pubkey: fields.assetEntry, isSigner: false, isWritable: false },
-    { pubkey: new PublicKey(bytes32(fields.tipRootCommitment, "tipRootCommitment")), isSigner: false, isWritable: false },
-    { pubkey: fields.tip, isSigner: false, isWritable: true },
+    { pubkey: fields.commitmentRoot, isSigner: false, isWritable: true },
     { pubkey: signer, isSigner: false, isWritable: false },
-    { pubkey: GPRU_ID, isSigner: false, isWritable: false },
+    { pubkey: GPRU_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: fields.tipRegistry, isSigner: false, isWritable: false },
+    { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ], data });
 }

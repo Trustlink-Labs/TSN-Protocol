@@ -21,7 +21,7 @@ use sha3::{Digest, Sha3_512};
 /// `hash_from_bytes::<Sha3_512>(RISTRETTO_BASEPOINT_COMPRESSED.as_bytes())`.
 /// Recreate that definition here so the SBF verifier does not pull in the
 /// host-oriented zk-token SDK dependency graph.
-fn elgamal_generator() -> RistrettoPoint {
+pub(crate) fn elgamal_generator() -> RistrettoPoint {
     RistrettoPoint::hash_from_bytes::<Sha3_512>(RISTRETTO_BASEPOINT_COMPRESSED.as_bytes())
 }
 

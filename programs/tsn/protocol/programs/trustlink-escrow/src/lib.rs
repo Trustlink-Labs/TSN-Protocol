@@ -127,13 +127,6 @@ pub mod trustlink_escrow {
         tsn::instructions::commit_tin_action_fee(ctx)
     }
 
-    pub fn tsn_register_tcap_credit_authorization(
-        ctx: Context<RegisterTcapCreditAuthorization>,
-        args: RegisterTcapCreditAuthorizationArgs,
-    ) -> Result<()> {
-        tsn::instructions::register_tcap_credit_authorization(ctx, args)
-    }
-
     pub fn tsn_register_tcap_credit_authorization_v2(
         ctx: Context<RegisterTcapCreditAuthorizationV2>,
         args: RegisterTcapCreditAuthorizationV2Args,
@@ -156,13 +149,6 @@ pub mod trustlink_escrow {
         args: RegisterTcapOneTimeTipAuthorizationArgs,
     ) -> Result<()> {
         tsn::instructions::register_tcap_one_time_tip_authorization::handler(ctx, args)
-    }
-
-    pub fn tsn_store_tcap_encrypted_snapshot(
-        ctx: Context<StoreTcapEncryptedSnapshot>,
-        args: StoreTcapEncryptedSnapshotArgs,
-    ) -> Result<()> {
-        tsn::instructions::store_tcap_encrypted_snapshot::handler(ctx, args)
     }
 
     pub fn tsn_register_tcap_one_time_credit(
