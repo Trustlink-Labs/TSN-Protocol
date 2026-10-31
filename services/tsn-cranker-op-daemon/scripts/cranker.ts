@@ -10,6 +10,7 @@ import {
 } from "@dbrix/solana";
 import {
   Connection,
+  ComputeBudgetProgram,
   Ed25519Program,
   Keypair,
   PublicKey,
@@ -60,6 +61,19 @@ type Work = {
   authorization?: Record<string, unknown> | null;
   crankerLease?: { leaseId?: string; expiresAt?: string; version?: number } | null;
 };
+
+type ReceiverSession = {
+  receiverUrl: string;
+  publicKey: string;
+  sessionId: string;
+  token: string;
+  expiresAtMs: number;
+  lastUsedAtMs: number;
+  nextCounter: number;
+};
+
+const RECEIVER_SESSION_IDLE_REAUTH_MS = 5 * 60_000;
+let receiverSession: ReceiverSession | null = null;
 
 const NODE_ATTESTATION_FIELDS = [
   "version", "workId", "workKind", "decision", "inputPayloadCommitment",
@@ -359,48 +373,87 @@ async function receiverRequest<T>(
 ): Promise<T> {
   const bodyText = JSON.stringify(body);
   const publicKey = signer.publicKey.toBase58();
-  let challenge: Response;
-  try {
-    challenge = await fetch(`${receiver()}/api/cranker/auth/challenge`, {
+  const receiverUrl = receiver();
+
+  async function establishSession(): Promise<ReceiverSession> {
+    let challenge: Response;
+    try {
+      challenge = await fetch(`${receiverUrl}/api/cranker/auth/challenge`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ publicKey }),
+      });
+    } catch (error) {
+      throw new Error(`Receiver challenge request failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (!challenge.ok) throw new Error(`Receiver challenge failed (${challenge.status}): ${(await challenge.text()).slice(0, 300)}`);
+    const challengeData = await challenge.json() as { nonce?: string };
+    if (!challengeData.nonce) throw new Error("Receiver challenge is malformed");
+
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const proofMessage = `TSN_RECEIVER_CRANKER_SESSION_V1|${publicKey}|${timestamp}|${challengeData.nonce}`;
+    const proof = Buffer.from(nacl.sign.detached(Buffer.from(proofMessage), signer.secretKey)).toString("base64");
+    const response = await fetch(`${receiverUrl}/api/cranker/auth/session`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ publicKey }),
+      body: JSON.stringify({ publicKey, nonce: challengeData.nonce, timestamp, signature: proof }),
     });
-  } catch (error) {
-    throw new Error(
-      `Receiver challenge request failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    if (!response.ok) throw new Error(`Receiver session request failed (${response.status}): ${(await response.text()).slice(0, 300)}`);
+    const data = await response.json() as { sessionId?: string; token?: string; expiresAt?: string };
+    const expiresAtMs = Date.parse(String(data.expiresAt ?? ""));
+    if (!data.sessionId || !data.token || !Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+      throw new Error("Receiver session response is malformed");
+    }
+    return {
+      receiverUrl,
+      publicKey,
+      sessionId: data.sessionId,
+      token: data.token,
+      expiresAtMs,
+      lastUsedAtMs: Date.now(),
+      nextCounter: 1,
+    };
   }
-  if (!challenge.ok) {
-    const detail = (await challenge.text()).slice(0, 300);
-    throw new Error(
-      `Receiver challenge failed (${challenge.status}): ${detail}`,
-    );
+
+  async function getSession() {
+    const now = Date.now();
+    const cached = receiverSession;
+    if (cached && cached.receiverUrl === receiverUrl && cached.publicKey === publicKey
+      && cached.expiresAtMs - now > 30_000 && now - cached.lastUsedAtMs < RECEIVER_SESSION_IDLE_REAUTH_MS) return cached;
+    receiverSession = await establishSession();
+    return receiverSession;
   }
-  const data = (await challenge.json()) as { nonce?: string };
-  if (!data.nonce) throw new Error("Receiver challenge is malformed");
-  const timestamp = String(Math.floor(Date.now() / 1000));
-  const digest = createHash("sha256").update(bodyText).digest("hex");
-  const message = `TSN_RECEIVER_CRANKER_V1|${method}|${path}|${timestamp}|${data.nonce}|${digest}`;
-  const signature = Buffer.from(
-    nacl.sign.detached(Buffer.from(message), signer.secretKey),
-  ).toString("base64");
-  const response = await fetch(`${receiver()}${path}`, {
-    method,
-    headers: {
-      "content-type": "application/json",
-      "x-cranker-public-key": publicKey,
-      "x-cranker-challenge": data.nonce,
-      "x-cranker-timestamp": timestamp,
-      "x-cranker-signature": signature,
-    },
-    body: bodyText,
-  });
-  if (!response.ok)
-    throw new Error(
-      `Receiver request failed (${response.status}): ${(await response.text()).slice(0, 300)}`,
-    );
-  return (await response.json()) as T;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const session = await getSession();
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const counter = String(session.nextCounter++);
+    const digest = createHash("sha256").update(bodyText).digest("hex");
+    const message = `TSN_RECEIVER_CRANKER_SESSION_REQUEST_V1|${method}|${path}|${timestamp}|${session.sessionId}|${counter}|${digest}`;
+    const signature = Buffer.from(nacl.sign.detached(Buffer.from(message), signer.secretKey)).toString("base64");
+    const response = await fetch(`${receiverUrl}${path}`, {
+      method,
+      headers: {
+        "content-type": "application/json",
+        "x-cranker-public-key": publicKey,
+        "x-cranker-session-id": session.sessionId,
+        "x-cranker-session-token": session.token,
+        "x-cranker-counter": counter,
+        "x-cranker-timestamp": timestamp,
+        "x-cranker-signature": signature,
+      },
+      body: bodyText,
+    });
+    const responseText = await response.text();
+    if (response.status === 401 && /CRANKER_SESSION_(?:INVALID|EXPIRED)/.test(responseText) && attempt === 0) {
+      if (receiverSession === session) receiverSession = null;
+      continue;
+    }
+    session.lastUsedAtMs = Date.now();
+    if (!response.ok) throw new Error(`Receiver request failed (${response.status}): ${responseText.slice(0, 300)}`);
+    return JSON.parse(responseText) as T;
+  }
+  throw new Error("Receiver session could not be renewed");
 }
 
 async function lease(signer: Keypair): Promise<Work | null> {
@@ -524,6 +577,18 @@ async function processSettlement(signer: Keypair, work: Work, rpcUrl: string) {
   const commitmentRoot = new PublicKey(String(transition.commitmentRoot ?? ""));
   const assetEntry = new PublicKey(String(transition.assetEntry ?? ""));
   const tcapConfig = new PublicKey(String(transition.tcapConfig ?? ""));
+  const reserveState = new PublicKey(String(transition.reserveState ?? ""));
+  const tipProgramId = new PublicKey("TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT");
+  const [tipRouteRoot] = PublicKey.findProgramAddressSync([Buffer.from("tip:route-merkle-root:v1")], tipProgramId);
+  const [gpruVerifier] = PublicKey.findProgramAddressSync([Buffer.from("gpru:hidden-head-verifier:v1")], GPRU_PROGRAM_ID);
+  const proof = transition.proof as Record<string, unknown> | undefined;
+  if (!proof || !Array.isArray(proof.publicInputs) || proof.publicInputs.length !== 9) {
+    throw new Error("Node TCAP transition is missing the Groth16 hidden-head proof");
+  }
+  const publicInputs = proof.publicInputs.map((value) => String(value));
+  const successorPortfolioRoot = publicInputs[6]!;
+  const successorBalancePoint = { x: publicInputs[7]!, y: publicInputs[8]! };
+  const actionCommitment = publicInputs[3]!;
   const connection = createSolanaConnection(rpcUrl);
   const instruction = buildTsnRegisterTcapCreditAuthorizationV2Instruction({
     authority,
@@ -534,36 +599,24 @@ async function processSettlement(signer: Keypair, work: Work, rpcUrl: string) {
     authorizationDigest: String(transition.authorizationDigest ?? ""),
     validAfterSlot: String(transition.validAfterSlot ?? ""),
     expiresAtSlot: String(transition.expiresAtSlot ?? ""),
-    previousCommitment: String(transition.previousCommitment ?? ""),
-    newCommitment: String(transition.newCommitment ?? ""),
-    sequence: String(transition.sequence ?? ""),
     previousTcapRoot: String(transition.previousTcapRoot ?? ""),
     tcapRootSequence: String(transition.tcapRootSequence ?? ""),
     tokenId: Number(transition.tokenId),
-    policyCommitment: String(transition.policyCommitment ?? ""),
-    gpruScopeCommitment: String(transition.gpruScopeCommitment ?? ""),
-    memoCommitment: String(transition.memoCommitment ?? ""),
     nullifier: String(transition.nullifier ?? ""),
-    tipRegistry: new PublicKey(String(transition.tipRegistry ?? "")),
-    dnaKeyCommitment: String(transition.dnaKeyCommitment ?? ""),
-    dna: String(transition.dna ?? ""),
-    ephemeralPublicKey: String(transition.ephemeralPublicKey ?? ""),
-    oneTimePublicKey: String(transition.oneTimePublicKey ?? ""),
-    derivationProof: {
-      sharedPoint: String((transition.derivationProof as Record<string, unknown> | undefined)?.sharedPoint ?? ""),
-      generatorCommitment: String((transition.derivationProof as Record<string, unknown> | undefined)?.generatorCommitment ?? ""),
-      scanCommitment: String((transition.derivationProof as Record<string, unknown> | undefined)?.scanCommitment ?? ""),
-      response: String((transition.derivationProof as Record<string, unknown> | undefined)?.response ?? ""),
+    reserveState,
+    tipRouteRoot,
+    gpruVerifier,
+    proof: {
+      publicInputs,
+      proofA: String(proof.proofA ?? ""),
+      proofB: String(proof.proofB ?? ""),
+      proofC: String(proof.proofC ?? ""),
+      actionKind: Number(proof.actionKind),
+      tokenId: Number(proof.tokenId),
+      amount: String(proof.amount ?? ""),
+      authorizationCommitment: String(proof.authorizationCommitment ?? ""),
     },
     amountBaseUnits: String(transition.amountBaseUnits ?? ""),
-    previousBalanceCiphertext: String(transition.previousBalanceCiphertext ?? ""),
-    balanceCiphertext: String(transition.balanceCiphertext ?? ""),
-    initialBalanceCiphertext: String(transition.initialBalanceCiphertext ?? ""),
-    initialBalanceProof: {
-      generatorCommitment: String((transition.initialBalanceProof as Record<string, unknown> | undefined)?.generatorCommitment ?? ""),
-      keyCommitment: String((transition.initialBalanceProof as Record<string, unknown> | undefined)?.keyCommitment ?? ""),
-      response: String((transition.initialBalanceProof as Record<string, unknown> | undefined)?.response ?? ""),
-    },
   });
   const settlementInstructions = [instruction];
   const memoDocument = transition.memoDocument;
@@ -574,10 +627,13 @@ async function processSettlement(signer: Keypair, work: Work, rpcUrl: string) {
     payer: signer.publicKey,
     document: memoDocument as Record<string, unknown>,
     expectedSlots: transition.memoLedgerSlots,
-    expectedPayload: transition.memoPayload,
+    expectedPayload: transition.memoBodyPayload,
+    expectedMemoPayload: transition.memoPayload,
     expectedCommitment: transition.memoCommitment,
+    successorPortfolioRoot,
+    successorBalancePoint,
+    actionCommitment,
   });
-  const memoPayload = String(transition.memoPayload);
   const rootBefore = await connection.getAccountInfo(commitmentRoot, "confirmed");
   const rootDisc = hash("account:TcapCommitmentRootStateV1").subarray(0, 8);
   if (!rootBefore || !rootBefore.owner.equals(TCAP_PROGRAM_ID) || rootBefore.data.length !== 124
@@ -586,30 +642,7 @@ async function processSettlement(signer: Keypair, work: Work, rpcUrl: string) {
       || rootBefore.data.readBigUInt64LE(80) + 1n !== BigInt(String(transition.tcapRootSequence))) {
     throw new Error("TCAP_SHARED_REPLAY_ROOT_CHANGED_BEFORE_SETTLEMENT");
   }
-  const u64le = (value: unknown) => {
-    const bytes = Buffer.alloc(8);
-    bytes.writeBigUInt64LE(BigInt(String(value)));
-    return bytes;
-  };
-  const u32le = (value: unknown) => {
-    const bytes = Buffer.alloc(4);
-    bytes.writeUInt32LE(Number(value));
-    return bytes;
-  };
-  const expectedNextRoot = createHash("sha256").update(Buffer.concat([
-    Buffer.from("TCAP_GPRU_MEMO_SETTLEMENT_ROOT_V1\0", "utf8"),
-    Buffer.from(hex32(transition.previousTcapRoot, "previousTcapRoot")),
-    Buffer.from(hex32(transition.authorizationDigest, "authorizationDigest")),
-    Buffer.from(hex32(transition.nullifier, "nullifier")),
-    Buffer.from(hex32(transition.previousCommitment, "previousCommitment")),
-    Buffer.from(hex32(transition.newCommitment, "newCommitment")),
-    u64le(transition.sequence),
-    u32le(transition.tokenId),
-    Buffer.from(hex32(transition.gpruScopeCommitment, "gpruScopeCommitment")),
-    Buffer.from(hex32(transition.memoCommitment, "memoCommitment")),
-    Buffer.from(hex32(transition.dnaKeyCommitment, "dnaKeyCommitment")),
-    u64le(transition.tcapRootSequence),
-  ])).digest();
+  const expectedNextRoot = Buffer.from(hex32(publicInputs[1]!, "proof.publicInputs[1]"));
   settlementInstructions.push(memoInstruction);
   const signature = await sendMotherNodeCoSignedInstruction(
     rpcUrl,
@@ -628,7 +661,7 @@ async function processSettlement(signer: Keypair, work: Work, rpcUrl: string) {
       || rootData.readBigUInt64LE(80) !== BigInt(String(transition.tcapRootSequence))) {
     throw new Error("Confirmed settlement did not advance TCAP's shared replay root atomically");
   }
-  crankerLog(`TCAP GPRU credit confirmed workId=${work.id} signature=${signature} sequence=${String(transition.sequence)} tokenId=${String(transition.tokenId)}`);
+  crankerLog(`TCAP GPRU credit confirmed workId=${work.id} signature=${signature} rootSequence=${String(transition.tcapRootSequence)} tokenId=${String(transition.tokenId)}`);
   await report(signer, work, "CONFIRMED", {
     signature,
     stage: "TCAP_GPRU_MEMO_CREDIT_V1_CONFIRMED",
@@ -852,7 +885,15 @@ async function submitStagedTinV1Creation(params: {
   const signature = await sendCrankerInstruction(
     connection,
     signer,
-    [ownerProof, finalizeInstruction],
+    [
+      // Route-root initialization and append hashing can exceed the default
+      // transaction compute budget. Request Solana's per-transaction maximum
+      // for this finalization only; the owner proof remains immediately before
+      // the TIP instruction that verifies it.
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+      ownerProof,
+      finalizeInstruction,
+    ],
     "tin-v1.stage.finalize",
   );
   return { signature, stage: stage.toBase58(), stagingSignatures: chunkSigs };

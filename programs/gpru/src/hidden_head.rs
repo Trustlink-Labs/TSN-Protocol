@@ -1,25 +1,28 @@
 //! Groth16 contract for private TIN-head updates.
 //!
-//! A proof has six public inputs, in this fixed order:
+//! A proof has nine public inputs, in this fixed order:
 //! 0. TCAP shared root before the action
 //! 1. TCAP shared root after the action
 //! 2. encrypted Memo commitment
 //! 3. action authorization commitment
 //! 4. one-time nullifier
 //! 5. TIP shared route-membership root
+//! 6. successor root of the hidden per-TIN token portfolio
+//! 7. successor Pedersen balance point X coordinate for the selected token
+//! 8. successor Pedersen balance point Y coordinate for the selected token
 //!
 //! The circuit witness contains the hidden route membership, TIN/asset leaf,
 //! predecessor sequence and memo, sparse-map paths, and the nullifier
 //! non-membership path. The circuit source is in `circuits/hidden_head_v1`.
-//! This verifier does not claim to validate encrypted-balance arithmetic.
+//! The circuit verifies Pedersen commitment arithmetic; it does not treat
+//! those commitments as ciphertexts. Owner-readable amounts are carried as
+//! encrypted action records in the Memo and reconstructed by the owner.
 
 use anchor_lang::prelude::*;
-use ark_bn254::Fr;
-use ark_ff::{BigInteger, PrimeField};
 use groth16_solana::{groth16::{Groth16Verifier, Groth16Verifyingkey}};
-use light_poseidon::{Poseidon, PoseidonHasher};
 use solana_program::{
     hash::{hash, hashv},
+    poseidon::{hashv as poseidon_hashv, Endianness, Parameters},
     sysvar::instructions::{load_current_index_checked, load_instruction_at_checked},
 };
 
@@ -33,7 +36,7 @@ pub const TIP_ROUTE_ROOT_SEED: &[u8] = b"tip:route-merkle-root:v1";
 pub const TIP_PROGRAM_ID: Pubkey = pubkey!("TinseNnU588NkmRZBe4ADJbxqrqQma92678UFP6VuwT");
 pub const TCAP_PROGRAM_ID: Pubkey = pubkey!("tCaP5R8LZFL1ridm3JCAtiqFzNnZCQYj3Hb7kw42YZF");
 pub const TSN_PROGRAM_ID: Pubkey = pubkey!("TSN31jddtsmUg4D5aEdhY31nwB1e53VJJg9X8NoRP8V");
-pub const HIDDEN_HEAD_PUBLIC_INPUTS: usize = 6;
+pub const HIDDEN_HEAD_PUBLIC_INPUTS: usize = 9;
 pub const ACTION_KIND_CREDIT_V1: u8 = 1;
 pub const ACTION_KIND_DEBIT_V1: u8 = 2;
 pub const ACTION_KIND_EXIT_V1: u8 = 3;
@@ -56,7 +59,7 @@ pub struct GpruHiddenHeadVerifierV1 {
     pub beta_g2: [u8; 128],
     pub gamma_g2: [u8; 128],
     pub delta_g2: [u8; 128],
-    /// Groth16 IC points for the constant term plus six public inputs.
+    /// Groth16 IC points for the constant term plus nine public inputs.
     pub ic: [[u8; 64]; HIDDEN_HEAD_PUBLIC_INPUTS + 1],
 }
 
@@ -141,7 +144,7 @@ pub fn verify_transition(
         HiddenHeadError::VerifierUnavailable
     );
     require!(
-        args.public_inputs.iter().all(|input| input.iter().any(|byte| *byte != 0)),
+        args.public_inputs[..6].iter().all(|input| input.iter().any(|byte| *byte != 0)),
         HiddenHeadError::InvalidPublicInputs
     );
     require!(
@@ -154,23 +157,35 @@ pub fn verify_transition(
     );
     require!(args.token_id > 0 && args.amount > 0 && args.authorization_commitment != [0; 32], HiddenHeadError::InvalidPublicInputs);
     require!(is_canonical_bn254_scalar(&args.authorization_commitment), HiddenHeadError::InvalidPublicInputs);
-    let mut action_hasher = Poseidon::<Fr>::new_circom(5)
+    let action_kind = scalar_bytes_from_u64(args.action_kind as u64);
+    let token_id = scalar_bytes_from_u64(args.token_id as u64);
+    let amount = scalar_bytes_from_u64(args.amount);
+    let action_inputs: [&[u8]; 5] = [
+        &action_kind,
+        &token_id,
+        &amount,
+        &args.authorization_commitment,
+        &args.public_inputs[4],
+    ];
+    let expected_action_commitment = poseidon_hashv(
+        Parameters::Bn254X5,
+        Endianness::BigEndian,
+        &action_inputs,
+    )
         .map_err(|_| error!(HiddenHeadError::InvalidPublicInputs))?;
-    let expected_action_commitment = action_hasher
-        .hash(&[
-            Fr::from(args.action_kind as u64),
-            Fr::from(args.token_id as u64),
-            Fr::from(args.amount),
-            Fr::from_be_bytes_mod_order(&args.authorization_commitment),
-            Fr::from_be_bytes_mod_order(&args.public_inputs[4]),
-        ])
-        .map_err(|_| error!(HiddenHeadError::InvalidPublicInputs))?;
-    let expected_action_bytes = field_bytes(expected_action_commitment);
+    let expected_action_bytes = expected_action_commitment.to_bytes();
     require!(args.public_inputs[3] == expected_action_bytes, HiddenHeadError::InvalidPublicInputs);
 
-    let memo_commitment = validate_memo_instruction(&ctx.accounts.instructions)?;
+    let (memo_commitment, memo_binding) = validate_memo_instruction(&ctx.accounts.instructions)?;
     require!(
         args.public_inputs[2] == sha256_to_bn254_scalar(memo_commitment),
+        HiddenHeadError::InvalidPublicInputs
+    );
+    require!(
+        args.public_inputs[3] == memo_binding.3
+            && args.public_inputs[6] == memo_binding.0
+            && args.public_inputs[7] == memo_binding.1
+            && args.public_inputs[8] == memo_binding.2,
         HiddenHeadError::InvalidPublicInputs
     );
 
@@ -178,6 +193,8 @@ pub fn verify_transition(
     let tip_route_root = validate_tip_route_root(&ctx.accounts.tip_route_root)?;
     require!(args.public_inputs[0] == current_tcap_root, HiddenHeadError::InvalidPublicInputs);
     require!(args.public_inputs[5] == tip_route_root, HiddenHeadError::InvalidPublicInputs);
+    require!(is_canonical_bn254_scalar(&args.public_inputs[0]), HiddenHeadError::InvalidPublicInputs);
+    require!(is_canonical_bn254_scalar(&args.public_inputs[1]), HiddenHeadError::InvalidPublicInputs);
     require!(args.public_inputs[1] != current_tcap_root, HiddenHeadError::InvalidPublicInputs);
     require!(args.public_inputs[2] != [0; 32] && args.public_inputs[3] != [0; 32] && args.public_inputs[4] != [0; 32], HiddenHeadError::InvalidPublicInputs);
 
@@ -235,7 +252,7 @@ fn validate_tip_route_root(account: &UncheckedAccount) -> Result<[u8; 32]> {
     Ok(root)
 }
 
-fn validate_memo_instruction(instructions: &UncheckedAccount) -> Result<[u8; 32]> {
+fn validate_memo_instruction(instructions: &UncheckedAccount) -> Result<([u8; 32], ([u8; 32], [u8; 32], [u8; 32], [u8; 32]))> {
     require_keys_eq!(
         instructions.key(),
         solana_program::sysvar::instructions::ID,
@@ -247,7 +264,49 @@ fn validate_memo_instruction(instructions: &UncheckedAccount) -> Result<[u8; 32]
     let memo = load_instruction_at_checked(current.checked_add(1).ok_or(HiddenHeadError::InvalidPublicInputs)?, &instructions.to_account_info())?;
     let memo_program_id = pubkey!("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
     require_keys_eq!(memo.program_id, memo_program_id, HiddenHeadError::InvalidPublicInputs);
-    Ok(hash(&memo.data).to_bytes())
+    const PREFIX: &[u8] = b"TSN_GPRU_HEAD_V1:";
+    let data = memo.data.as_slice();
+    require!(data.len() >= PREFIX.len() + 64 * 4 + 4, HiddenHeadError::InvalidPublicInputs);
+    require!(&data[..PREFIX.len()] == PREFIX, HiddenHeadError::InvalidPublicInputs);
+    let root_start = PREFIX.len();
+    let root_end = root_start + 64;
+    let x_start = root_end + 1;
+    let x_end = x_start + 64;
+    let y_start = x_end + 1;
+    let y_end = y_start + 64;
+    let action_start = y_end + 1;
+    let action_end = action_start + 64;
+    require!(data[root_end] == b':' && data[x_end] == b':' && data[y_end] == b':' && data[action_end] == b':', HiddenHeadError::InvalidPublicInputs);
+    require!(data.len() > action_end + 1, HiddenHeadError::InvalidPublicInputs);
+    require!(data[action_end + 1..].iter().all(|byte| {
+        matches!(*byte, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'-')
+    }), HiddenHeadError::InvalidPublicInputs);
+    let root = decode_hex_32(&data[root_start..root_end]).ok_or(HiddenHeadError::InvalidPublicInputs)?;
+    let x = decode_hex_32(&data[x_start..x_end]).ok_or(HiddenHeadError::InvalidPublicInputs)?;
+    let y = decode_hex_32(&data[y_start..y_end]).ok_or(HiddenHeadError::InvalidPublicInputs)?;
+    let action = decode_hex_32(&data[action_start..action_end]).ok_or(HiddenHeadError::InvalidPublicInputs)?;
+    require!(is_canonical_bn254_scalar(&root) && is_canonical_bn254_scalar(&x) && is_canonical_bn254_scalar(&y) && is_canonical_bn254_scalar(&action), HiddenHeadError::InvalidPublicInputs);
+    Ok((hash(data).to_bytes(), (root, x, y, action)))
+}
+
+fn decode_hex_32(value: &[u8]) -> Option<[u8; 32]> {
+    if value.len() != 64 { return None; }
+    let mut output = [0u8; 32];
+    for index in 0..32 {
+        let high = hex_nibble(value[index * 2])?;
+        let low = hex_nibble(value[index * 2 + 1])?;
+        output[index] = (high << 4) | low;
+    }
+    Some(output)
+}
+
+fn hex_nibble(value: u8) -> Option<u8> {
+    match value {
+        b'0'..=b'9' => Some(value - b'0'),
+        b'a'..=b'f' => Some(value - b'a' + 10),
+        b'A'..=b'F' => Some(value - b'A' + 10),
+        _ => None,
+    }
 }
 
 /// Convert an arbitrary SHA-256 digest into the canonical BN254 scalar
@@ -275,9 +334,8 @@ fn is_canonical_bn254_scalar(value: &[u8; 32]) -> bool {
     value < &BN254_SCALAR_MODULUS_BE
 }
 
-fn field_bytes(value: Fr) -> [u8; 32] {
-    let bytes = value.into_bigint().to_bytes_be();
+fn scalar_bytes_from_u64(value: u64) -> [u8; 32] {
     let mut output = [0u8; 32];
-    output[32 - bytes.len()..].copy_from_slice(&bytes);
+    output[24..].copy_from_slice(&value.to_be_bytes());
     output
 }
