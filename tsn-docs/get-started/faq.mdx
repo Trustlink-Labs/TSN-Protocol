@@ -23,9 +23,9 @@ No. A proof is one check in the settlement process. It does not grant custody or
 
 It is not established as an end-to-end settlement capability. Confidential debit and exit are also not established as available. Check current capability and network status before relying on a feature.
 
-## Does TSN make transfers completely untraceable?
+## How does privacy differ between TIN and wallet transfers?
 
-No. Encryption can hide selected payload contents, but Solana still exposes transaction accounts, signatures, timing, instruction data, and ordering. Public state references may also allow activity to be correlated. TSN does not claim zero linkability.
+Each TIN settlement is designed as a new opaque record with no public pointer back to its funding transaction or private predecessor. The owner retains that lineage; TSNP/TCAP verify the proof without learning the hidden TIN link. Funding can reveal the sender, amount, and protocol destination, but not the recipient TIN; a shared root or nearby timestamp does not establish that link. Direct wallet-to-wallet transfers expose both wallet addresses. A TIN debit to wallet exit exposes the output wallet and amount, but not the source TIN; observers can follow the output wallet's later public activity. The hidden-head proof path is currently fail-closed, so this design is not yet verified end to end as a live runtime guarantee.
 
 ## When is a payment complete?
 

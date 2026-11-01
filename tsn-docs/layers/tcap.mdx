@@ -14,6 +14,6 @@ The design records encrypted action data in transaction Memo instructions so the
 
 ## Current capability boundary
 
-The hidden-head proof path is not yet established as an end-to-end settlement capability. Confidential debit and exit are not established as available. Solana transaction metadata remains public, and repeated public state references may expose correlation. See the [security overview](/security/threat-model) for these limits.
+The hidden-head proof path is not yet established as an end-to-end settlement capability. Confidential debit and exit are not established as available. TCAP's shared commitment root is protocol-wide, not a per-TIN identity reference; its public presence alone does not link settlements to a specific TIN. TIN settlement is designed without a public pointer from funding to the TIN credit or between successive TIN settlements. A wallet exit publishes its destination and amount, but not the source TIN. See the [security overview](/security/threat-model) for the remaining capability status.
 
 The full TCAP instruction contract and integration decisions are maintained in the [repository documentation](https://github.com/bigdreamsweb3/trustlink-pay/tree/main/docs).

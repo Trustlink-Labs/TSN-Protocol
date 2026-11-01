@@ -15,6 +15,6 @@ TSN separates identity, authorization, private-state verification, and asset set
 
 ## Limits
 
-The hidden-head proof path is not established end to end. Confidential debit and exit are not established as available. Public transaction data, including accounts, signatures, timing, and instruction data, may reveal activity or correlation; TSN does not claim zero linkability.
+The hidden-head proof path is not established end to end. Confidential debit and exit are not established as available. Each TIN settlement is designed as a new opaque record without a public pointer from funding or its private predecessor; the owner retains the lineage, while TSNP/TCAP verify the proof without learning the hidden TIN link. Shared roots and timing do not create that pointer. Direct wallet transfers expose their endpoints. A TIN-to-wallet exit exposes the destination and amount, but not the source TIN; later activity from the output wallet remains public. This design is not a verified runtime guarantee until the proof flow is operational and validated.
 
 Do not infer that a capability is active from a helper, diagram, or program instruction alone. Check the target network and verify the transaction and resulting state. Detailed source-level checks and evidence requirements are maintained in the [repository documentation](https://github.com/bigdreamsweb3/trustlink-pay/tree/main/docs).

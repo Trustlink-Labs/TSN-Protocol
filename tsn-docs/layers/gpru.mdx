@@ -16,8 +16,10 @@ This gives GPRU a verification role, not custody of funds. **TCAP governs accept
 
 These are the design goals of the hidden-head proof. The proof flow is not currently established as an end-to-end settlement capability, so applications must not present it as an active guarantee.
 
-## Privacy limits
+## Identity privacy and public-chain visibility
 
-Proofs do not hide all Solana transaction data. Transaction accounts, signatures, timing, instruction data, and ordering remain public. Repeated public state references or exposed action fields can allow observers to correlate activity; TSN does not claim zero linkability.
+For a TIN-to-TIN transfer, each settlement is a new opaque record with no public pointer back to funding or the TIN's prior settlement. A sender can identify their own funding transaction, but its signature does not identify the recipient's settlement record. The owner keeps the private lineage; TSNP/TCAP verify the proof and apply the transition without learning the hidden TIN link. The funding record can show the sender, amount, and protocol destination, but not which TIN received the credit. TIP's route root and TCAP's commitment root are shared protocol accounts, not recipient identifiers. In the black-hole analogy, the chain sees a new event emerge but has no public edge back to the funding event or private state that produced it.
+
+Solana still exposes signatures, account keys, timing, instruction data, and transaction ordering. Those public fields do not identify the hidden TIN recipient or connect a TIN settlement to its private predecessor. A time window or shared global root is not a recipient pointer. Direct wallet-to-wallet transfers expose both wallet endpoints; a TIN debit that exits to a wallet creates a visible output, but the transaction does not disclose which TIN funded it. Observers can follow that output wallet's later public activity.
 
 For the cryptographic contract, circuit artifacts, and integration decisions, see the [GPRU documentation in the repository](https://github.com/bigdreamsweb3/trustlink-pay/tree/main/docs).

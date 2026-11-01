@@ -10,7 +10,7 @@ description: "TIP manages transfer identities; a TIN is the 10-digit identity a 
 
 The TIP registry keeps identity information encrypted. The owner's recovery record is stored in a separate on-chain PDA owned by the TIN Registrar program, not inside the main TIN registry account. That recovery record contains the owner's public key and an encrypted TIN recovery envelope. When the owner reconnects the wallet, the SDK derives the recovery PDA, fetches the envelope, and decrypts it locally.
 
-This separation means the main registry does not need a standalone owner-public-key field to support wallet recovery. Public account addresses and transaction metadata remain visible on Solana, so this design does not make every part of identity activity unlinkable.
+This separation means the main registry does not need a standalone owner-public-key field to support wallet recovery. TIN settlement is designed without a public pointer from wallet funding to the recipient TIN or between successive settlements for that TIN. Public transaction metadata remains visible, but the funding record, shared protocol roots, and timing do not identify the hidden TIN recipient. Direct wallet transfers expose both endpoints. A TIN debit to wallet exit exposes the destination and amount; the output wallet's later public activity can be followed from that wallet, but the exit does not publish the source TIN. The hidden-head proof path remains subject to end-to-end verification.
 
 ## Resolving a recipient
 
