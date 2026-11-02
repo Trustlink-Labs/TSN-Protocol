@@ -18,9 +18,9 @@ TSN separates user authorization, service verification, private-state protection
 
 ## Identity privacy and public-chain visibility
 
-Each TIN settlement is designed as a new opaque record, without a public pointer back to its funding transaction or private predecessor. The owner retains that lineage; TSNP/TCAP verify the proof and apply the transition without learning the hidden TIN link. Funding can reveal its sender, amount, and protocol destination, but not which hidden TIN received the credit. TIP's route root and TCAP's commitment root are shared protocol accounts, not per-TIN identifiers; a time window or shared root does not establish a recipient link. GPRU's hidden-head proof is designed to verify the private route and state without publishing that mapping.
+The native-credit ABI hides the recipient route/head witness and does not encode a plaintext TIN or private predecessor pointer. The owner retains its record lineage. Shared roots, public statement fields, encrypted Memo bytes, accounts, timing and funding wallets remain observable; the design does not establish that metadata or authorized Node/application knowledge cannot correlate payments. Confidential debit/exit remains a separate unverified execution path.
 
-Solana still exposes signatures, account keys, timing, instruction data, and ordering, but those fields do not by themselves reveal the TIN recipient or connect later TIN settlements to their private predecessor. A direct wallet-to-wallet transfer exposes its wallet endpoints. A TIN debit to a public wallet exit exposes the output wallet and amount, but not the source TIN; observers can follow the output wallet's later public activity. The hidden-head prover and witness path is currently fail-closed, so this intended unlinkability is not yet verified end to end as a runtime guarantee.
+The current Node derives the published credit nullifier from the public deposit signature and TCAP program ID using a domain-separated SHA-256 hash reduced to a BN254 scalar. An observer can recompute the funding-to-credit relationship without a secret. This protects the deposit replay context but limits transaction privacy; it does not reveal the hidden TIN witness by itself. Node also handles private routing/witness preparation, so owner-only knowledge is not established.
 
 ## Capability status
 

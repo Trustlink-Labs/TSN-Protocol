@@ -6,6 +6,7 @@ import { decryptPayloadForNode, encryptPayloadForNode } from "./node-envelope";
 import { assertNodeVerificationAttestation } from "./node-verification";
 import { wakeTsnNode } from "./node-wake";
 import { publishCrankerWake } from "./cranker-wake";
+import { snapshotRetryPatch } from "./settlement-retry";
 
 const now = () => new Date().toISOString();
 
@@ -110,6 +111,26 @@ export async function listRecent(limit = 200) {
 export async function getWork(id: string) {
   const snapshot = await workCollection.doc(id).get();
   return snapshot.exists ? snapshot.data() as ReceiverWork : null;
+}
+
+export async function retrySettlementSnapshot(params: { id: string; expectedVersion: number; requestedBy: string }) {
+  const ref = workCollection.doc(params.id);
+  const result = await db.runTransaction(async (transaction: any) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new Error("WORK_NOT_FOUND");
+    const current = snapshot.data() as ReceiverWork;
+    const fundingId = String(current.payload.intentId ?? "");
+    if (!fundingId) throw new Error("SETTLEMENT_FUNDING_REFERENCE_MISMATCH");
+    const funding = await transaction.get(workCollection.doc(fundingId));
+    if (!funding.exists) throw new Error("SETTLEMENT_FUNDING_NOT_CONFIRMED");
+    const patch = snapshotRetryPatch(current, funding.data() as ReceiverWork, params.expectedVersion, params.requestedBy);
+    // Funding, original payload/commitment and rejection history are preserved.
+    // A new Node lease must independently verify chain funding and prove again.
+    transaction.update(ref, patch);
+    return { id: current.id, status: patch.status, stateVersion: patch.stateVersion };
+  });
+  await wakeTsnNode("SETTLEMENT_SNAPSHOT_RETRY");
+  return result;
 }
 
 export async function getWorkForNode(id: string) {

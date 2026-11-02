@@ -25,7 +25,7 @@ It is not established as an end-to-end settlement capability. Confidential debit
 
 ## How does privacy differ between TIN and wallet transfers?
 
-Each TIN settlement is designed as a new opaque record with no public pointer back to its funding transaction or private predecessor. The owner retains that lineage; TSNP/TCAP verify the proof without learning the hidden TIN link. Funding can reveal the sender, amount, and protocol destination, but not the recipient TIN; a shared root or nearby timestamp does not establish that link. Direct wallet-to-wallet transfers expose both wallet addresses. A TIN debit to wallet exit exposes the output wallet and amount, but not the source TIN; observers can follow the output wallet's later public activity. The hidden-head proof path is currently fail-closed, so this design is not yet verified end to end as a live runtime guarantee.
+The current native-credit ABI does not encode a plaintext recipient TIN or private predecessor pointer. It uses shared TIP/TCAP roots, and the owner retains private record lineage. Public action fields, encrypted Memo bytes, accounts, signatures, ordering and funding wallets remain observable. That encoding boundary does not establish that metadata or authorized service/application knowledge cannot correlate payments. The complete hidden-head flow and confidential debit/exit remain separate unverified runtime capabilities; see the [security boundary](/security/threat-model).
 
 ## When is a payment complete?
 

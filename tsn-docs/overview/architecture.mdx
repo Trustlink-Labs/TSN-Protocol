@@ -9,11 +9,15 @@ As hybrid infrastructure for the **Internet of Value**, TSN coordinates identity
 
 ```mermaid
 flowchart TD
-    W[Owner or sender wallet] -->|identity and signed intent| I[TIP: Transfer Identity Protocol]
-    I -->|TIN route context| S[TSNP: on-chain settlement protocol]
-    S -->|private-state proof| G[GPRU: guards state integrity and privacy]
-    G -->|verified transition| C[TCAP: asset and reserve authority]
-    C -->|atomic settlement| L[Solana token and protocol state]
+    W[Application and sender wallet] --> N[Node facade and verification]
+    N --> R[Receiver durable ingress and leases]
+    N --> I[TIP identity and route root]
+    R --> K[Cranker verified execution]
+    K --> S[Mother-authorized TSNP call]
+    S --> C[TCAP asset and reserve checks]
+    C --> G[GPRU proof and Memo verification]
+    G --> C
+    C --> L[Atomic shared-root and liability update on Solana]
 ```
 
 ## Responsibility boundaries
@@ -27,8 +31,8 @@ The proof does not grant custody or payment authority to GPRU. Settlement requir
 
 ## Privacy boundary
 
-For a TIN-to-TIN transfer, the public chain records the settlement but does not identify the sender's or recipient's TIN, name either owner, or publish a pointer from the sender's funding transaction to the recipient's settlement. Each accepted TIN balance change is an independent opaque record: no stable per-TIN public reference links it to earlier or later settlements. The owner retains the private history needed to reconstruct that lineage. TSNP/TCAP verify the proof and apply the valid transition without learning the hidden TIN link. The sender sees their own funding signature and receives the settlement result through TSN; the signature does not reveal which on-chain record belongs to the recipient. TIP's route root and TCAP's commitment root are shared protocol accounts, not per-TIN identifiers, and timing does not create a recipient pointer.
+The current native-credit proof hides the recipient route/head witness and uses shared TIP/TCAP roots instead of a public latest-balance account per TIN. The owner retains the private record lineage. The credit ABI does not encode a plaintext TIN or private predecessor pointer; that structural property does not prove that public metadata, timing, application records or authorized Node knowledge cannot correlate payments.
 
-Solana still exposes transaction accounts, signatures, instruction data, timing, and ordering. Those fields do not reveal the TIN-to-TIN identity mapping. Direct wallet-to-wallet transfers expose their endpoints. A TIN debit to wallet exit exposes the output wallet and amount, but not the source TIN; observers can follow that output wallet's later activity.
+Solana exposes transaction accounts, signatures, action kind, token ID, amount, roots, nullifier, proof points, encrypted Memo bytes, timing and ordering. Funding wallets and direct wallet transfers expose their endpoints. Confidential debit/exit is a separate unverified execution path; an exit's output wallet and amount would remain public.
 
-The hidden-head proof flow is not currently established as an end-to-end settlement capability. This page describes the protocol's intended privacy boundary separately from implementation readiness; it does not claim every layer is deployed or operational. Source-level design and deployment evidence are maintained in the [repository documentation](https://github.com/bigdreamsweb3/trustlink-pay/tree/main/docs).
+The hidden-head proof flow is not currently established as an end-to-end settlement capability. Local proof verification is a separate evidence level from deployed verification and confirmed settlement. See the [complete lifecycle](/developers/payment-intent-lifecycle), [glossary](/glossary/index), and [internal source-backed map](https://github.com/bigdreamsweb3/trustlink-pay/blob/main/docs/laboratory/architecture-map.md) for detailed ownership, source links and dated observations.

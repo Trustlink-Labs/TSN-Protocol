@@ -8,10 +8,11 @@ For a balance-changing action, GPRU is intended to guard the integrity and priva
 
 ```mermaid
 flowchart LR
-    I[Authorized payment intent] --> P[Private user-state proof]
-    P --> G[GPRU verifies the state transition]
-    G --> T[TCAP checks asset, authorization, and liquidity]
-    T --> S[Atomic settlement on Solana]
+    I[Confirmed funding and Node-verified proof] --> A[Mother-authorized TSNP call]
+    A --> T[TCAP checks asset, authorization and liabilities]
+    T --> G[GPRU verifies roots, Memo and proof]
+    G --> T
+    T --> S[Atomic root and liability update]
 ```
 
 The proof does not make GPRU a custodian and does not replace TCAP's settlement checks. Encrypted Memo records can preserve transaction details for the owner to recover, while the on-chain proof and authorization establish whether a state transition is valid.
@@ -20,6 +21,6 @@ The proof does not make GPRU a custodian and does not replace TCAP's settlement 
 
 The hidden-head proof flow is not established as an end-to-end settlement capability. Do not represent confidential credit, debit, or exit as available based only on a source file, SDK helper, or transaction submission. Confirm the applicable transaction on the target cluster.
 
-Each TIN settlement is designed as a new opaque record without a public pointer back to the funding transaction or private predecessor. The owner retains that lineage; TSNP/TCAP verify the proof without learning the hidden TIN link. Funding reveals its sender, amount, and protocol destination, but not the hidden TIN recipient. Shared roots and timing do not establish a recipient link. Wallet-to-wallet transfers expose their endpoints. A TIN debit to wallet exit exposes the output wallet and amount but not the source TIN; later output-wallet activity remains public. The hidden-head proof path remains fail-closed, so this design is not yet verified end to end as a runtime guarantee.
+The native-credit proof hides the TIN route and predecessor witness from the on-chain statement, but its amount, asset, shared roots, nullifier, successor point and encrypted Memo remain public. The published nullifier is derived from public deposit data, so funding and credit can be linked. The Node resolves private routing and constructs the witness, so this boundary does not establish owner-only knowledge or immunity to timing and transaction correlation. Direct wallet transfers expose their endpoints; confidential debit and exit require separate execution evidence. See [the privacy limits](/security/threat-model) for the current encoding and trust assumptions.
 
 The proof statement, Memo format, verifier, and service integration are documented in the [repository's GPRU and TCAP technical notes](https://github.com/bigdreamsweb3/trustlink-pay/tree/main/docs).
