@@ -76,4 +76,6 @@ test("native Cranker leases cover both authorization passes and expire without r
   } finally {
     Date.now = realNow;
     if (previous === undefined) delete process.env.TSN_RECEIVER_LOCAL_FILE; else process.env.TSN_RECEIVER_LOCAL_FILE = previous;
-    await rm(directory, {recursive:t
+    await rm(directory, {recursive:true,force:true});
+  }
+});
