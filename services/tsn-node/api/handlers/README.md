@@ -1,5 +1,17 @@
 # api / handlers
 
+## Owner funding approval
+
+`post_funding_readiness` authenticates the original privately stored wallet message signature and returns `{workId,stateVersion,authorizationPayloadCommitment,expiresAt,depositAccounts,amountBaseUnits}` only for current `FUNDING_READY` authorization. `post_complete_funding` takes those identity/version/commitment fences plus the original authorization signature, exact signed wire and tuple; it checks the deposit locally before forwarding Receiver's atomic internal attachment. Exact signed retries retain the same work, while a changed wire or stale fence is refused. These handlers depend on explicit Receiver transport, signature verification and immutable deposit validators; no service credentials reach browser callers.
+
+Malformed payment/readiness/completion schemas return a generic 422 error without echoing private input. Owner failures return 403, readiness/version conflicts return 409, invalid signed deposits return 422, and an unavailable attachment response returns 503 with an unknown-outcome reconciliation instruction. The staged ASGI/component tests exercise these projections and fences without starting services.
+
+## Funding blockhash issuance
+
+`get_network_recent_blockhash` preserves `{recentBlockhash,lastValidBlockHeight,contextSlot}` from one canonical confirmed RPC response. Before returning it, the handler requires confirmed `isBlockhashValid` and `getBlockHeight` checks at nondecreasing minimum slots and at least 100 remaining blocks. It retries at most three unsigned candidates with four-second per-endpoint reads; failure returns a generic 503 asking the caller to retry before signing. The normal response performs three RPC operations, with up to nine on complete retries, so it adds two reads and their latency to the previous single-read endpoint. This is preparation headroom rather than a guarantee that a later wallet approval or queued submission remains valid.
+
+Only the existing `TSN_LOCAL_FLOW_LOGS` gate enables timestamped candidate/issuance diagnostics. Logs include the decoded-byte hash fingerprint, issuing/checked slots, observed height and remaining margin, with fixed refusal categories; they exclude raw blockhashes, signed wires, provider URLs and underlying RPC errors. The handler depends on the explicit RPC/logging ports and strict [Solana response components](../../networking/solana/README.md). It never changes an already signed transaction; Cranker's separate 20-block send check and exact receipt reconciliation remain required. The deposit RPC family tests cover the response contract, retries, uncertain/malformed reads, context regression and logging gate offline.
+
 Expose the existing typed HTTP operations, worker authentication, and sanitized validation errors. The package entry point exports the canonical implementations; each authored function has its own source file.
 
 Inputs, outputs, dependency types and raised exceptions are recorded per component in [the contract map](../../core/component_contracts.json). Functions retaining no runtime dependencies are directly reusable. A stateful function accepts its narrow `Dependencies` port; production binds that port through `NodeRuntime`.
